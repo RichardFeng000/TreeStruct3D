@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Blanket_seed0/Blanket_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Blanket_seed0/glb/Blanket_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 39901.1,
+  "latency_s": 4.2,
+  "error": null
+}

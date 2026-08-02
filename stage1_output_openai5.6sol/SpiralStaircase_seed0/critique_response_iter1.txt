@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly forms a complete tight helical staircase with attached wedge-shaped treads radiating from a central cylindrical post.
+</assessment>

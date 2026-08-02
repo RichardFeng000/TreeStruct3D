@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/Sofa_seed0/Sofa_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 33,
+  "extent": 7.659999847412109,
+  "n_views_rendered": 4,
+  "latency_s": 5.21,
+  "error": null
+}

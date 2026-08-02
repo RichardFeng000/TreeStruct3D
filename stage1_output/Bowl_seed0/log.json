@@ -1,0 +1,56 @@
+{
+  "instance": "Bowl_seed0",
+  "timestamp": "2026-07-09T15:57:23+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 85.94,
+  "code_chars": 4329,
+  "input_tokens": 6738,
+  "output_tokens": 2997,
+  "thoughts_tokens": null,
+  "total_tokens": 9735,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Missing flat base: renders show a pointed bottom instead of a small circular flat base.\n- Interior color not visible: deep blue-gray interior is obscured by the exterior mesh.\n- Rim too thin: wide rounded rim is not pronounced enough.\n- Wall thickness not modeled: exterior and interior surfaces are coincident, not separated.",
+      "raw_chars": 4951
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Interior is white, not deep blue-gray as specified.\n- Rim is too thin and lacks the described rounded, wide profile.\n- Base is not flat or circular \u2014 it\u2019s conical and blends into the wall.\n- Exterior color is too purple; should be dark (near black) as described.\n- No visible wall thickness \u2014 interior and exterior appear fused.",
+      "raw_chars": 4725
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/RottenTree_seed0/RottenTree_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/RottenTree_seed0/glb/RottenTree_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1137.4,
+  "latency_s": 0.11,
+  "error": null
+}

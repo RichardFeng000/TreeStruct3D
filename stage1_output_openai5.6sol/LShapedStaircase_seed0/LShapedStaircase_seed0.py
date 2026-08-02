@@ -1,0 +1,513 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks != bpy.data.materials:
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+# Materials.
+def make_principled_material(name, color, metallic=0.0, roughness=0.4, alpha=1.0, transmission=0.0):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    mat.diffuse_color = (*color, alpha)
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Metallic"].default_value = metallic
+        bsdf.inputs["Roughness"].default_value = roughness
+        bsdf.inputs["Alpha"].default_value = alpha
+        if "Transmission Weight" in bsdf.inputs:
+            bsdf.inputs["Transmission Weight"].default_value = transmission
+        if "IOR" in bsdf.inputs:
+            bsdf.inputs["IOR"].default_value = 1.48
+    if alpha < 1.0:
+        try:
+            mat.surface_render_method = 'DITHERED'
+        except Exception:
+            pass
+        mat.use_transparency_overlap = False
+    return mat
+
+navy = make_principled_material(
+    "Dark Navy Blue Powder-Coated Steel",
+    (0.012, 0.028, 0.075),
+    metallic=0.68,
+    roughness=0.24
+)
+tread_mat = make_principled_material(
+    "Dark Stair Tread",
+    (0.035, 0.045, 0.060),
+    metallic=0.20,
+    roughness=0.42
+)
+glass_mat = make_principled_material(
+    "Brown-Tinted Glass",
+    (0.24, 0.085, 0.025),
+    metallic=0.0,
+    roughness=0.12,
+    alpha=0.34,
+    transmission=0.58
+)
+
+created = []
+
+def add_box(name, location, dimensions, material, bevel=0.0):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if material:
+        obj.data.materials.append(material)
+    if bevel > 0.0:
+        mod = obj.modifiers.new("Softened Steel Edges", 'BEVEL')
+        mod.width = bevel
+        mod.segments = 2
+        mod.limit_method = 'ANGLE'
+    created.append(obj)
+    return obj
+
+def add_beam(name, start, end, cross_y, cross_z, material, bevel=0.0):
+    start = Vector(start)
+    end = Vector(end)
+    direction = end - start
+    length = direction.length
+    obj = add_box(
+        name,
+        (start + end) * 0.5,
+        (length, cross_y, cross_z),
+        material,
+        bevel
+    )
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((1.0, 0.0, 0.0)).rotation_difference(direction.normalized())
+    return obj
+
+def add_vertical_post(name, x, y, base_z, height=1.04):
+    return add_box(
+        name,
+        (x, y, base_z + height * 0.5),
+        (0.065, 0.065, height),
+        navy,
+        0.012
+    )
+
+def add_glass_prism(name, quad, thickness_vector):
+    tv = Vector(thickness_vector) * 0.5
+    verts = [Vector(p) - tv for p in quad] + [Vector(p) + tv for p in quad]
+    faces = [
+        (0, 1, 2, 3),
+        (4, 7, 6, 5),
+        (0, 4, 5, 1),
+        (1, 5, 6, 2),
+        (2, 6, 7, 3),
+        (3, 7, 4, 0)
+    ]
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(glass_mat)
+    created.append(obj)
+    return obj
+
+# Main dimensions.
+step_count = 10
+run = 0.28
+rise = 0.17
+stair_width = 1.50
+landing_size = 1.70
+landing_top = step_count * rise
+landing_min = -landing_size * 0.5
+landing_max = landing_size * 0.5
+first_start_x = landing_min - step_count * run
+second_start_y = landing_max
+upper_top = landing_top + step_count * rise
+
+# First flight: traveling in +X.
+for i in range(step_count):
+    x0 = first_start_x + i * run
+    x_center = x0 + run * 0.5
+    top_z = (i + 1) * rise
+
+    add_box(
+        f"First Flight Steel Step {i + 1:02d}",
+        (x_center, 0.0, top_z - 0.050),
+        (run + 0.018, stair_width, 0.100),
+        navy,
+        0.018
+    )
+    add_box(
+        f"First Flight Tread Insert {i + 1:02d}",
+        (x_center - 0.010, 0.0, top_z + 0.010),
+        (run * 0.80, stair_width - 0.16, 0.030),
+        tread_mat,
+        0.008
+    )
+    add_box(
+        f"First Flight Nosing {i + 1:02d}",
+        (x0 + run - 0.025, 0.0, top_z + 0.005),
+        (0.050, stair_width + 0.035, 0.070),
+        navy,
+        0.012
+    )
+
+# First-flight diagonal stringers.
+for side in (-1, 1):
+    y = side * (stair_width * 0.5 - 0.10)
+    add_beam(
+        f"First Flight Side Stringer {'L' if side < 0 else 'R'}",
+        (first_start_x + 0.02, y, 0.01),
+        (landing_min + 0.03, y, landing_top - 0.17),
+        0.115,
+        0.170,
+        navy,
+        0.018
+    )
+
+# Landing deck and perimeter framing.
+add_box(
+    "Landing Central Deck",
+    (0.0, 0.0, landing_top - 0.070),
+    (landing_size - 0.16, landing_size - 0.16, 0.105),
+    tread_mat,
+    0.015
+)
+add_box(
+    "Landing West Frame",
+    (landing_min + 0.055, 0.0, landing_top - 0.105),
+    (0.110, landing_size, 0.210),
+    navy,
+    0.018
+)
+add_box(
+    "Landing East Frame",
+    (landing_max - 0.055, 0.0, landing_top - 0.105),
+    (0.110, landing_size, 0.210),
+    navy,
+    0.018
+)
+add_box(
+    "Landing South Frame",
+    (0.0, landing_min + 0.055, landing_top - 0.105),
+    (landing_size - 0.20, 0.110, 0.210),
+    navy,
+    0.018
+)
+add_box(
+    "Landing North Frame",
+    (0.0, landing_max - 0.055, landing_top - 0.105),
+    (landing_size - 0.20, 0.110, 0.210),
+    navy,
+    0.018
+)
+
+# Four structural landing columns.
+for x in (-0.72, 0.72):
+    for y in (-0.72, 0.72):
+        add_box(
+            f"Landing Support Column {x:+.2f} {y:+.2f}",
+            (x, y, (landing_top - 0.20) * 0.5),
+            (0.125, 0.125, landing_top - 0.20),
+            navy,
+            0.018
+        )
+        add_box(
+            f"Landing Column Cap {x:+.2f} {y:+.2f}",
+            (x, y, landing_top - 0.245),
+            (0.235, 0.235, 0.055),
+            navy,
+            0.012
+        )
+
+# Second flight: traveling in +Y.
+for i in range(step_count):
+    y0 = second_start_y + i * run
+    y_center = y0 + run * 0.5
+    top_z = landing_top + (i + 1) * rise
+
+    add_box(
+        f"Second Flight Steel Step {i + 1:02d}",
+        (0.0, y_center, top_z - 0.050),
+        (stair_width, run + 0.018, 0.100),
+        navy,
+        0.018
+    )
+    add_box(
+        f"Second Flight Tread Insert {i + 1:02d}",
+        (0.0, y_center - 0.010, top_z + 0.010),
+        (stair_width - 0.16, run * 0.80, 0.030),
+        tread_mat,
+        0.008
+    )
+    add_box(
+        f"Second Flight Nosing {i + 1:02d}",
+        (0.0, y0 + run - 0.025, top_z + 0.005),
+        (stair_width + 0.035, 0.050, 0.070),
+        navy,
+        0.012
+    )
+
+# Second-flight diagonal stringers.
+for side in (-1, 1):
+    x = side * (stair_width * 0.5 - 0.10)
+    add_beam(
+        f"Second Flight Side Stringer {'L' if side < 0 else 'R'}",
+        (x, second_start_y + 0.02, landing_top - 0.16),
+        (x, second_start_y + step_count * run - 0.03, upper_top - 0.17),
+        0.115,
+        0.170,
+        navy,
+        0.018
+    )
+
+# Small upper termination frame beneath the last tread.
+upper_y = second_start_y + step_count * run
+add_box(
+    "Upper Termination Cross Frame",
+    (0.0, upper_y - 0.055, upper_top - 0.155),
+    (stair_width + 0.08, 0.110, 0.250),
+    navy,
+    0.018
+)
+
+# Flight railing construction.
+panel_bottom_offset = 0.17
+panel_top_offset = 0.91
+rail_top_offset = 1.00
+post_height = 1.05
+side_offset = stair_width * 0.5 + 0.035
+
+def first_rail_z(k):
+    return rise + (landing_top - rise) * (k / step_count)
+
+def second_rail_z(k):
+    return landing_top + rise * k
+
+# First-flight railings, both exposed sides.
+for side in (-1, 1):
+    y = side * side_offset
+    for k in range(0, step_count + 1, 2):
+        x = first_start_x + k * run
+        base = first_rail_z(k) - 0.04
+        add_vertical_post(
+            f"First Rail Post {side:+d} {k:02d}",
+            x, y, base, post_height
+        )
+
+    for segment, k in enumerate(range(0, step_count, 2)):
+        k2 = min(k + 2, step_count)
+        x1 = first_start_x + k * run + 0.045
+        x2 = first_start_x + k2 * run - 0.045
+        z1 = first_rail_z(k)
+        z2 = first_rail_z(k2)
+        quad = [
+            (x1, y, z1 + panel_bottom_offset),
+            (x2, y, z2 + panel_bottom_offset),
+            (x2, y, z2 + panel_top_offset),
+            (x1, y, z1 + panel_top_offset)
+        ]
+        add_glass_prism(
+            f"First Flight Brown Glass {side:+d} {segment + 1:02d}",
+            quad,
+            (0.0, 0.026, 0.0)
+        )
+
+    add_beam(
+        f"First Flight Top Handrail {side:+d}",
+        (first_start_x, y, first_rail_z(0) + rail_top_offset),
+        (landing_min, y, landing_top + rail_top_offset),
+        0.080,
+        0.080,
+        navy,
+        0.018
+    )
+    add_beam(
+        f"First Flight Lower Glass Rail {side:+d}",
+        (first_start_x, y, first_rail_z(0) + 0.135),
+        (landing_min, y, landing_top + 0.135),
+        0.052,
+        0.052,
+        navy,
+        0.012
+    )
+
+# Second-flight railings, both exposed sides.
+for side in (-1, 1):
+    x = side * side_offset
+    for k in range(0, step_count + 1, 2):
+        y = second_start_y + k * run
+        base = second_rail_z(k) - 0.04
+        add_vertical_post(
+            f"Second Rail Post {side:+d} {k:02d}",
+            x, y, base, post_height
+        )
+
+    for segment, k in enumerate(range(0, step_count, 2)):
+        k2 = min(k + 2, step_count)
+        y1 = second_start_y + k * run + 0.045
+        y2 = second_start_y + k2 * run - 0.045
+        z1 = second_rail_z(k)
+        z2 = second_rail_z(k2)
+        quad = [
+            (x, y1, z1 + panel_bottom_offset),
+            (x, y2, z2 + panel_bottom_offset),
+            (x, y2, z2 + panel_top_offset),
+            (x, y1, z1 + panel_top_offset)
+        ]
+        add_glass_prism(
+            f"Second Flight Brown Glass {side:+d} {segment + 1:02d}",
+            quad,
+            (0.026, 0.0, 0.0)
+        )
+
+    add_beam(
+        f"Second Flight Top Handrail {side:+d}",
+        (x, second_start_y, landing_top + rail_top_offset),
+        (x, upper_y, upper_top + rail_top_offset),
+        0.080,
+        0.080,
+        navy,
+        0.018
+    )
+    add_beam(
+        f"Second Flight Lower Glass Rail {side:+d}",
+        (x, second_start_y, landing_top + 0.135),
+        (x, upper_y, upper_top + 0.135),
+        0.052,
+        0.052,
+        navy,
+        0.012
+    )
+
+# Landing railing on the south open edge.
+landing_rail_y = landing_min - 0.035
+south_points = (landing_min, 0.0, landing_max)
+for idx, x in enumerate(south_points):
+    add_vertical_post(
+        f"Landing South Post {idx + 1}",
+        x, landing_rail_y, landing_top - 0.04, post_height
+    )
+
+for idx in range(2):
+    x1 = south_points[idx] + 0.045
+    x2 = south_points[idx + 1] - 0.045
+    quad = [
+        (x1, landing_rail_y, landing_top + panel_bottom_offset),
+        (x2, landing_rail_y, landing_top + panel_bottom_offset),
+        (x2, landing_rail_y, landing_top + panel_top_offset),
+        (x1, landing_rail_y, landing_top + panel_top_offset)
+    ]
+    add_glass_prism(
+        f"Landing South Brown Glass {idx + 1}",
+        quad,
+        (0.0, 0.026, 0.0)
+    )
+
+add_beam(
+    "Landing South Top Handrail",
+    (landing_min, landing_rail_y, landing_top + rail_top_offset),
+    (landing_max, landing_rail_y, landing_top + rail_top_offset),
+    0.080, 0.080, navy, 0.018
+)
+add_beam(
+    "Landing South Lower Glass Rail",
+    (landing_min, landing_rail_y, landing_top + 0.135),
+    (landing_max, landing_rail_y, landing_top + 0.135),
+    0.052, 0.052, navy, 0.012
+)
+
+# Landing railing on the east open edge.
+landing_rail_x = landing_max + 0.035
+east_points = (landing_min, 0.0, landing_max)
+for idx, y in enumerate(east_points):
+    add_vertical_post(
+        f"Landing East Post {idx + 1}",
+        landing_rail_x, y, landing_top - 0.04, post_height
+    )
+
+for idx in range(2):
+    y1 = east_points[idx] + 0.045
+    y2 = east_points[idx + 1] - 0.045
+    quad = [
+        (landing_rail_x, y1, landing_top + panel_bottom_offset),
+        (landing_rail_x, y2, landing_top + panel_bottom_offset),
+        (landing_rail_x, y2, landing_top + panel_top_offset),
+        (landing_rail_x, y1, landing_top + panel_top_offset)
+    ]
+    add_glass_prism(
+        f"Landing East Brown Glass {idx + 1}",
+        quad,
+        (0.026, 0.0, 0.0)
+    )
+
+add_beam(
+    "Landing East Top Handrail",
+    (landing_rail_x, landing_min, landing_top + rail_top_offset),
+    (landing_rail_x, landing_max, landing_top + rail_top_offset),
+    0.080, 0.080, navy, 0.018
+)
+add_beam(
+    "Landing East Lower Glass Rail",
+    (landing_rail_x, landing_min, landing_top + 0.135),
+    (landing_rail_x, landing_max, landing_top + 0.135),
+    0.052, 0.052, navy, 0.012
+)
+
+# Add compact base plates to the landing columns.
+for x in (-0.72, 0.72):
+    for y in (-0.72, 0.72):
+        add_box(
+            f"Landing Column Base Plate {x:+.2f} {y:+.2f}",
+            (x, y, 0.025),
+            (0.235, 0.235, 0.050),
+            navy,
+            0.010
+        )
+
+# Center the complete staircase in plan and place its lowest point at Z=0.
+bpy.context.view_layer.update()
+all_geometry = [obj for obj in created if obj.type == 'MESH']
+
+min_corner = Vector((float('inf'), float('inf'), float('inf')))
+max_corner = Vector((-float('inf'), -float('inf'), -float('inf')))
+
+for obj in all_geometry:
+    for corner in obj.bound_box:
+        world_corner = obj.matrix_world @ Vector(corner)
+        min_corner.x = min(min_corner.x, world_corner.x)
+        min_corner.y = min(min_corner.y, world_corner.y)
+        min_corner.z = min(min_corner.z, world_corner.z)
+        max_corner.x = max(max_corner.x, world_corner.x)
+        max_corner.y = max(max_corner.y, world_corner.y)
+        max_corner.z = max(max_corner.z, world_corner.z)
+
+offset = Vector((
+    -(min_corner.x + max_corner.x) * 0.5,
+    -(min_corner.y + max_corner.y) * 0.5,
+    -min_corner.z
+))
+
+for obj in all_geometry:
+    obj.location += offset
+
+# Organize the coherent assembly in a dedicated collection.
+assembly_collection = bpy.data.collections.new("L-Shaped Glass Staircase Assembly")
+bpy.context.scene.collection.children.link(assembly_collection)
+for obj in all_geometry:
+    for collection in list(obj.users_collection):
+        collection.objects.unlink(obj)
+    assembly_collection.objects.link(obj)
+
+# Set a sensible object selection state.
+bpy.ops.object.select_all(action='DESELECT')
+if all_geometry:
+    all_geometry[0].select_set(True)
+    bpy.context.view_layer.objects.active = all_geometry[0]

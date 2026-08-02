@@ -1,0 +1,3 @@
+- Missing geometric detail: The star-shaped polyp clusters and radiating filaments are completely absent or smoothed away in the render; it looks like a lumpy potato rather than coral.
+- No materials: The model is a flat grey, ignoring the sandy beige and pale cream color requirements.
+- Modifier issue: The Subdivision Surface modifier is smoothing out the high-frequency details of the polyps.

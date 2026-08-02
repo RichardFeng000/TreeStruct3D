@@ -1,0 +1,2 @@
+- Floating / disconnected pieces: The slab segments are separate rather than intersecting, resulting in gaps between them instead of a single coherent assembly.
+- Wrong overall shape: It looks like scattered rectangles rather than a continuous irregular cross or L-shape.

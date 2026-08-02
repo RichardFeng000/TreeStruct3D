@@ -1,0 +1,165 @@
+Original text-to-3D task:
+
+A 3D model of a tall narrow storage cabinet rendered from a three-quarter perspective, appearing as a closed rectangular box-like body with smooth flat panels, a dark wood-grain (espresso to walnut) finish, and clean rectangular silhouette without visible doors or open compartments from this angle.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple principled BSDF material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.4
+        bsdf.inputs['Specular IOR Level'].default_value = 0.2
+    return mat
+
+def create_cabinet():
+    """Constructs the tall narrow storage cabinet."""
+    # Dimensions
+    width = 0.6
+    depth = 0.45
+    height = 2.1
+    plinth_height = 0.08
+    plinth_inset = 0.03
+    bevel_res = 3
+    bevel_amount = 0.005
+
+    # Create main body mesh
+    mesh = bpy.data.meshes.new("CabinetBody")
+    obj = bpy.data.objects.new("StorageCabinet", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+    
+    # The cabinet consists of the main volume and a recessed plinth base
+    # Main Volume (The body)
+    bmesh.ops.create_cube(bm, size=1.0)
+    
+    # Scale to dimensions (note: cube size 1 means radius 0.5)
+    # We shift it up so the bottom is at Z=0 relative to plinth logic
+    scale_vec = Vector((width, depth, height))
+    bm.verts[:] = [v.coord * scale_vec for v in bm.verts]
+    
+    # Shift geometry so bottom is at z=plinth_height
+    # Actually easier to build the whole thing then offset later
+    for v in bm.verts:
+        v.co.z += plinth_height / 2
+
+    # Create Plinth (the base)
+    # We'll add a separate cube for the plinth to keep geometry clean
+    bm_plinth = bmesh.new()
+    bmesh.ops.create_cube(bm_plinth, size=1.0)
+    
+    p_width = width - (plinth_inset * 2)
+    p_depth = depth - (plinth_inset * 2)
+    p_height = plinth_height
+    
+    # Scale and shift plinth
+    for v in bm_plinth.verts:
+        v.co.x *= p_width
+        v.co.y *= p_depth
+        v.co.z *= p_height
+        v.co.z -= (p_height / 2) # Align bottom to Z=0
+
+    # Join plinth into the main bmesh
+    bm.from_mesh(bpy.data.meshes.new("temp")) # dummy for merge logic
+    # Simpler: just use bm.from_object or similar, but we are in manual mode
+    # Let's just use a list of verts/faces from the plinth bmesh
+    for v in bm_plinth.verts:
+        bm.verts.new(v.co)
+    
+    # Since adding vertices manually is tedious for faces, let's rethink construction:
+    # Use primitive operators and join them.
+    
+    bm.free()
+    
+    # Resetting to operator-based approach for cleaner assembly of separate parts (Body + Plinth)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2 + plinth_height/2))
+    body = bpy.context.active_object
+    body.scale = (width, depth, height)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, plinth_height/2))
+    plinth = bpy.context.active_object
+    plinth.scale = (p_width, p_depth, p_height)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    # Join plinth and body
+    # Select both
+    body.select_set(True)
+    plinth.select_set(True)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()
+    
+    final_obj = bpy.context.active_object
+    final_obj.name = "StorageCabinet"
+
+    # Add a Bevel Modifier for smooth edges
+    bev = final_obj.modifiers.new(name="Bevel", type='BEVEL')
+    bev.width = bevel_amount
+    bev.segments = bevel_res
+    bev.limit_method = 'ANGLE'
+    bev.angle_limit = 0.785398 # 45 degrees
+
+    # Apply smooth shading to the faces but keep edges sharp (via bevel)
+    bpy.ops.object.shade_smooth()
+    
+    # Set Auto Smooth for sharp corners if needed (Blender 4.1+ uses modifier or attribute)
+    # In Blender 5.0, we use the 'Smooth by Angle' modifier or just trust Bevel + Shade Smooth
+    sm_angle = final_obj.modifiers.new(name="SmoothAngle", type='SMOOTH_BY_ANGLE')
+    sm_angle.angle = 0.785398
+
+    # Material: Dark Espresso/Walnut
+    dark_wood_color = (0.12, 0.08, 0.05, 1.0) # Very dark brown
+    mat = create_material("EspressoWood", dark_wood_color)
+    final_obj.data.materials.append(mat)
+
+if __name__ == "__main__":
+    clear_scene()
+    create_cabinet()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'BMVert' object has no attribute 'coord'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Cabinet_seed0/Cabinet_seed0.py", line 125, in <module>
+    create_cabinet()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Cabinet_seed0/Cabinet_seed0.py", line 47, in create_cabinet
+    bm.verts[:] = [v.coord * scale_vec for v in bm.verts]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Cabinet_seed0/Cabinet_seed0.py", line 47, in <listcomp>
+    bm.verts[:] = [v.coord * scale_vec for v in bm.verts]
+                   ^^^^^^^
+AttributeError: 'BMVert' object has no attribute 'coord'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

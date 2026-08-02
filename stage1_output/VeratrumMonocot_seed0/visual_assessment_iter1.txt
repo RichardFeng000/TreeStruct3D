@@ -1,0 +1,4 @@
+- Floating pieces: The flower stalk is disconnected from the base, and florets are hovering in space rather than being attached to the stem.
+- Wrong proportions: Leaves are too narrow; they should be broad and prominent.
+- Missing detail: The "ribbed" (plicate) nature of Veratrum leaves is nearly invisible due to scale and low contrast.
+- Misalignment: The stalk does not originate from the center of the basal cluster.

@@ -1,0 +1,139 @@
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.3
+    return mat
+
+def generate_volute_shell():
+    clear_scene()
+
+    # Materials
+    mat_cream = create_material("Cream", (0.95, 0.9, 0.8, 1.0))
+    mat_brown = create_material("Brown", (0.35, 0.2, 0.1, 1.0))
+
+    # Logarithmic spiral parameters for a globular volute shell
+    a = 0.05       # Start size at apex
+    b = 0.2        # Growth rate of the spiral radius
+    h_step = 0.04  # Low spire vertical growth per radian
+    theta_max = 14.0 # Approx 2.2 turns for a globular look
+    segments = 500 
+    ring_res = 32
+
+    bm = bmesh.new()
+    prev_ring = []
+
+    for i in range(segments + 1):
+        theta = (i / segments) * theta_max
+        
+        # Spiral center path: Logarithmic growth
+        r_path = a * math.exp(b * theta)
+        cx = r_path * math.cos(theta)
+        cy = r_path * math.sin(theta)
+        cz = h_step * (theta ** 1.2) # Slightly accelerated Z growth for spire shape
+        center = Vector((cx, cy, cz))
+
+        # Tangent and frame calculation
+        dr = a * b * math.exp(b * theta)
+        tx = dr * math.cos(theta) - r_path * math.sin(theta)
+        ty = dr * math.sin(theta) + r_path * math.cos(theta)
+        tz = h_step * 1.2 * (theta ** 0.2)
+        tangent = Vector((tx, ty, tz)).normalized()
+
+        # Create a coordinate frame perpendicular to the path
+        up_fixed = Vector((0, 0, 1)) if abs(tangent.dot(Vector((0, 0, 1)))) < 0.9 else Vector((0, 1, 0))
+        right = tangent.cross(up_fixed).normalized()
+        actual_up = right.cross(tangent).normalized()
+
+        # Shell radius growth: starts tiny at apex and inflates significantly for the body whorl
+        # This creates a more natural shell profile than a simple tube
+        base_radius = 0.05 * math.exp(0.18 * theta)
+        if theta > theta_max * 0.6:
+            inflation_factor = 1.0 + (theta - theta_max * 0.6) * 0.7
+            base_radius *= inflation_factor
+
+        current_ring = []
+        for j in range(ring_res):
+            phi = (j / ring_res) * 2 * math.pi
+            
+            # Make the cross-section slightly elliptical/globular
+            scale_x = 1.0 + 0.15 * math.cos(phi)
+            scale_y = 1.0 - 0.1 * math.sin(phi)
+            
+            offset = (right * math.cos(phi) * base_radius * scale_x) + \
+                     (actual_up * math.sin(phi) * base_radius * scale_y)
+            
+            v = bm.verts.new(center + offset)
+            current_ring.append(v)
+
+        if prev_ring:
+            for j in range(ring_res):
+                # Face indices for the tube section
+                v1 = prev_ring[j]
+                v2 = prev_ring[(j + 1) % ring_res]
+                v3 = current_ring[(j + 1) % ring_res]
+                v4 = current_ring[j]
+                face = bm.faces.new((v1, v2, v3, v4))
+
+                # RADIATING STRIPES: 
+                # We base the color on phi (longitudinal) and add a wave offset based on theta
+                # This creates stripes that run along the shell length but wiggle
+                stripe_freq = 8.0
+                wave_amp = 0.5
+                wave = wave_amp * math.sin(theta * 1.5 + phi * 2.0)
+                stripe_val = (phi * stripe_freq + wave)
+                if int(stripe_val) % 2 == 0:
+                    face.material_index = 1 # Brown
+                else:
+                    face.material_index = 0 # Cream
+
+        prev_ring = current_ring
+
+    # Cap the apex (start)
+    first_ring = [bm.verts[k] for k in range(ring_res)]
+    try:
+        bm.faces.new(first_ring)
+    except:
+        pass
+
+    # Cap the aperture (end)
+    try:
+        bm.faces.new(prev_ring)
+    except:
+        pass
+
+    mesh = bpy.data.meshes.new("VoluteShell")
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj = bpy.data.objects.new("VoluteShell", mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(mat_cream)
+    obj.data.materials.append(mat_brown)
+
+    # High smoothing for organic surface
+    subsurf = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    subsurf.levels = 2
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth()
+
+    # Positioning for three-quarter perspective view
+    obj.rotation_euler = (math.radians(45), 0, math.radians(30))
+    obj.location = (0, 0, 0)
+
+if __name__ == "__main__":
+    generate_volute_shell()

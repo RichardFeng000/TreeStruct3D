@@ -1,0 +1,35 @@
+{
+  "instance": "Nautilus_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing Textures: The most critical issue; the model is plain grey, but the prompt requires wavy brown-and-cream radiating stripe patterns.\n- Geometry lacks shell-like character: It looks more like a generic coiled tube than a nautilus shell; I will adjust growth and proportions slightly for better realism.\n- UV Mapping missing: Procedural textures won't follow the spiral without explicit UV coordinates assigned during mesh generation."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The model faithfully represents a nautilus shell with the correct planispiral geometry and the requested brown-and-cream wavy texture patterns."
+    }
+  ]
+}

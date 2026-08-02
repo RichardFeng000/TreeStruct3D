@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BlenderRock_seed0/BlenderRock_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BlenderRock_seed0/glb/BlenderRock_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 910.8,
+  "latency_s": 0.81,
+  "error": null
+}

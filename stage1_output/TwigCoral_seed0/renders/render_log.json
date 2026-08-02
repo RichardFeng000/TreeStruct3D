@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/output fix/glm_5_2_code_qwen_vl_visual/TwigCoral_seed0/TwigCoral_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 1.8664939403533936,
+  "n_views_rendered": 4,
+  "latency_s": 6.84,
+  "error": null
+}

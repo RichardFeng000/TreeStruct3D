@@ -1,0 +1,3 @@
+- Missing parts: The gas burner grates are completely missing from the top of the oven because they were placed at Z=0 instead of on the cooktop surface.
+- Wrong proportions/colors: The body color is too light (white) rather than a gray stone-textured metallic finish.
+- Misalignment: Burner components need to be shifted up to the cooktop height (~0.87).

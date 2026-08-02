@@ -1,0 +1,35 @@
+{
+  "instance": "Hardware_seed0",
+  "timestamp": "2026-07-20T04:49:22+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 4.04,
+  "code_chars": 6754,
+  "input_tokens": 4146,
+  "output_tokens": 41,
+  "thoughts_tokens": 48,
+  "total_tokens": 4235,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The circular rosette, two attached angled cylindrical rods, and glossy dark teal metallic finish all match the description well.",
+      "raw_chars": 169
+    }
+  ],
+  "error": null
+}

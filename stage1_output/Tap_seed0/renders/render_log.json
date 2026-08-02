@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Tap_seed0/Tap_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 4,
+  "extent": 0.3720000274479389,
+  "n_views_rendered": 4,
+  "latency_s": 2.02,
+  "error": null
+}

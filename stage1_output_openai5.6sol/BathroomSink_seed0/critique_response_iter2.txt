@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a complete square dark-green marble sink with a deep glossy basin and an attached chrome gooseneck faucet and single lever.
+</assessment>

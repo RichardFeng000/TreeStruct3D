@@ -1,0 +1,3 @@
+- Overall shape is too uniform and "spiky," looking more like a sea urchin than an organic plant; leaves need a more natural, flowing arch.
+- The requested "lighter edges" are barely visible in renders due to low color contrast and narrow width; needs distinct creamy-yellow vs deep-green colors.
+- Leaves lack the characteristic flexible "blade" appearance of a spider plant; they appear too stiff and linearly distributed.

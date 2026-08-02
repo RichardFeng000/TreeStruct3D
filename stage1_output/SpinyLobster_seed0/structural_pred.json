@@ -1,0 +1,197 @@
+{
+  "parts": [
+    {
+      "id": "body",
+      "level": "major"
+    },
+    {
+      "id": "tail",
+      "level": "part"
+    },
+    {
+      "id": "leg_right_1",
+      "level": "part"
+    },
+    {
+      "id": "leg_right_2",
+      "level": "part"
+    },
+    {
+      "id": "leg_right_3",
+      "level": "part"
+    },
+    {
+      "id": "leg_right_4",
+      "level": "part"
+    },
+    {
+      "id": "leg_left_1",
+      "level": "part"
+    },
+    {
+      "id": "leg_left_2",
+      "level": "part"
+    },
+    {
+      "id": "leg_left_3",
+      "level": "part"
+    },
+    {
+      "id": "leg_left_4",
+      "level": "part"
+    },
+    {
+      "id": "front_limb_right",
+      "level": "part"
+    },
+    {
+      "id": "front_limb_left",
+      "level": "part"
+    },
+    {
+      "id": "antenna_right",
+      "level": "detail"
+    },
+    {
+      "id": "antenna_left",
+      "level": "detail"
+    },
+    {
+      "id": "eye_right",
+      "level": "detail"
+    },
+    {
+      "id": "eye_left",
+      "level": "detail"
+    }
+  ],
+  "relations": [
+    {
+      "source": "tail",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_right_1",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_right_2",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_right_3",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_right_4",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_left_1",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_left_2",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_left_3",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_left_4",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "antenna_right",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "antenna_left",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    }
+  ],
+  "asset_id": "SpinyLobster_seed0",
+  "metadata": {
+    "prediction_status": "provisional_code_and_four_view_audit",
+    "source": "stage1_output/SpinyLobster_seed0",
+    "not_automatic_geometry_measurement": true,
+    "missing_relations": [
+      [
+        "eye_left",
+        "ATTACHED_TO",
+        "body"
+      ],
+      [
+        "eye_right",
+        "ATTACHED_TO",
+        "body"
+      ],
+      [
+        "front_limb_left",
+        "ATTACHED_TO",
+        "body"
+      ],
+      [
+        "front_limb_right",
+        "ATTACHED_TO",
+        "body"
+      ]
+    ]
+  }
+}

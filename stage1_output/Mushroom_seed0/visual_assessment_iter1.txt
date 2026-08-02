@@ -1,0 +1,3 @@
+- Critical issue: The mushroom caps are floating high above their stems due to a coordinate mismatch (the stem is centered at origin while the cap is offset by the full height).
+- Proportion issue: The stem texture/organic deformation is too subtle; it needs more visible "character" to match the "textured" description.
+- Alignment: The gills and caps need precise alignment so they meet the top of the stem seamlessly.

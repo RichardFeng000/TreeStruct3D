@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Bathtub_seed0/Bathtub_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Bathtub_seed0/glb/Bathtub_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 308.0,
+  "latency_s": 0.46,
+  "error": null
+}

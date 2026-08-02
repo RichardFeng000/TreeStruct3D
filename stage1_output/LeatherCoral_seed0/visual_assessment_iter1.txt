@@ -1,0 +1,3 @@
+- Missing geometric detail: The surface is too smooth; it lacks the "densely covered granular polyps" and "extremely rough" appearance described.
+- Wrong overall shape: The lobes look like a stylized star rather than broad, fleshy organic folds.
+- Missing coloring: The render is default grey instead of sandy brown with olive-green tones.

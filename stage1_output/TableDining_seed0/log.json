@@ -1,0 +1,43 @@
+{
+  "instance": "TableDining_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 14,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 15,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 21,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The legs are incorrectly oriented; they overlap in the center rather than forming two distinct parallel supports.\n- Proportions are too spindly, making the table look fragile and visually thin in renders.\n- The \"inverted-U\" structure is poorly defined because the top bar is completely hidden by the tabletop.\n- Wood grain planks are barely visible due to lack of contrast/depth."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- The current legs are square posts; \"sled-style\" requires flat, ribbon-like rectangular profiles to be visually accurate.\n- The \"shelf structure\" consists only of two thin bars; it needs a physical surface (a shelf) to properly represent a \"structure\".\n- The wood-grain simulation (planks) is too subtle; increasing the number of planks and adjusting gaps will make the detail more apparent in renders."
+    }
+  ]
+}

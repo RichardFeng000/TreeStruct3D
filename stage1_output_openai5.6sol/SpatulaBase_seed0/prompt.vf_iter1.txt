@@ -1,0 +1,223 @@
+Original text-to-3D task:
+
+A 3D model of a kitchen spatula rendered from a three-quarter perspective, featuring a flat rectangular blade at the bottom, a long straight handle, and a circular hanging hole at the top of the handle, with a uniform dark brown appearance.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+
+# Clear the scene completely.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks is not bpy.data.materials:
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+# Uniform dark brown material.
+material = bpy.data.materials.new("Uniform Dark Brown")
+material.diffuse_color = (0.105, 0.032, 0.012, 1.0)
+material.metallic = 0.0
+material.roughness = 0.46
+
+parts = []
+
+def add_beveled_box(name, location, dimensions, bevel_width, bevel_segments=5):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    bevel = obj.modifiers.new("Soft edge bevel", 'BEVEL')
+    bevel.width = bevel_width
+    bevel.segments = bevel_segments
+    bevel.limit_method = 'ANGLE'
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    obj.data.materials.append(material)
+    parts.append(obj)
+    return obj
+
+# Flat rectangular blade with softly rounded corners and a thin profile.
+blade = add_beveled_box(
+    "Flat Rectangular Blade",
+    (0.0, -3.40, 0.0),
+    (2.80, 3.50, 0.18),
+    0.14,
+    6
+)
+
+# Tapered transition between the broad blade and narrow handle.
+def create_tapered_connector():
+    y0 = -1.78
+    y1 = -1.48
+    lower_half_width = 0.39
+    upper_half_width = 0.58
+    lower_half_thickness = 0.15
+    upper_half_thickness = 0.09
+
+    verts = [
+        (-lower_half_width, y0, -lower_half_thickness),
+        ( lower_half_width, y0, -lower_half_thickness),
+        ( lower_half_width, y0,  lower_half_thickness),
+        (-lower_half_width, y0,  lower_half_thickness),
+        (-upper_half_width, y1, -upper_half_thickness),
+        ( upper_half_width, y1, -upper_half_thickness),
+        ( upper_half_width, y1,  upper_half_thickness),
+        (-upper_half_width, y1,  upper_half_thickness),
+    ]
+    faces = [
+        (0, 1, 2, 3),
+        (4, 7, 6, 5),
+        (0, 4, 5, 1),
+        (3, 2, 6, 7),
+        (0, 3, 7, 4),
+        (1, 5, 6, 2),
+    ]
+
+    mesh = bpy.data.meshes.new("Tapered Connector Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new("Tapered Blade-to-Handle Transition", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bevel = obj.modifiers.new("Connector edge bevel", 'BEVEL')
+    bevel.width = 0.055
+    bevel.segments = 4
+    bevel.limit_method = 'ANGLE'
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    obj.data.materials.append(material)
+    parts.append(obj)
+
+create_tapered_connector()
+
+# Long, straight, slightly thicker handle.
+handle = add_beveled_box(
+    "Long Straight Handle",
+    (0.0, 1.30, 0.0),
+    (0.78, 6.20, 0.32),
+    0.095,
+    6
+)
+
+# Circular terminal with a genuine through-hole for hanging.
+def create_hanging_ring():
+    segment_count = 64
+    outer_radius = 0.49
+    inner_radius = 0.19
+    center_y = 4.68
+    half_depth = 0.17
+
+    verts = []
+    for z in (-half_depth, half_depth):
+        for radius in (outer_radius, inner_radius):
+            for i in range(segment_count):
+                angle = 2.0 * math.pi * i / segment_count
+                verts.append((
+                    radius * math.cos(angle),
+                    center_y + radius * math.sin(angle),
+                    z
+                ))
+
+    outer_bottom = 0
+    inner_bottom = segment_count
+    outer_top = segment_count * 2
+    inner_top = segment_count * 3
+
+    faces = []
+    for i in range(segment_count):
+        j = (i + 1) % segment_count
+
+        # Bottom annular face.
+        faces.append((
+            outer_bottom + j,
+            outer_bottom + i,
+            inner_bottom + i,
+            inner_bottom + j
+        ))
+        # Top annular face.
+        faces.append((
+            outer_top + i,
+            outer_top + j,
+            inner_top + j,
+            inner_top + i
+        ))
+        # Outer cylindrical wall.
+        faces.append((
+            outer_bottom + i,
+            outer_bottom + j,
+            outer_top + j,
+            outer_top + i
+        ))
+        # Inner wall of the hanging hole.
+        faces.append((
+            inner_bottom + j,
+            inner_bottom + i,
+            inner_top + i,
+            inner_top + j
+        ))
+
+    mesh = bpy.data.meshes.new("Circular Hanging Hole Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    ring = bpy.data.objects.new("Circular Hanging Hole End", mesh)
+    bpy.context.collection.objects.link(ring)
+
+    bevel = ring.modifiers.new("Rounded ring edges", 'BEVEL')
+    bevel.width = 0.045
+    bevel.segments = 4
+    bevel.limit_method = 'ANGLE'
+    bpy.context.view_layer.objects.active = ring
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+
+    for polygon in ring.data.polygons:
+        polygon.use_smooth = True
+    ring.data.materials.append(material)
+    parts.append(ring)
+
+create_hanging_ring()
+
+# Join the assembly into one final object while preserving the real opening.
+bpy.ops.object.select_all(action='DESELECT')
+for part in parts:
+    part.select_set(True)
+bpy.context.view_layer.objects.active = blade
+bpy.ops.object.join()
+
+spatula = bpy.context.object
+spatula.name = "Dark_Brown_Kitchen_Spatula"
+
+# Center the final object's origin and bake transforms.
+bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+# Ensure the intended material remains the sole material assignment.
+if len(spatula.data.materials) == 0:
+    spatula.data.materials.append(material)
+while len(spatula.data.materials) > 1:
+    spatula.data.materials.pop(index=len(spatula.data.materials) - 1)
+
+for polygon in spatula.data.polygons:
+    polygon.material_index = 0
+
+spatula.select_set(True)
+bpy.context.view_layer.objects.active = spatula
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

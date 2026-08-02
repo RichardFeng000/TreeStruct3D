@@ -1,0 +1,546 @@
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(24)
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+def material(name, color, roughness=0.85):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+charcoal = material("Charcoal black plumage", (0.055, 0.065, 0.075), 0.94)
+dark_gray = material("Dark gray plumage", (0.12, 0.135, 0.15), 0.94)
+slate = material("Slate gray plumage", (0.25, 0.275, 0.30), 0.95)
+mid_gray = material("Medium gray plumage", (0.42, 0.445, 0.46), 0.96)
+pale_gray = material("Pale gray plumage", (0.72, 0.74, 0.74), 0.97)
+soft_white = material("White feather highlights", (0.94, 0.95, 0.92), 0.92)
+eye_black = material("Glossy black eyes", (0.004, 0.005, 0.006), 0.12)
+eye_glint = material("Eye catchlights", (1.0, 1.0, 1.0), 0.08)
+salmon = material("Salmon pink beak", (0.87, 0.39, 0.31), 0.72)
+beak_shadow = material("Beak seam and nostrils", (0.35, 0.105, 0.075), 0.76)
+orange_red = material("Orange red legs and feet", (0.86, 0.22, 0.075), 0.78)
+claw_brown = material("Dark claw tips", (0.30, 0.075, 0.025), 0.84)
+
+def smooth(obj):
+    if obj.type == 'MESH':
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+
+def ellipsoid(name, location, scale, mat, segments=36, rings=24, rotation=(0.0, 0.0, 0.0)):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    obj.data.materials.append(mat)
+    smooth(obj)
+    return obj
+
+def tube(name, points, radius, mat, resolution=2):
+    curve = bpy.data.curves.new(name + " geometry", 'CURVE')
+    curve.dimensions = '3D'
+    curve.resolution_u = resolution
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 3
+    spline = curve.splines.new('BEZIER')
+    spline.bezier_points.add(len(points) - 1)
+    for point, coordinate in zip(spline.bezier_points, points):
+        point.co = coordinate
+        point.handle_left_type = 'AUTO'
+        point.handle_right_type = 'AUTO'
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(mat)
+    return obj
+
+def cone_between(name, start, end, radius_start, radius_end, mat, vertices=14):
+    start = Vector(start)
+    end = Vector(end)
+    direction = end - start
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius_start,
+        radius2=radius_end,
+        depth=direction.length,
+        location=(start + end) * 0.5
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized())
+    obj.data.materials.append(mat)
+    smooth(obj)
+    return obj
+
+body = ellipsoid(
+    "Plump dark body",
+    (0.0, 0.06, 2.05),
+    (0.91, 0.73, 1.24),
+    dark_gray,
+    48,
+    32
+)
+
+breast = ellipsoid(
+    "Rounded pale breast",
+    (0.0, -0.59, 2.04),
+    (0.70, 0.245, 1.05),
+    pale_gray,
+    44,
+    30
+)
+
+lower_belly = ellipsoid(
+    "Soft lower belly",
+    (0.0, -0.43, 1.48),
+    (0.64, 0.28, 0.52),
+    mid_gray,
+    40,
+    26
+)
+
+neck = ellipsoid(
+    "Pale neck transition",
+    (0.0, -0.23, 3.02),
+    (0.67, 0.54, 0.58),
+    pale_gray,
+    42,
+    28
+)
+
+head = ellipsoid(
+    "Rounded pale head",
+    (0.0, -0.18, 3.48),
+    (0.68, 0.62, 0.64),
+    pale_gray,
+    48,
+    32
+)
+
+crown = ellipsoid(
+    "Gray crown and nape",
+    (0.0, 0.04, 3.75),
+    (0.60, 0.49, 0.32),
+    mid_gray,
+    42,
+    26
+)
+
+def make_wing(name, side):
+    outer_x = side * 0.94
+    inner_x = side * 0.72
+    profile = [
+        (-0.34, 2.95),
+        (-0.48, 2.70),
+        (-0.48, 2.32),
+        (-0.38, 1.88),
+        (-0.22, 1.47),
+        (0.02, 1.22),
+        (0.25, 1.45),
+        (0.37, 1.86),
+        (0.39, 2.30),
+        (0.27, 2.70),
+        (0.04, 2.98)
+    ]
+    verts = []
+    for y, z in profile:
+        verts.append((outer_x, y, z))
+    for y, z in profile:
+        verts.append((inner_x, y, z))
+    count = len(profile)
+    faces = []
+    faces.append(tuple(range(count)))
+    faces.append(tuple(reversed(range(count, count * 2))))
+    for i in range(count):
+        j = (i + 1) % count
+        faces.append((i, j, count + j, count + i))
+    mesh = bpy.data.meshes.new(name + " mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(charcoal)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    smooth(obj)
+    return obj
+
+make_wing("Left attached folded wing", -1)
+make_wing("Right attached folded wing", 1)
+
+feather_materials = [charcoal, dark_gray, slate, mid_gray, pale_gray, soft_white]
+patch_vertices = []
+patch_faces = []
+patch_indices = []
+
+def add_feather(position, normal, down_hint, width, length, thickness, material_index, twist=0.0):
+    normal = Vector(normal).normalized()
+    down = Vector(down_hint)
+    down -= normal * down.dot(normal)
+    if down.length < 0.001:
+        down = Vector((0.0, 0.0, -1.0))
+        down -= normal * down.dot(normal)
+    down.normalize()
+    side = down.cross(normal).normalized()
+
+    if twist != 0.0:
+        c = math.cos(twist)
+        s = math.sin(twist)
+        side, down = side * c + down * s, down * c - side * s
+
+    center = Vector(position)
+    outline = [
+        (-0.20, -0.48),
+        (-0.46, -0.25),
+        (-0.50, 0.04),
+        (-0.34, 0.29),
+        (0.0, 0.56),
+        (0.34, 0.29),
+        (0.50, 0.04),
+        (0.46, -0.25),
+        (0.20, -0.48)
+    ]
+
+    base = len(patch_vertices)
+    for x, y in outline:
+        dome = thickness * (1.0 - min(1.0, abs(x) * 1.3)) * 0.45
+        p = center + side * (x * width) + down * (y * length) + normal * (thickness + dome)
+        patch_vertices.append(tuple(p))
+    for x, y in outline:
+        p = center + side * (x * width) + down * (y * length) - normal * thickness * 0.12
+        patch_vertices.append(tuple(p))
+
+    n = len(outline)
+    patch_faces.append(tuple(base + i for i in range(n)))
+    patch_indices.append(material_index)
+    patch_faces.append(tuple(base + n + i for i in reversed(range(n))))
+    patch_indices.append(material_index)
+
+    for i in range(n):
+        j = (i + 1) % n
+        patch_faces.append((base + i, base + j, base + n + j, base + n + i))
+        patch_indices.append(material_index)
+
+body_center = Vector((0.0, 0.06, 2.05))
+axes = Vector((0.91, 0.73, 1.24))
+
+for ring in range(18):
+    theta = 0.22 + ring * (2.65 / 17.0)
+    count = max(12, int(24 * math.sin(theta)))
+    for j in range(count):
+        phi = 2.0 * math.pi * (j + 0.5 * (ring % 2)) / count
+        local = Vector((
+            axes.x * math.sin(theta) * math.cos(phi),
+            axes.y * math.sin(theta) * math.sin(phi),
+            axes.z * math.cos(theta)
+        ))
+        normal = Vector((
+            local.x / (axes.x * axes.x),
+            local.y / (axes.y * axes.y),
+            local.z / (axes.z * axes.z)
+        )).normalized()
+
+        if abs(normal.x) > 0.68 and -0.3 < normal.y < 0.5:
+            continue
+
+        position = body_center + local + normal * 0.015
+        front = -normal.y
+
+        if front > 0.48:
+            mat_index = random.choices([4, 3, 5], [0.75, 0.20, 0.05])[0]
+        elif normal.y > 0.38:
+            mat_index = random.choices([0, 1, 2], [0.42, 0.43, 0.15])[0]
+        else:
+            mat_index = random.choices([1, 2, 3], [0.45, 0.38, 0.17])[0]
+
+        length = random.uniform(0.14, 0.19)
+        width = length * random.uniform(0.62, 0.76)
+        add_feather(
+            position,
+            normal,
+            (0.0, 0.0, -1.0),
+            width,
+            length,
+            0.009,
+            mat_index,
+            random.uniform(-0.08, 0.08)
+        )
+
+head_center = Vector((0.0, -0.18, 3.48))
+head_axes = Vector((0.68, 0.62, 0.64))
+
+for ring in range(11):
+    theta = 0.20 + ring * (2.56 / 10.0)
+    count = max(11, int(21 * math.sin(theta)))
+    for j in range(count):
+        phi = 2.0 * math.pi * (j + 0.45 * (ring % 2)) / count
+        local = Vector((
+            head_axes.x * math.sin(theta) * math.cos(phi),
+            head_axes.y * math.sin(theta) * math.sin(phi),
+            head_axes.z * math.cos(theta)
+        ))
+        normal = Vector((
+            local.x / (head_axes.x * head_axes.x),
+            local.y / (head_axes.y * head_axes.y),
+            local.z / (head_axes.z * head_axes.z)
+        )).normalized()
+        position = head_center + local + normal * 0.012
+
+        if local.y < -0.48 and abs(local.x) < 0.25:
+            continue
+
+        if local.z > 0.24 or normal.y > 0.42:
+            mat_index = random.choices([3, 2, 4], [0.58, 0.27, 0.15])[0]
+        else:
+            mat_index = random.choices([4, 3, 5], [0.77, 0.18, 0.05])[0]
+
+        length = random.uniform(0.090, 0.125)
+        add_feather(
+            position,
+            normal,
+            (0.0, 0.0, -1.0),
+            length * 0.68,
+            length,
+            0.007,
+            mat_index,
+            random.uniform(-0.12, 0.12)
+        )
+
+for side in (-1, 1):
+    normal = Vector((side, -0.08, 0.02)).normalized()
+    for row in range(7):
+        z_top = 2.91 - row * 0.235
+        count = 5 + min(row, 2)
+        for column in range(count):
+            fraction = column / max(1, count - 1)
+            y = -0.34 + fraction * 0.57
+            z = z_top - 0.055 * abs(fraction - 0.5)
+            x = side * (0.965 + 0.015 * math.cos(fraction * math.pi))
+            position = Vector((x, y, z))
+
+            highlight_chance = 0.12 if row in (1, 3, 5) else 0.045
+            if random.random() < highlight_chance:
+                mat_index = 5
+            else:
+                mat_index = random.choices([0, 1, 2], [0.54, 0.36, 0.10])[0]
+
+            length = random.uniform(0.29, 0.36)
+            width = random.uniform(0.15, 0.19)
+            add_feather(
+                position,
+                normal,
+                (0.0, 0.035, -1.0),
+                width,
+                length,
+                0.014,
+                mat_index,
+                random.uniform(-0.055, 0.055)
+            )
+
+    for column in range(8):
+        fraction = column / 7.0
+        position = Vector((
+            side * 0.92,
+            -0.30 + fraction * 0.47,
+            3.02 - 0.11 * abs(fraction - 0.5)
+        ))
+        add_feather(
+            position,
+            Vector((side, -0.16, 0.20)),
+            (0.0, 0.0, -1.0),
+            0.135,
+            0.22,
+            0.012,
+            random.choice([2, 3, 3, 4]),
+            side * random.uniform(-0.06, 0.06)
+        )
+
+patch_mesh = bpy.data.meshes.new("Dense overlapping feather mesh")
+patch_mesh.from_pydata(patch_vertices, [], patch_faces)
+patch_mesh.update()
+for mat in feather_materials:
+    patch_mesh.materials.append(mat)
+
+for polygon, index in zip(patch_mesh.polygons, patch_indices):
+    polygon.material_index = index
+    polygon.use_smooth = True
+
+patch_object = bpy.data.objects.new("Dense layered plumage", patch_mesh)
+bpy.context.collection.objects.link(patch_object)
+
+for i in range(5):
+    x = (i - 2) * 0.12
+    tail = ellipsoid(
+        "Tucked tail feather",
+        (x, 0.37 + abs(i - 2) * 0.018, 1.04),
+        (0.105, 0.13, 0.54 - abs(i - 2) * 0.035),
+        charcoal if i % 2 else dark_gray,
+        24,
+        16,
+        rotation=(0.14, -x * 0.18, 0.0)
+    )
+
+def create_beak():
+    sections = [
+        ((0.0, -0.69, 3.49), 0.235, 0.145),
+        ((0.0, -0.86, 3.48), 0.175, 0.108),
+        ((0.0, -1.02, 3.43), 0.092, 0.063),
+        ((0.0, -1.12, 3.36), 0.014, 0.014)
+    ]
+    sides = 14
+    verts = []
+    faces = []
+
+    for center, rx, rz in sections:
+        for i in range(sides):
+            angle = 2.0 * math.pi * i / sides
+            verts.append((
+                center[0] + rx * math.cos(angle),
+                center[1],
+                center[2] + rz * math.sin(angle)
+            ))
+
+    for section in range(len(sections) - 1):
+        for i in range(sides):
+            j = (i + 1) % sides
+            faces.append((
+                section * sides + i,
+                (section + 1) * sides + i,
+                (section + 1) * sides + j,
+                section * sides + j
+            ))
+
+    faces.append(tuple(reversed(range(sides))))
+    last = (len(sections) - 1) * sides
+    faces.append(tuple(last + i for i in range(sides)))
+
+    mesh = bpy.data.meshes.new("Short curved beak mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(salmon)
+    mesh.update()
+    obj = bpy.data.objects.new("Short slightly curved salmon beak", mesh)
+    bpy.context.collection.objects.link(obj)
+    smooth(obj)
+
+create_beak()
+
+tube(
+    "Beak mouth seam",
+    [(-0.205, -0.75, 3.44), (0.0, -0.91, 3.42), (0.07, -1.055, 3.38)],
+    0.008,
+    beak_shadow
+)
+
+for side in (-1, 1):
+    ellipsoid(
+        "Black eye",
+        (side * 0.515, -0.565, 3.62),
+        (0.085, 0.046, 0.087),
+        eye_black,
+        28,
+        18
+    )
+    ellipsoid(
+        "Eye catchlight",
+        (side * 0.54, -0.607, 3.651),
+        (0.020, 0.010, 0.020),
+        eye_glint,
+        14,
+        10
+    )
+    ellipsoid(
+        "Small nostril",
+        (side * 0.092, -0.79, 3.545),
+        (0.026, 0.011, 0.015),
+        beak_shadow,
+        16,
+        10
+    )
+
+for side in (-1, 1):
+    x = side * 0.31
+    tube(
+        "Orange red leg",
+        [(x, -0.005, 1.03), (x, -0.02, 0.66), (x, -0.075, 0.34)],
+        0.067,
+        orange_red
+    )
+    ellipsoid(
+        "Foot joint",
+        (x, -0.08, 0.29),
+        (0.105, 0.095, 0.078),
+        orange_red,
+        22,
+        14
+    )
+
+    toe_paths = [
+        [(x, -0.09, 0.29), (x, -0.39, 0.16), (x, -0.67, 0.10)],
+        [(x, -0.08, 0.28), (x + side * 0.19, -0.33, 0.15), (x + side * 0.34, -0.53, 0.09)],
+        [(x, -0.07, 0.28), (x - side * 0.17, -0.30, 0.15), (x - side * 0.30, -0.48, 0.09)],
+        [(x, -0.01, 0.28), (x - side * 0.035, 0.20, 0.16), (x - side * 0.07, 0.37, 0.11)]
+    ]
+
+    for index, path in enumerate(toe_paths):
+        tube(
+            "Clawed orange toe",
+            path,
+            0.038 if index == 0 else 0.034,
+            orange_red
+        )
+        tip = Vector(path[-1])
+        previous = Vector(path[-2])
+        direction = (tip - previous).normalized()
+        if index == 3:
+            claw_end = tip + Vector((-side * 0.015, 0.105, -0.06))
+        else:
+            claw_end = tip + direction * 0.105 + Vector((0.0, 0.0, -0.045))
+        cone_between(
+            "Tapered claw",
+            tip,
+            claw_end,
+            0.033,
+            0.004,
+            claw_brown,
+            12
+        )
+
+    for ring_index in range(5):
+        z = 0.43 + ring_index * 0.105
+        bpy.ops.mesh.primitive_torus_add(
+            major_radius=0.068,
+            minor_radius=0.007,
+            major_segments=18,
+            minor_segments=7,
+            location=(x, -0.035, z)
+        )
+        ring = bpy.context.object
+        ring.name = "Subtle leg scale ring"
+        ring.data.materials.append(claw_brown)
+        smooth(ring)
+
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'CURVE':
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.convert(target='MESH')
+        obj.select_set(False)
+
+for obj in bpy.context.scene.objects:
+    obj.select_set(False)

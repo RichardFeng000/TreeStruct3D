@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumEarMonocot_seed0/VeratrumEarMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumEarMonocot_seed0/glb/VeratrumEarMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1996.2,
+  "latency_s": 0.28,
+  "error": null
+}

@@ -1,0 +1,48 @@
+{
+  "instance": "BathroomSink_seed0",
+  "timestamp": "2026-07-20T04:46:47+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 62.12,
+  "code_chars": 12848,
+  "input_tokens": 11966,
+  "output_tokens": 3952,
+  "thoughts_tokens": 950,
+  "total_tokens": 16868,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 14,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The outlet nozzle/aerator visibly floats below the gooseneck; extend the neck and overlap the connected nozzle.\n- The bowl reads nearly flat in several views; deepen and steepen the interior so the carved basin is obvious.\n- Marble veining is overly repetitive and covers every surface uniformly; use broader organic variation with restrained pale veins.\n- The faucet handle assembly looks fragmented; simplify it into a clearly attached single lever.",
+      "raw_chars": 13359
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model clearly presents a complete square dark-green marble sink with a deep glossy basin and an attached chrome gooseneck faucet and single lever.",
+      "raw_chars": 191
+    }
+  ],
+  "error": null
+}

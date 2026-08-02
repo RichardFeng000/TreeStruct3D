@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The elongated pointed form, rounded spiral whorls, attached aperture, and wavy brown-and-cream growth bands convincingly represent an auger shell.
+</assessment>

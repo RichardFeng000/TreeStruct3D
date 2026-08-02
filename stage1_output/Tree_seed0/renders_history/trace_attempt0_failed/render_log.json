@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Tree_seed0/Tree_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "TypeError: to_mesh() takes exactly 1 argument (0 given)\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tree_seed0/Tree_seed0.py\", line 161, in <module>\n    generate_tree()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tree_seed0/Tree_seed0.py\", line 106, in generate_tree\n    trunk = create_gnarled_cylinder(\"Trunk\", trunk_start, trunk_end, 0.5, 0.3, material=brown_mat)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tree_seed0/Tree_seed0.py\", line 59, in create_gnarled_cylinder\n    obj = bpy.data.objects.new(name, bm.to_mesh())\n                                     ^^^^^^^^^^^^\nTypeError: to_mesh() takes exactly 1 argument (0 given)\n"
+}

@@ -1,0 +1,35 @@
+{
+  "instance": "Crab_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 37,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 37,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Floating pieces: The legs and claws are not properly attached to the carapace, appearing as disconnected segments hovering nearby.\n- Missing geometric detail: The \"mottled pattern\" is completely absent (flat color), and the pincer tips are simple cylinders rather than anatomically shaped pincers.\n- Proportions: The eye stalks are too needle-like and lack organic thickness."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The model faithfully represents the description, including the unequal claws, walking legs, and eye stalks."
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+- The color gradient is barely visible; the coconut looks like a flat, single shade of green instead of transitioning from white-green (bottom) to dark green (top).
+- The "three-part flower scar" and "raised ring" are practically invisible in the renders. They need much more pronounced geometric deformation.
+- The overall taper is too subtle; it needs to be clearly wider at the base than at the top.

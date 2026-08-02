@@ -1,0 +1,38 @@
+{
+  "instance": "CabinetDrawerBase_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "AttributeError: 'Mesh' object has no attribute 'use_auto_smooth'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"\n\n... [truncated 527 chars] ...\n\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Mesh' object has no attribute 'use_auto_smooth'"
+    },
+    {
+      "stage": "trace",
+      "attempt": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "TypeError: ObjectModifiers.new(): error with keyword argument \"type\" -  enum \"SMOOTH_BY_ANGLE\" not found in ('GREASE_PENCIL_VERTEX_WEIGHT_PROXIMITY', 'DATA_TRANSFER', 'MESH_CACHE', 'MESH_SEQUENCE_CACHE', 'NORMAL_EDIT', 'WEIGHTED_NORMAL', 'UV_PROJECT', 'UV_WARP', 'VERTEX_WEIGHT_EDIT', 'VERTEX_WEIGHT_MIX', 'VERTEX_WEIGHT_PROXIMITY', 'GREASE_PENCIL_COLOR', 'GREASE_PENCIL_TINT', 'GREASE_PENCIL_OPACITY', 'GREASE_PENCIL_VE\n\n... [truncated 3476 chars] ...\n\nPAINT', 'EXPLODE', 'FLUID', 'OCEAN', 'PARTICLE_INSTANCE', 'PARTICLE_SYSTEM', 'SOFT_BODY', 'SURFACE')"
+    },
+    {
+      "stage": "trace",
+      "attempt": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

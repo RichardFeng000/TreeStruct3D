@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/KitchenIsland_seed0/KitchenIsland_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 17,
+  "extent": 2.0950000286102295,
+  "n_views_rendered": 4,
+  "latency_s": 2.1,
+  "error": null
+}

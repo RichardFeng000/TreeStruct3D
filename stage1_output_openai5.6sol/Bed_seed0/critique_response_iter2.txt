@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The complete bed has a well-proportioned wooden frame, decorative boards, tapered legs, green mattress, layered pink bedding, folded comforter, and arranged pillows.
+</assessment>

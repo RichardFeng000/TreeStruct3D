@@ -1,0 +1,3 @@
+- The coloring is too uniform; brown and cream tones for growth rings are barely visible, and the interior is not sufficiently darker than the exterior.
+- The mesh has flat shading, making it look blocky rather than organic.
+- There is a slight gap at the hinge point where the valves should meet.

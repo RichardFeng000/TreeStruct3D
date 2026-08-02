@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/WallArt_seed0/WallArt_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 8,
+  "extent": 1.2417912483215332,
+  "n_views_rendered": 4,
+  "latency_s": 2.41,
+  "error": null
+}

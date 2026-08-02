@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/Balloon_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/glb/Balloon_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 14703.6,
+  "latency_s": 0.87,
+  "error": null
+}

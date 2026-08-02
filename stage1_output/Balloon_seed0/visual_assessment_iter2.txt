@@ -1,0 +1,3 @@
+- Missing detail: The "vivid blue-tinted reflective interior" is not visible in the renders because the previous script created thin pipes (tubes) rather than hollow 3D letters; you can't see inside a closed tube.
+- Wrong shape: The tubular/pipe approach doesn't allow for an interior to be viewed through "open letter shapes" (like the holes in 'O' or 'B').
+- Fix: Change from curve-bevel pipes to extruded text with beveling and a Solidify modifier to create a hollow bubble-letter shell, exposing the inner blue material.

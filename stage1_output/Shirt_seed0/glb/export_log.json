@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Shirt_seed0/Shirt_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Shirt_seed0/glb/Shirt_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 40.6,
+  "latency_s": 0.1,
+  "error": null
+}

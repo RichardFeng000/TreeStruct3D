@@ -1,0 +1,4 @@
+- Fronds lack proper "feathery" structure; leaflets look like stiff, disconnected slats rather than natural foliage.
+- The main spine (rachis) of the fronds is barely visible as it lacks mesh volume.
+- Missing a "rough fibrous crown base"; fronds emerge directly from a mathematical point.
+- Leaflets need better drooping and orientation to match "pinnate" descriptions.

@@ -1,0 +1,441 @@
+Original text-to-3D task:
+
+A bird in flight rendered as a textured 3D model. The creature is shown from above in a full soaring pose with both wings fully extended horizontally, creating a wide wingspan silhouette. The wing feathers are rendered with a rich dark brown and reddish-brown coloration with clear individual primary and secondary feather geometry at the trailing edges. The body is compact with a gray-white fluffy chest and a white head, giving it the appearance of an eagle or large raptor in a gliding pose. The underside of the wings transitions from white near the body to dark brown-black at the wingtips.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    pass
+
+# Materials.
+def make_material(name, color, roughness=0.7):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+mat_white = make_material("Head White", (0.88, 0.86, 0.79), 0.9)
+mat_bright_white = make_material("Feather Ivory", (0.96, 0.94, 0.86), 0.9)
+mat_gray = make_material("Fluffy Gray White", (0.61, 0.62, 0.59), 0.95)
+mat_gray_dark = make_material("Chest Shadow Gray", (0.40, 0.41, 0.39), 0.9)
+mat_rufous = make_material("Rich Reddish Brown", (0.34, 0.105, 0.045), 0.82)
+mat_rufous_light = make_material("Warm Chestnut", (0.47, 0.17, 0.065), 0.82)
+mat_brown = make_material("Dark Brown", (0.16, 0.065, 0.028), 0.88)
+mat_dark = make_material("Brown Black Wingtips", (0.035, 0.025, 0.021), 0.9)
+mat_shaft = make_material("Feather Shafts", (0.40, 0.25, 0.13), 0.72)
+mat_beak = make_material("Beak Ochre", (0.68, 0.42, 0.08), 0.58)
+mat_beak_tip = make_material("Beak Tip", (0.16, 0.12, 0.075), 0.66)
+mat_eye = make_material("Glossy Eyes", (0.006, 0.004, 0.003), 0.2)
+mat_iris = make_material("Amber Iris", (0.55, 0.25, 0.025), 0.35)
+
+created = []
+
+def smooth_object(obj):
+    if obj.type == 'MESH':
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
+
+def add_uv_ellipsoid(name, location, scale, material, segments=32, rings=20):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    created.append(obj)
+    return obj
+
+def add_cylinder_between(name, start, end, radius, material, vertices=10):
+    start = Vector(start)
+    end = Vector(end)
+    delta = end - start
+    length = delta.length
+    if length < 0.0001:
+        return None
+    midpoint = (start + end) * 0.5
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=length,
+        location=midpoint
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(delta.normalized())
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    created.append(obj)
+    return obj
+
+def add_feather(name, root, tip, width, thickness, top_material, bottom_material,
+                bend=0.0, camber=0.045, stations=8):
+    root = Vector(root)
+    tip = Vector(tip)
+    direction = tip - root
+    length = direction.length
+    if length < 0.001:
+        return None
+    forward = direction.normalized()
+    side = Vector((-forward.y, forward.x, 0.0))
+    if side.length < 0.01:
+        side = Vector((1.0, 0.0, 0.0))
+    side.normalize()
+
+    verts = []
+    for top_side in (1, -1):
+        for i in range(stations):
+            t = i / (stations - 1)
+            center = root.lerp(tip, t)
+            center += side * (bend * math.sin(math.pi * t))
+            profile = (math.sin(math.pi * t) ** 0.55)
+            profile *= 0.78 + 0.22 * (1.0 - t)
+            half_width = max(width * 0.035, width * 0.5 * profile)
+            edge = center + side * half_width * top_side
+            dome = camber * math.sin(math.pi * t)
+            verts.append((edge.x, edge.y, edge.z + dome))
+
+    bottom_offset = len(verts)
+    for top_side in (1, -1):
+        for i in range(stations):
+            t = i / (stations - 1)
+            center = root.lerp(tip, t)
+            center += side * (bend * math.sin(math.pi * t))
+            profile = (math.sin(math.pi * t) ** 0.55)
+            profile *= 0.78 + 0.22 * (1.0 - t)
+            half_width = max(width * 0.035, width * 0.5 * profile)
+            edge = center + side * half_width * top_side
+            verts.append((edge.x, edge.y, edge.z - thickness))
+
+    faces = []
+    material_indices = []
+
+    # Upper surface.
+    for i in range(stations - 1):
+        faces.append((i, i + 1, stations + i + 1, stations + i))
+        material_indices.append(0)
+
+    # Lower surface.
+    for i in range(stations - 1):
+        a = bottom_offset + i
+        b = bottom_offset + stations + i
+        faces.append((a, b, b + 1, a + 1))
+        material_indices.append(1)
+
+    # Thin edges.
+    for bank in (0, stations):
+        for i in range(stations - 1):
+            top_a = bank + i
+            top_b = bank + i + 1
+            bot_a = bottom_offset + bank + i
+            bot_b = bottom_offset + bank + i + 1
+            faces.append((top_a, bot_a, bot_b, top_b))
+            material_indices.append(0)
+
+    # Root and tip caps.
+    faces.append((0, stations, bottom_offset + stations, bottom_offset))
+    material_indices.append(0)
+    faces.append((
+        stations - 1,
+        bottom_offset + stations - 1,
+        bottom_offset + 2 * stations - 1,
+        2 * stations - 1
+    ))
+    material_indices.append(0)
+
+    mesh = bpy.data.meshes.new(name + "_Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(top_material)
+    mesh.materials.append(bottom_material)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    for poly, index in zip(mesh.polygons, material_indices):
+        poly.material_index = index
+        poly.use_smooth = True
+    created.append(obj)
+    return obj
+
+def add_prism(name, outline, top_z, bottom_z, top_material, bottom_material):
+    n = len(outline)
+    verts = [(x, y, top_z) for x, y in outline]
+    verts += [(x, y, bottom_z) for x, y in outline]
+
+    faces = [tuple(range(n)), tuple(reversed(range(n, 2 * n)))]
+    indices = [0, 1]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i, j, n + j, n + i))
+        indices.append(0)
+
+    mesh = bpy.data.meshes.new(name + "_Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(top_material)
+    mesh.materials.append(bottom_material)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    for poly, index in zip(mesh.polygons, indices):
+        poly.material_index = index
+    bevel = obj.modifiers.new("Soft feathered wing edge", 'BEVEL')
+    bevel.width = 0.055
+    bevel.segments = 2
+    created.append(obj)
+    return obj
+
+# Broad wing foundations, mirrored across the body.
+right_outline = [
+    (0.42, -0.58),
+    (1.55, -0.96),
+    (3.10, -0.98),
+    (4.70, -0.72),
+    (6.05, -0.30),
+    (6.42, 0.02),
+    (5.35, 0.69),
+    (3.72, 1.17),
+    (2.08, 1.42),
+    (0.72, 1.18)
+]
+left_outline = [(-x, y) for x, y in reversed(right_outline)]
+add_prism("Right Wing Core", right_outline, 0.17, -0.08, mat_rufous, mat_bright_white)
+add_prism("Left Wing Core", left_outline, 0.17, -0.08, mat_rufous, mat_bright_white)
+
+# Tail fan beneath the torso.
+tail_offsets = [-0.42, -0.28, -0.14, 0.0, 0.14, 0.28, 0.42]
+for i, x in enumerate(tail_offsets):
+    tip_x = x * 1.55
+    tip_y = 2.65 - 0.08 * abs(i - 3)
+    top_mat = mat_dark if i in (0, 6) else (mat_brown if i in (1, 5) else mat_rufous)
+    add_feather(
+        "Tail Feather %02d" % i,
+        (x * 0.65, 0.68, 0.02 + 0.012 * (3 - abs(i - 3))),
+        (tip_x, tip_y, -0.015),
+        0.49, 0.055, top_mat, mat_bright_white,
+        bend=-x * 0.08, camber=0.055
+    )
+    if i in (0, 2, 3, 4, 6):
+        add_cylinder_between(
+            "Tail Shaft %02d" % i,
+            (x * 0.65, 0.72, 0.085),
+            (tip_x * 0.94, tip_y - 0.10, 0.045),
+            0.018, mat_shaft, 8
+        )
+
+# Trailing secondary feathers.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    for j in range(10):
+        span = 0.72 + j * 0.36
+        root = (side_sign * span, 0.05 + 0.025 * j, 0.22 + 0.006 * j)
+        tip = (
+            side_sign * (span + 0.08 + 0.025 * j),
+            1.73 - 0.035 * j,
+            0.09
+        )
+        top_mat = mat_rufous_light if j < 4 else (mat_rufous if j < 8 else mat_brown)
+        bottom_mat = mat_bright_white if j < 4 else (mat_gray if j < 7 else mat_dark)
+        add_feather(
+            "%s Secondary %02d" % (side_name, j),
+            root, tip, 0.52, 0.05, top_mat, bottom_mat,
+            bend=side_sign * 0.025, camber=0.045
+        )
+
+# Long fingered primary feathers create the characteristic raptor silhouette.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    for j in range(8):
+        root_x = 3.18 + j * 0.30
+        tip_x = 6.92 - j * 0.105
+        tip_y = -0.37 + j * 0.205
+        root = (side_sign * root_x, -0.23 + j * 0.055, 0.22)
+        tip = (side_sign * tip_x, tip_y, 0.035 - 0.008 * j)
+        top_mat = mat_dark if j < 3 else mat_brown
+        bottom_mat = mat_dark
+        add_feather(
+            "%s Primary %02d" % (side_name, j),
+            root, tip, 0.56 - j * 0.015, 0.06,
+            top_mat, bottom_mat,
+            bend=side_sign * (-0.06 + j * 0.015), camber=0.05
+        )
+        if j in (0, 2, 4, 6):
+            add_cylinder_between(
+                "%s Primary Shaft %02d" % (side_name, j),
+                (root[0], root[1], root[2] + 0.075),
+                (tip[0] * 0.985, tip[1] * 0.985, tip[2] + 0.045),
+                0.017, mat_shaft, 8
+            )
+
+# Layered rows of overlapping upper-wing covert feathers.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    for row in range(3):
+        count = 12 - row
+        for j in range(count):
+            t = j / max(1, count - 1)
+            span = 0.55 + t * (5.15 - row * 0.20)
+            root_y = -0.52 + row * 0.34 + 0.12 * math.sin(t * math.pi)
+            length = 0.82 + 0.34 * t
+            tip_x = span + length * (0.72 + 0.10 * row)
+            tip_y = root_y + 0.36 + 0.18 * row
+            z = 0.28 + row * 0.045
+            if t > 0.78:
+                top_mat = mat_dark
+            elif t > 0.42:
+                top_mat = mat_brown if row == 0 else mat_rufous
+            else:
+                top_mat = mat_rufous_light if row > 0 else mat_rufous
+            bottom_mat = mat_bright_white if t < 0.34 else (mat_rufous if t < 0.70 else mat_dark)
+            add_feather(
+                "%s Covert R%d %02d" % (side_name, row, j),
+                (side_sign * span, root_y, z),
+                (side_sign * tip_x, tip_y, z - 0.025),
+                0.42 - row * 0.035, 0.038,
+                top_mat, bottom_mat,
+                bend=side_sign * 0.025, camber=0.038
+            )
+
+# Compact torso.
+add_uv_ellipsoid("Gray White Torso", (0.0, 0.05, 0.38), (0.74, 1.42, 0.55), mat_gray, 36, 24)
+add_uv_ellipsoid("Dark Mantle", (0.0, 0.22, 0.73), (0.62, 0.88, 0.26), mat_brown, 32, 20)
+add_uv_ellipsoid("Pale Shoulder Ruff", (0.0, -0.53, 0.64), (0.68, 0.58, 0.32), mat_bright_white, 32, 20)
+
+# Small overlapping body plumage gives the chest a fluffy silhouette.
+for side_sign, side_name in ((1, "R"), (-1, "L")):
+    for i in range(6):
+        y = -0.28 + i * 0.30
+        x = side_sign * (0.54 + 0.055 * math.sin(i * 1.7))
+        z = 0.42 - 0.025 * i
+        feather_mat = mat_bright_white if i < 2 else (mat_gray if i < 5 else mat_gray_dark)
+        add_feather(
+            "Chest Fluff %s %02d" % (side_name, i),
+            (side_sign * 0.28, y - 0.23, z + 0.11),
+            (x, y + 0.34, z),
+            0.34, 0.04, feather_mat, mat_gray,
+            bend=side_sign * 0.04, camber=0.045
+        )
+
+# White head and scalloped neck feathers.
+add_uv_ellipsoid("White Eagle Head", (0.0, -1.34, 0.68), (0.58, 0.67, 0.57), mat_white, 36, 24)
+for i in range(9):
+    angle = math.radians(205 + i * 16.5)
+    x = math.cos(angle) * 0.50
+    y = -1.06 + math.sin(angle) * 0.34
+    add_uv_ellipsoid(
+        "Head Ruff %02d" % i,
+        (x, y, 0.56 + 0.025 * math.cos(angle)),
+        (0.17, 0.29, 0.16),
+        mat_bright_white,
+        18, 12
+    )
+
+# Brow ridges provide the stern raptor expression.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    brow = add_uv_ellipsoid(
+        side_name + " Brow",
+        (side_sign * 0.27, -1.72, 0.91),
+        (0.27, 0.13, 0.10),
+        mat_bright_white,
+        20, 12
+    )
+    brow.rotation_euler[1] = side_sign * math.radians(8)
+
+# Eyes and amber rims.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    add_uv_ellipsoid(
+        side_name + " Amber Iris",
+        (side_sign * 0.345, -1.73, 0.79),
+        (0.105, 0.072, 0.085),
+        mat_iris, 20, 12
+    )
+    add_uv_ellipsoid(
+        side_name + " Eye",
+        (side_sign * 0.36, -1.78, 0.80),
+        (0.061, 0.043, 0.058),
+        mat_eye, 20, 12
+    )
+
+# Hooked beak, pointing forward along negative Y.
+bpy.ops.mesh.primitive_cone_add(
+    vertices=28,
+    radius1=0.27,
+    radius2=0.075,
+    depth=0.68,
+    location=(0.0, -2.00, 0.61),
+    rotation=(math.radians(90), 0.0, 0.0)
+)
+beak = bpy.context.object
+beak.name = "Eagle Beak"
+beak.data.materials.append(mat_beak)
+smooth_object(beak)
+created.append(beak)
+
+# Dark hooked terminal portion.
+bpy.ops.mesh.primitive_cone_add(
+    vertices=24,
+    radius1=0.12,
+    radius2=0.018,
+    depth=0.34,
+    location=(0.0, -2.42, 0.53),
+    rotation=(math.radians(78), 0.0, 0.0)
+)
+beak_tip = bpy.context.object
+beak_tip.name = "Hooked Beak Tip"
+beak_tip.data.materials.append(mat_beak_tip)
+smooth_object(beak_tip)
+created.append(beak_tip)
+
+# Nostril geometry.
+for side_sign, side_name in ((1, "Right"), (-1, "Left")):
+    add_uv_ellipsoid(
+        side_name + " Nostril",
+        (side_sign * 0.105, -2.12, 0.75),
+        (0.035, 0.025, 0.020),
+        mat_dark, 14, 8
+    )
+
+# Join all geometry into one final textured-material mesh assembly.
+bpy.ops.object.select_all(action='DESELECT')
+mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+for obj in mesh_objects:
+    obj.select_set(True)
+bpy.context.view_layer.objects.active = mesh_objects[0]
+bpy.ops.object.join()
+bird = bpy.context.object
+bird.name = "Soaring_Eagle_Raptor"
+bird.rotation_mode = 'XYZ'
+
+# Apply modifiers generated on wing cores after joining is not needed; preserve all geometry
+# and establish a centered object origin.
+bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+bird.location.x = 0.0
+bird.location.z = 0.0
+
+# Keep the bird centered longitudinally around the world origin.
+world_bounds = [bird.matrix_world @ Vector(corner) for corner in bird.bound_box]
+center_y = (min(v.y for v in world_bounds) + max(v.y for v in world_bounds)) * 0.5
+bird.location.y -= center_y
+
+bpy.context.view_layer.objects.active = bird
+bird.select_set(True)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

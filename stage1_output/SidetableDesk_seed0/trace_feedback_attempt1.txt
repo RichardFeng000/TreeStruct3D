@@ -1,0 +1,206 @@
+Original text-to-3D task:
+
+A 3D model of a small side table rendered from a three-quarter perspective, featuring a square tabletop supported by four slender angled legs with a lower shelf connecting the legs near the base, displaying a two-tone appearance with a wood-toned top and dark-colored legs and lower shelf.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clear all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Create a simple diffuse material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def create_box(name, size, location, rotation=(0, 0, 0), material=None):
+    """Helper to create a scaled cube."""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=location, rotation=rotation)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.scale = size
+    
+    # Apply scale for cleaner geometry/materials
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    
+    if material:
+        if len(obj.data.materials) == 0:
+            obj.data.materials.append(material)
+        else:
+            obj.data.materials[0] = material
+    return obj
+
+def create_leg(name, start_pos, end_pos, material):
+    """Creates a slender leg between two points."""
+    # Calculate length and direction
+    direction = end_pos - start_pos
+    length = direction.length
+    midpoint = (start_pos + end_pos) / 2
+    
+    # Create cylinder as the leg base
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=16, 
+        radius=0.015, 
+        depth=length, 
+        location=midpoint
+    )
+    leg = bpy.context.active_object
+    leg.name = name
+    
+    # Orient cylinder to point from start to end
+    phi = math.atan2(direction.y, direction.x)
+    theta = math.acos(direction.z / length)
+    
+    # In Blender, the default Z axis of a cylinder is up. 
+    # We rotate it to align with the direction vector.
+    leg.rotation_euler = (0, 0, 0) # Reset
+    
+    # Use a matrix to align the Z axis to the direction
+    up = Vector((0, 0, 1))
+    rot_quat = up.rotation_difference(direction.normalized())
+    leg.rotation_mode = 'QUATERNION'
+    leg.rotation_quaternion = rot_quat
+    
+    if material:
+        leg.data.materials.append(material)
+    
+    return leg
+
+def main():
+    clear_scene()
+    
+    # --- Parameters ---
+    top_size = (0.5, 0.5, 0.03)  # Width, Depth, Thickness
+    leg_thickness = 0.02
+    table_height = 0.5
+    splay_angle = 12 # Degrees outward
+    shelf_height = 0.15 # Height from ground
+    
+    # --- Materials ---
+    wood_mat = create_material("WoodTop", (0.4, 0.25, 0.15, 1.0))   # Warm brown
+    dark_mat = create_material("DarkFrame", (0.05, 0.05, 0.05, 1.0)) # Near black
+    
+    # --- Tabletop ---
+    top = create_box(
+        "TableTop", 
+        top_size, 
+        location=(0, 0, table_height), 
+        material=wood_mat
+    )
+    
+    # Define leg start points (under the tabletop corners) and end points (on ground)
+    # Offset from center to allow for the splay
+    offset = top_size[0] / 2 - 0.03
+    splay_dist = math.tan(math.radians(splay_angle)) * (table_height - top_size[2]/2)
+    
+    leg_coords = [
+        (( offset,  offset), (-offset - splay_dist, -offset - splay_dist)), # Actually need to be relative to center
+    ]
+    # Correcting coordinate logic:
+    corners = [
+        ( offset,  offset),
+        (-offset,  offset),
+        (-offset, -offset),
+        ( offset, -offset)
+    ]
+    
+    legs_objs = []
+    for i, (cx, cy) in enumerate(corners):
+        # Top point: slightly inside the corner
+        p_start = Vector((cx, cy, table_height - top_size[2]/2))
+        # Bottom point: pushed further out based on splay
+        # Determine direction of splay (away from origin)
+        splay_dir = Vector((cx, cy, 0)).normalized() * splay_dist
+        p_end = Vector((cx + splay_dir.x, cy + splay_dir.y, 0))
+        
+        leg = create_leg(f"Leg_{i}", p_start, p_end, dark_mat)
+        legs_objs.append((leg, p_start, p_end))
+
+    # --- Lower Shelf ---
+    # The shelf connects the legs at a specific height
+    # We interpolate between start and end of legs to find intersection points
+    shelf_points = []
+    t = (table_height - shelf_height) / table_height # normalized distance from top down
+    
+    for leg, p_start, p_end in legs_objs:
+        p_shelf = p_start + (p_end - p_start) * t
+        shelf_points.append(p_shelf)
+    
+    # Create shelf geometry using BMesh
+    mesh = bpy.data.meshes.new("LowerShelf")
+    obj = bpy.data.objects.new("LowerShelf", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    
+    # Create a thin slab by extruding the 4 points
+    verts = [bm.verts.new(p) for p in shelf_points]
+    face = bm.faces.new(verts)
+    
+    # Extrude slightly to give thickness
+    extrude_dist = 0.015
+    # Normal of the face is roughly (0,0,1), but let's be precise
+    bm.face_geometry = True # Ensure we have normals
+    normal = face.normal
+    
+    # BMesh extrusion
+    result = bmesh.ops.extrude_face(bm, face=face)
+    extruded_verts = result['geom'].vertices
+    
+    for v in extruded_verts:
+        v.co += normal * extrude_dist
+
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    # Material for shelf
+    if len(obj.data.materials) == 0:
+        obj.data.materials.append(dark_mat)
+
+    # Final cleanup and centering
+    # The object is already centered around origin
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'BMesh' object has no attribute 'face_geometry'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/SidetableDesk_seed0/SidetableDesk_seed0.py", line 169, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/SidetableDesk_seed0/SidetableDesk_seed0.py", line 148, in main
+    bm.face_geometry = True # Ensure we have normals
+    ^^^^^^^^^^^^^^^^
+AttributeError: 'BMesh' object has no attribute 'face_geometry'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

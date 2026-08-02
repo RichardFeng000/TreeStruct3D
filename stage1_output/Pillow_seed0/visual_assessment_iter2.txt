@@ -1,0 +1,3 @@
+- The renders are extremely overexposed/white, making it impossible to verify the lavender color or see detail.
+- The "natural wrinkles" are too subtle and regular (sine waves), lacking the organic complexity of cloth simulation.
+- The overall shape is a bit too "perfectly" rectangular; it needs more plumpness in the center and softer, more irregular edges.

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FlowerPlant_seed0/FlowerPlant_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 95,
+  "extent": 4.86587181687355,
+  "n_views_rendered": 4,
+  "latency_s": 3.15,
+  "error": null
+}

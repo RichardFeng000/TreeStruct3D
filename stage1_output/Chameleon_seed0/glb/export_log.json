@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Chameleon_seed0/Chameleon_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Chameleon_seed0/glb/Chameleon_seed0.glb",
+  "status": "OK",
+  "n_meshes": 27,
+  "size_kb": 7960.2,
+  "latency_s": 0.91,
+  "error": null
+}

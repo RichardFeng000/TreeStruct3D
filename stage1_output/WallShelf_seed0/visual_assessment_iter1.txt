@@ -1,0 +1,3 @@
+- Colors are completely wrong; the board is light grey instead of dark black, and brackets are white/grey instead of muted purple-mauve.
+- The brackets appear as generic rounded blocks rather than distinct arch-shaped supports due to poor proportions and lighting contrast.
+- The shelf board feels too thin relative to its length, lacking a sturdy look.

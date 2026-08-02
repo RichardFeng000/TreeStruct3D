@@ -1,0 +1,35 @@
+{
+  "instance": "FruitStarfruit_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The overall shape is too \"blobby\" and looks more like a pumpkin than a starfruit; the ridges are not prominent enough.\n- The cross-sectional star silhouette is missing the distinct, sharper lobes characteristic of a carambola.\n- Lack of color variation (green highlights) at the ridges as requested in the description."
+    },
+    {
+      "iteration": 2,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

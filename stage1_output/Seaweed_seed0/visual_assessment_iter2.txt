@@ -1,0 +1,3 @@
+- The leaves are too smooth and lack the "ruffled" and "lobed" characteristics described.
+- The current geometry looks like simple tapered planes rather than complex seaweed blades.
+- Need to increase displacement amplitude for ruffles and vary the width along the length to create lobes.

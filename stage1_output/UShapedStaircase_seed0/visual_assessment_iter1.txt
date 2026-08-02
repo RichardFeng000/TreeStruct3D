@@ -1,0 +1,4 @@
+- The staircase is not a coherent U-shape; the second flight and landing are disconnected or floating.
+- Balustrades (glass panels) are misaligned, floating in space, and do not follow the perimeter of the stairs.
+- Structural components (stringers) are poorly placed and don't support the steps.
+- The overall geometry is a collection of fragmented boxes rather than a structural assembly.

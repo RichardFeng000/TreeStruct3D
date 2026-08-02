@@ -1,0 +1,148 @@
+Original text-to-3D task:
+
+A 3D model of a deep serving bowl rendered from a slightly elevated three-quarter perspective. The bowl features a wide rounded rim, a smooth curved exterior with a dark outer wall, a contrasting interior coloring in deep blue-gray, and a small circular flat base.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Removes all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple Principled BSDF material with a specific color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.2 # Slightly glossy ceramic feel
+    return mat
+
+def create_bowl():
+    """Constructs a deep serving bowl using a profile and a screw modifier."""
+    # Profile points (x, z) -> x is radius, z is height
+    # This defines the cross-section of the bowl wall including thickness and rim
+    profile_points = [
+        (0.0, 0.0),           # Bottom center
+        (0.25, 0.0),          # Base outer edge (flat base)
+        (0.6, 0.25),          # Belly of the bowl
+        (0.7, 0.5),           # Rim bottom-outer
+        (0.7, 0.54),          # Rim outer vertical wall
+        (0.66, 0.57),         # Rim rounded top apex
+        (0.62, 0.54),         # Rim inner vertical wall
+        (0.62, 0.5),          # Rim interior bottom edge
+        (0.4, 0.2),           # Interior belly
+        (0.15, 0.0),          # Interior base edge
+        (0.0, 0.0)            # Back to center
+    ]
+
+    # Create mesh and object for the profile line
+    mesh = bpy.data.meshes.new("BowlProfile")
+    obj = bpy.data.objects.new("ServingBowl", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+    # Create vertices along the profile path
+    verts = [bm.verts.new((p[0], 0, p[1])) for p in profile_points]
+    # Connect them with edges to create a path for the screw modifier
+    for i in range(len(verts) - 1):
+        bm.edges.new((verts[i], verts[i+1]))
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Add Screw Modifier to revolve the profile into a bowl
+    screw_mod = obj.modifiers.new(name="Screw", type='SCREW')
+    screw_mod.axis = 2 # Z axis
+    screw_mod.angle = 2 * math.pi
+    screw_mod.steps = 64
+
+    # Add Subdivision Surface to make it very smooth
+    subsurf_mod = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf_mod.levels = 2
+    subsurf_mod.render_levels = 2
+
+    # Apply modifiers to get real geometry for material assignment
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier="Screw")
+    bpy.ops.object.modifier_apply(modifier="Subdiv")
+
+    # Set smooth shading
+    bpy.ops.object.shade_smooth()
+
+    # --- Material Assignment ---
+    mat_outer = create_material("DarkOuter", (0.02, 0.02, 0.02, 1.0)) # Dark outer wall
+    mat_inner = create_material("DeepBlueGray", (0.05, 0.07, 0.12, 1.0)) # Deep blue-gray interior
+
+    obj.data.materials.append(mat_outer)
+    obj.data.materials.append(mat_inner)
+
+    # Assign materials based on face normals and position
+    # Outer faces usually have a normal pointing away from the center (X,Y)
+    # Inner faces point towards the center or upwards.
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    
+    for face in bm.faces:
+        # Calculate distance from origin to face center
+        center = face.calc_center_median()
+        dist = center.length
+        
+        # Use dot product of normal and vector from origin to determine if it's internal/external
+        # Normal pointing away from origin means external
+        outward_vec = center.normalized()
+        dot = face.normal.dot(outward_vec)
+        
+        if dot > 0:
+            face.material_index = 0 # Outer
+        else:
+            face.material_index = 1 # Inner
+
+    # Also ensure the bottom-most faces (the flat base) are outer material
+    for face in bm.faces:
+        if abs(face.calc_center_median().z) < 0.01:
+            face.material_index = 0
+
+    bm.to_mesh(obj.data)
+    bm.free()
+
+if __name__ == "__main__":
+    clear_scene()
+    create_bowl()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: bpy_struct: item.attr = val: expected a string enum, not int
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Bowl_seed0/Bowl_seed0.py", line 111, in <module>
+    create_bowl()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Bowl_seed0/Bowl_seed0.py", line 56, in create_bowl
+    screw_mod.axis = 2 # Z axis
+    ^^^^^^^^^^^^^^
+TypeError: bpy_struct: item.attr = val: expected a string enum, not int
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

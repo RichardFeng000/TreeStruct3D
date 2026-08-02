@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/MaizeMonocot_seed0/MaizeMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/MaizeMonocot_seed0/glb/MaizeMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 55,
+  "size_kb": 275.3,
+  "latency_s": 0.12,
+  "error": null
+}

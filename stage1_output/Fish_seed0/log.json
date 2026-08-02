@@ -1,0 +1,43 @@
+{
+  "instance": "Fish_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 10,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 10,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 10,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Wrong proportions: The body is too thick; it needs to be much thinner in X to be \"laterally compressed\".\n- Missing geometric detail: Fins are simple rectangles; they must be \"fan-shaped\" with varying heights for the ribs.\n- Missing part: No visible mouth opening or distinct pointed snout tip.\n- Missing detail: The body color is a flat shade; it needs subtle cloud-like variation using procedural nodes."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing geometric detail: The fins are flat planes; they need visible ribs or stripes to match \"golden-brown ribbed fin rays\".\n- Missing detail: The mouth is barely discernible and should be a small, pointed opening at the tip of the snout.\n- Proportions: The body shape is acceptable, but the head needs more definition for the mouth."
+    }
+  ]
+}

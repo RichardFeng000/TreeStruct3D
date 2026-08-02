@@ -1,0 +1,209 @@
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_leaf_material():
+    """Creates a pale soft green material for the leaf."""
+    mat = bpy.data.materials.new(name="LeafMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        # Pale soft green color
+        bsdf.inputs['Base Color'].default_value = (0.5, 0.8, 0.4, 1.0)
+        bsdf.inputs['Roughness'].default_value = 0.7
+    return mat
+
+def generate_heart_leaf():
+    """Generates a heart-shaped leaf using parametric equations and a spine-fill method."""
+    # Parametric Heart: x = 16 sin^3(t), y = 13 cos(t) - 5 cos(2t) - 2 cos(3t) - cos(4t)
+    res = 100
+    perimeter_points = []
+    for i in range(res):
+        t = (i / res) * 2 * math.pi
+        x = 16 * (math.sin(t)**3)
+        y = 13 * math.cos(t) - 5 * math.cos(2*t) - 2 * math.cos(3*t) - math.cos(4*t)
+        # Scale and orient: y is vertical (up/down), x is width
+        perimeter_points.append(Vector((x * 0.1, 0, y * 0.1)))
+
+    mesh = bpy.data.meshes.new("HeartLeaf")
+    obj = bpy.data.objects.new("HeartLeaf", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+
+    # 1. Create perimeter vertices
+    p_verts = [bm.verts.new(p) for p in perimeter_points]
+    
+    # 2. Create a central spine to avoid fan-fill issues with non-convex heart shapes
+    # Find Y bounds
+    y_coords = [p.z for p in perimeter_points]
+    min_y, max_y = min(y_coords), max(y_coords)
+    
+    spine_res = 40
+    spine_verts = []
+    for i in range(spine_res):
+        z = min_y + (i / (spine_res - 1)) * (max_y - min_y)
+        spine_verts.append(bm.verts.new(Vector((0, 0, z))))
+
+    # Create edges for the spine
+    for i in range(len(spine_verts) - 1):
+        bm.edges.new((spine_verts[i], spine_verts[i+1]))
+
+    # 3. Connect perimeter vertices to the nearest point on the spine
+    # This creates a stable topology for a heart shape
+    for i in range(len(p_verts)):
+        v_p = p_verts[i]
+        # Find closest vertex on the spine based on Z coordinate
+        best_spine_v = spine_verts[0]
+        min_dist = float('inf')
+        for v_s in spine_verts:
+            dist = abs(v_p.co.z - v_s.co.z)
+            if dist < min_dist:
+                min_dist = dist
+                best_spine_v = v_s
+        
+        bm.edges.new((v_p, best_spine_v))
+
+    # Create the perimeter loop
+    for i in range(len(p_verts)):
+        bm.edges.new((p_verts[i], p_verts[(i + 1) % len(p_verts)]))
+
+    # Fill faces: identify loops and fill them
+    # For this topology, we can iterate through the spine segments
+    for i in range(len(spine_verts) - 1):
+        s1 = spine_verts[i]
+        s2 = spine_verts[i+1]
+        
+        # Find perimeter vertices that connect to s1 and s2 on both sides (left/right)
+        # Since the heart is symmetric, we check X coordinate
+        left_p = [v for v in p_verts if v.co.x < 0 and (bm.edges.get((v, s1)) or bm.edges.get((v, s2)))]
+        right_p = [v for v in p_verts if v.co.x >= 0 and (bm.edges.get((v, s1)) or bm.edges.get((v, s2)))]
+        
+        # This is complex; a simpler way to fill the heart mesh:
+        pass
+
+    # Resetting BMesh for a cleaner approach: Parametric perimeter + Grid deformation
+    bm.free()
+    bm = bmesh.new()
+    
+    # Use a grid and deform it into a heart shape
+    grid_res_u, grid_res_v = 64, 64
+    verts_grid = []
+    for v in range(grid_res_v):
+        row = []
+        for u in range(grid_res_u):
+            # Map normalized coords to heart parametric space
+            t = (v / (grid_res_v - 1)) * 2 * math.pi
+            # We'll use a different approach: map u,v square to heart shape
+            # Normalizing t for perimeter and r for radius
+            r = u / (grid_res_u - 1) # 0 center, 1 edge
+            
+            x_edge = 16 * (math.sin(t)**3)
+            y_edge = 13 * math.cos(t) - 5 * math.cos(2*t) - 2 * math.cos(3*t) - math.cos(4*t)
+            
+            # Vertex position is linear interpolation between center (0,0,min_y/avg) and perimeter
+            # But to make the midrib easy, let's just use the spine-to-edge map
+            # Center of leaf varies from bottom tip to top dip
+            center_z = min_y + (v / (grid_res_v - 1)) * (max_y - min_y)
+            
+            pos_x = r * x_edge * 0.1
+            pos_z = center_z + r * (y_edge * 0.1 - center_z)
+            # Since t is the perimeter, this mapping is messy. 
+            # Let's just use a simple heart-shaped disk and deform it.
+            row.append(bm.verts.new(Vector((pos_x, 0, pos_z))))
+        verts_grid.append(row)
+
+    for v in range(grid_res_v):
+        for u in range(grid_res_u - 1):
+            bm.faces.new((verts_grid[v][u], verts_grid[v][u+1], 
+                          verts_grid[v+1][u+1] if v < grid_res_v-1 else verts_grid[v][u+1],
+                          verts_grid[v+1][u] if v < grid_res_v-1 else verts_grid[v][u]))
+
+    # Let's stick to a simpler, more reliable construction: 
+    # Create perimeter and use bmesh.ops.contextualize replacement (manual filling) is too slow.
+    # Final approach: Parametric heart points -> BMesh loop -> fill with center point (despite concavity)
+    # Then move the "dip" vertices to create a proper midrib valley.
+    bm.free()
+    bm = bmesh.new()
+    
+    pts = []
+    for i in range(res):
+        t = (i / res) * 2 * math.pi
+        x = 16 * (math.sin(t)**3)
+        y = 13 * math.cos(t) - 5 * math.cos(2*t) - 2 * math.cos(3*t) - math.cos(4*t)
+        pts.append(Vector((x * 0.1, 0, y * 0.1)))
+    
+    v_perim = [bm.verts.new(p) for p in pts]
+    for i in range(len(v_perim)):
+        bm.edges.new((v_perim[i], v_perim[(i+1)%len(v_perim)]))
+        
+    # Fill with a center point (approximate)
+    center_v = bm.verts.new(Vector((0, 0, -0.5))) # Slightly offset to avoid flat plane
+    for v in v_perim:
+        bm.faces.new((center_v, v, v_perim[(v_perim.index(v)+1)%len(v_perim)]))
+
+    # Subdivide to add detail
+    for _ in range(4):
+        bmesh.ops.subdivide_edges(bm, edges=bm.edges, cuts=1)
+
+    # Organic deformation: Midrib and Veins
+    for v in bm.verts:
+        x, y, z = v.co
+        
+        # 1. Central Crease (Midrib)
+        # Narrow valley at x=0
+        midrib_depth = 0.08 * math.exp(-(x**2) / (0.005))
+        v.co.y -= midrib_depth
+        
+        # 2. Overall curvature (gentle bow)
+        v.co.y += (x**2 + z**2) * 0.1
+        
+        # 3. Veins: branching ridges
+        vein_freq = 6.0
+        vein_strength = 0.02
+        # Use sine wave combined with distance to simulate radial veins
+        angle = math.atan2(x, z if z != 0 else 0.001)
+        dist = math.sqrt(x**2 + z**2)
+        vein_val = math.sin(dist * vein_freq + angle * 3)
+        fade = math.exp(-dist * 2.0) + 0.3
+        v.co.y += vein_val * vein_strength * fade
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Thickness and Smoothness
+    solid = obj.modifiers.new(name="Solidify", type='SOLIDIFY')
+    solid.thickness = 0.008
+    solid.offset = 0
+    
+    subdiv = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    subdiv.levels = 2
+
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    return obj
+
+def main():
+    clear_scene()
+    leaf_mat = create_leaf_material()
+    leaf_obj = generate_heart_leaf()
+    
+    if leaf_obj.data.materials:
+        leaf_obj.data.materials[0] = leaf_mat
+    else:
+        leaf_obj.data.materials.append(leaf_mat)
+
+    # Elevated perspective orientation
+    leaf_obj.rotation_euler[0] = math.radians(-60)
+    leaf_obj.rotation_euler[2] = math.radians(45)
+
+if __name__ == "__main__":
+    main()

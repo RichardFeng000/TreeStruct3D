@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The deep rounded rectangular basin, broad flat rim, attached gooseneck faucet, and compact side handle are all clearly modeled.
+</assessment>

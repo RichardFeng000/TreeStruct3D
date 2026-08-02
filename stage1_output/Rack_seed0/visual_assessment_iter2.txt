@@ -1,0 +1,2 @@
+- The "perforated uprights" mentioned in the description are essentially invisible in the render; the holes are far too small to be seen at this scale.
+- Perforation size and gap need to be increased significantly to ensure they are a visible architectural feature of the model.

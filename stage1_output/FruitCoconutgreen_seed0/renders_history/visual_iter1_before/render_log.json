@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitCoconutgreen_seed0/FruitCoconutgreen_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 2.75,
+  "n_views_rendered": 4,
+  "latency_s": 4.96,
+  "error": null
+}

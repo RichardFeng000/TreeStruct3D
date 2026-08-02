@@ -1,0 +1,204 @@
+Original text-to-3D task:
+
+A 3D model of a wide rectangular cell shelf unit rendered from a three-quarter perspective, featuring a grid of open compartments arranged in rows and columns with diagonal cross-dividers inside each cell, all in a light wood-grain appearance.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Removes all default objects from the scene."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+    # Clear all mesh data to avoid leftovers
+    for mesh in bpy.data.meshes:
+        bpy.data.meshes.remove(mesh)
+
+def create_wood_material():
+    """Creates a light wood-colored material."""
+    mat = bpy.data.materials.new(name="LightWood")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    # Clear default nodes
+    for node in nodes:
+        nodes.remove(node)
+    
+    # Create Principled BSDF and Output
+    bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    output = nodes.new(type='ShaderNodeOutputMaterial')
+    
+    # Light wood color (pale beige/yellowish)
+    bsdf.inputs['Base Color'].default_value = (0.85, 0.78, 0.62, 1.0)
+    bsdf.inputs['Roughness'].default_value = 0.7
+    
+    links = mat.node_tree.links
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+    return mat
+
+def create_plank(bm, width, height, depth, location, rotation=(0, 0, 0)):
+    """Adds a rectangular cuboid to the bmesh."""
+    # Create cube centered at origin first
+    bmesh.ops.create_cube(bm, size=1.0)
+    # Scale it to plank dimensions
+    # Note: Blender's create_cube with size 1.0 makes a cube from -0.5 to 0.5
+    # We scale the vertices manually or use transform matrix
+    
+    # The last created geometry are the verts of the cube
+    verts = bm.verts[-8:]
+    
+    # Scale and translate
+    scale = Vector((width, height, depth))
+    rot_matrix = bpy.types.Object().matrix_world # dummy to get rotation logic or use mathutils
+    # Manual vertex transformation for precision
+    import mathutils
+    
+    # Create a matrix for the plank
+    mat = mathutils.Matrix.Translation(location) @ \
+          mathutils.Matrix.Rotation(rotation[0], 'X') @ \
+          mathutils.Matrix.Rotation(rotation[1], 'Y') @ \
+          mathutils.Matrix.Rotation(rotation[2], 'Z') @ \
+          mathutils.Matrix.Scale(scale, 4)
+
+    for v in verts:
+        v.co = mat @ Vector((0,0,0)) # This is not correct for a cube of size 1
+        # Correcting: the vertices of create_cube(size=1) are +/- 0.5
+    
+    # Redoing vertex movement to be precise based on original -0.5/+0.5 coords
+    for v in verts:
+        # Get the relative coordinate (relative to center 0,0,0)
+        # since we just created it, they are at +/- 0.5
+        rel_pos = Vector((v.co.x, v.co.y, v.co.z))
+        v.co = mat @ rel_pos
+
+def build_shelf():
+    clear_scene()
+    
+    # Parameters
+    cols = 4
+    rows = 3
+    cell_w = 0.4
+    cell_h = 0.3
+    cell_d = 0.3
+    t = 0.03 # thickness of boards
+    
+    total_w = cols * cell_w + (cols + 1) * t
+    total_h = rows * cell_h + (rows + 1) * t
+    
+    bm = bmesh.new()
+    
+    # Helper to add a box at specific size and center
+    def add_box(w, h, d, x, y, z, rx=0, ry=0, rz=0):
+        bmesh.ops.create_cube(bm, size=1.0)
+        verts = bm.verts[-8:]
+        import mathutils
+        mat = mathutils.Matrix.Translation((x, y, z)) @ \
+              mathutils.Matrix.Rotation(rx, 'X') @ \
+              mathutils.Matrix.Rotation(ry, 'Y') @ \
+              mathutils.Matrix.Rotation(rz, 'Z') @ \
+              mathutils.Matrix.Scale((w, h, d), 4)
+        for v in verts:
+            # Relative to original cube coords (which are +/-0.5)
+            # Since we just added the cube and haven't moved it, they are exactly at +/-0.5
+            v.co = mat @ Vector((v.co.x, v.co.y, v.co.z))
+
+    # 1. Outer Frame
+    # Bottom board
+    add_box(total_w, t, cell_d, total_w/2, t/2, cell_d/2)
+    # Top board
+    add_box(total_w, t, cell_d, total_w/2, total_h - t/2, cell_d/2)
+    # Left board
+    add_box(t, total_h - 2*t, cell_d, t/2, total_h/2, cell_d/2)
+    # Right board
+    add_box(t, total_h - 2*t, cell_d, total_w - t/2, total_h/2, cell_d/2)
+
+    # 2. Interior Vertical Dividers
+    for i in range(1, cols):
+        x_pos = t + i * (cell_w + t) + t/2
+        add_box(t, total_h - 2*t, cell_d, x_pos, total_h/2, cell_d/2)
+
+    # 3. Interior Horizontal Dividers
+    for j in range(1, rows):
+        y_pos = t + j * (cell_h + t) + t/2
+        add_box(total_w - 2*t, t, cell_d, total_w/2, y_pos, cell_d/2)
+
+    # 4. Diagonal Crosses
+    for i in range(cols):
+        for j in range(rows):
+            # Cell inner bounds
+            x_start = t + i * (cell_w + t)
+            y_start = t + j * (cell_h + t)
+            
+            cx = x_start + cell_w/2
+            cy = y_start + cell_h/2
+            cz = cell_d/2
+            
+            # Diagonal length and angle
+            diag_len = math.sqrt(cell_w**2 + cell_h**2)
+            angle = math.atan2(cell_h, cell_w)
+            
+            # Plank 1: \ 
+            # We rotate around Z axis by the calculated angle
+            add_box(diag_len, t, cell_d, cx, cy, cz, 0, 0, angle)
+            # Plank 2: /
+            add_box(diag_len, t, cell_d, cx, cy, cz, 0, 0, -angle)
+
+    # Finalize mesh
+    mesh = bpy.data.meshes.new("CellShelf")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("CellShelf", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    # Assign material
+    wood_mat = create_wood_material()
+    obj.data.materials.append(wood_mat)
+    
+    # Center the object relative to its geometry so it sits at origin
+    # (Calculated above already centers mostly, but let's ensure)
+    # The current construction places the bottom-left-front corner near 0,0,0
+    # Let's shift the whole thing so center is at 0,0,0
+    obj.location = Vector((-total_w/2, -total_h/2, -cell_d/2))
+
+if __name__ == "__main__":
+    build_shelf()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: 'str' object cannot be interpreted as an integer
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/CellShelf_seed0/CellShelf_seed0.py", line 165, in <module>
+    build_shelf()
+  File "/Users/fengruiding/Downloads/3d_code/Output/CellShelf_seed0/CellShelf_seed0.py", line 107, in build_shelf
+    add_box(total_w, t, cell_d, total_w/2, t/2, cell_d/2)
+  File "/Users/fengruiding/Downloads/3d_code/Output/CellShelf_seed0/CellShelf_seed0.py", line 96, in add_box
+    mathutils.Matrix.Rotation(rx, 'X') @ \
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'str' object cannot be interpreted as an integer
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

@@ -1,0 +1,4 @@
+- Floating/disconnected pieces: Several small spheres are hovering above and around the main mass.
+- Missing geometric detail: The surface is far too smooth; it lacks the "fine, granular surface bumps" described.
+- Wrong proportions: The overall shape is a generic clump rather than a "low and wide" coral structure.
+- Color accuracy: The resulting color looks more like light gray/white than warm sandy beige/tan.

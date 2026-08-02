@@ -1,0 +1,200 @@
+Original text-to-3D task:
+
+A 3D model of a wooden bed frame rendered from an elevated three-quarter perspective, featuring a tall decorative headboard with carved or molded panel details, a shorter footboard, four tapered legs with metallic accents, and an open slatted support structure across the sleeping surface.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Clears the default scene objects."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_box(name, size, location):
+    """Creates a simple box mesh using bmesh for precise control."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    # Scale to desired dimensions
+    for v in bm.verts:
+        v.co.x *= size[0] / 2
+        v.co.y *= size[1] / 2
+        v.co.z *= size[2] / 2
+    
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.location = location
+    return obj
+
+def create_tapered_leg(name, height, top_rad, bot_rad, location):
+    """Creates a tapered leg using bmesh.ops.create_cone."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    # Create cone for the leg (radius1 is bottom, radius2 is top)
+    bmesh.ops.create_cone(
+        bm, 
+        cap_ends=True, 
+        segments=16, 
+        radius1=bot_rad, 
+        radius2=top_rad, 
+        depth=height
+    )
+    
+    bm.to_mesh(mesh)
+    bm.free()
+    # Shift so the top is at 'location' and it grows downwards
+    obj.location = (location[0], location[1], location[2] - height/2)
+    return obj
+
+def create_accent_ring(name, radius, height, location):
+    """Creates a small metallic accent ring using bmesh.ops.create_cone as a cylinder."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    # Use create_cone with equal radii to make a cylinder
+    bmesh.ops.create_cone(
+        bm, 
+        cap_ends=True, 
+        segments=16, 
+        radius1=radius, 
+        radius2=radius, 
+        depth=height
+    )
+    
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.location = location
+    return obj
+
+def create_decorative_panel(name, width, height, depth, location):
+    """Creates a panel with molded/carved detail using insets and extrusions."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    
+    # Scale to main panel size
+    for v in bm.verts:
+        v.co.x *= width / 2
+        v.co.y *= depth / 2
+        v.co.z *= height / 2
+    
+    bm.faces.ensure_lookup_table()
+    # We want to carve the faces that are perpendicular to the Y axis (the "front/back" of the panel)
+    for f in bm.faces:
+        if abs(f.normal.y) > 0.9:
+            # Inset for a border
+            res = bmesh.ops.inset_individual(bm, faces=[f], thickness=width * 0.05)
+            inner_face = res['faces'][0]
+            
+            # Push the center inward to create depth (carving)
+            direction = f.normal # Use the normal of the original face to push in
+            push_vec = direction * -depth * 1.5
+            bmesh.ops.translate(bm, verts=inner_face.verts, vec=push_vec)
+            
+            # Create an additional inner detail border
+            res2 = bmesh.ops.inset_individual(bm, faces=[inner_face], thickness=width * 0.03)
+            inner_detail = res2['faces'][0]
+            bmesh.ops.translate(bm, verts=inner_detail.verts, vec=push_vec * 0.5)
+
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.location = location
+    return obj
+
+def main():
+    clear_scene()
+    
+    # --- Dimensions ---
+    bed_width = 1.6
+    bed_length = 2.0
+    headboard_height = 1.4
+    footboard_height = 0.7
+    leg_height = 0.35
+    post_thickness = 0.08
+    rail_thickness = 0.06
+    
+    # --- Headboard Construction ---
+    # Main posts for headboard
+    hb_post_l = create_box("HB_Post_L", (post_thickness, post_thickness, headboard_height), (-bed_width/2, -bed_length/2, headboard_height/2))
+    hb_post_r = create_box("HB_Post_R", (post_thickness, post_thickness, headboard_height), (bed_width/2, -bed_length/2, headboard_height/2))
+    # Top connecting rail for headboard
+    create_box("HB_TopRail", (bed_width, post_thickness, post_thickness), (0, -bed_length/2, headboard_height))
+    # Decorative carved panel in the middle of headboard
+    create_decorative_panel("HB_Panel", bed_width*0.85, headboard_height*0.7, 0.04, (0, -bed_length/2, headboard_height * 0.4))
+
+    # --- Footboard Construction ---
+    # Main posts for footboard
+    fb_post_l = create_box("FB_Post_L", (post_thickness, post_thickness, footboard_height), (-bed_width/2, bed_length/2, footboard_height/2))
+    fb_post_r = create_box("FB_Post_R", (post_thickness, post_thickness, footboard_height), (bed_width/2, bed_length/2, footboard_height/2))
+    # Top connecting rail for footboard
+    create_box("FB_TopRail", (bed_width, post_thickness, post_thickness), (0, bed_length/2, footboard_height))
+    # Simple carved panel in the middle of footboard
+    create_decorative_panel("FB_Panel", bed_width*0.85, footboard_height*0.5, 0.03, (0, bed_length/2, footboard_height * 0.3))
+
+    # --- Side Rails Construction ---
+    # Left side rail
+    create_box("SideRail_L", (post_thickness, bed_length - post_thickness*2, rail_thickness), (-bed_width/2, 0, leg_height + rail_thickness/2))
+    # Right side rail
+    create_box("SideRail_R", (post_thickness, bed_length - post_thickness*2, rail_thickness), (bed_width/2, 0, leg_height + rail_thickness/2))
+
+    # --- Legs and Metallic Accents ---
+    leg_positions = [
+        (-bed_width/2, -bed_length/2), # Back Left
+        (bed_width/2, -bed_length/2),  # Back Right
+        (-bed_width/2, bed_length/2),  # Front Left
+        (bed_width/2, bed_length/2)    # Front Right
+    ]
+    
+    for i, pos in enumerate(leg_positions):
+        # The legs are tapered (top wider than bottom)
+        create_tapered_leg(f"Leg_{i}", leg_height, post_thickness*0.6, post_thickness*0.4, (pos[0], pos[1], leg_height))
+        
+        # Metallic accent rings placed at top and bottom of the legs
+        create_accent_ring(f"AccentTop_{i}", post_thickness*0.52, 0.02, (pos[0], pos[1], leg_height * 0.85))
+        create_accent_ring(f"AccentBot_{i}", post_thickness*0.42, 0.02, (pos[0], pos[1], leg_height * 0.15))
+
+    # --- Support Slats Construction ---
+    num_slats = 14
+    slat_width = 0.04
+    slat_depth = 0.02
+    # Space them evenly between the headboard and footboard
+    available_length = bed_length - post_thickness * 2
+    slat_gap = (available_length - (num_slats * slat_width)) / (num_slats + 1)
+    
+    for i in range(num_slats):
+        # Calculate Y position for each slat
+        y_pos = -bed_length/2 + post_thickness + (i * (slat_width + slat_gap)) + slat_gap + slat_width/2
+        create_box(f"Slat_{i}", (bed_width - post_thickness*2, slat_width, slat_depth), (0, y_pos, leg_height + rail_thickness))
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_TIMEOUT
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+Blender subprocess exceeded 240s
+
+This is repair attempt 3 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

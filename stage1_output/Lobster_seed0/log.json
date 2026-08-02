@@ -1,0 +1,51 @@
+{
+  "instance": "Lobster_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "IndexError: bpy_prop_collection[index]: index 2 out of range, size 2\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_na\n\n... [truncated 596 chars] ...\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^\nIndexError: bpy_prop_collection[index]: index 2 out of range, size 2"
+    },
+    {
+      "stage": "trace",
+      "attempt": 1,
+      "status": "OK",
+      "n_meshes": 41,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 45,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 45,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The tail fan components (uropods/telson) are floating and lack the cohesive \"fan\" shape described.\n- The claws are simple cylinders rather than actual pincers; they lack the opposing digits required for a lobster claw look.\n- The white tip on the crusher claw is barely visible and too small.\n- The cephalothorax is too boxy/rectangular instead of being an organic rounded shape."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing detail: The white tip on the crusher claw is virtually invisible in the renders; it needs to be brighter and more prominent.\n- Wrong proportions: The claws are too stubby/short compared to a real lobster; they need longer arm segments.\n- Misalignment/Gaps: There's a visible gap between the cephalothorax and the first abdomen segment.\n- Missing geometric detail: The tail fan is too simplistic (cylinders); it should have flatter, wider plates to look \"fan-shaped.\""
+    }
+  ]
+}

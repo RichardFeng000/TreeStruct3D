@@ -1,0 +1,3 @@
+- The renders are completely black, indicating either the object was not generated correctly or the navy color is too dark for the lighting environment.
+- Boolean operations using bpy.ops can sometimes fail silently in certain Blender contexts if selection/active states aren't handled perfectly.
+- Material color needs to be slightly lighter to ensure it reads as "dark navy" rather than black in a render.

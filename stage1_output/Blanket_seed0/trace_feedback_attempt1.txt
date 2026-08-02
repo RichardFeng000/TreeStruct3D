@@ -1,0 +1,182 @@
+Original text-to-3D task:
+
+A 3D model of a flat blanket laid out on a surface, viewed from a slight top-down angle. The blanket has a soft, slightly rumpled flat form with subtle surface undulation. The fabric surface features a colorful animal-print pattern with pastel pink, lavender, blue, and cream patches on a white background, resembling a leopard or cow print textile.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+
+def clear_scene():
+    """Removes all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_blanket_geometry():
+    """Creates a high-resolution plane with procedural rumpling."""
+    # Parameters for the blanket
+    width = 2.0
+    height = 2.0
+    resolution = 128  # Vertex density for smooth ripples
+    
+    # Create initial plane
+    bpy.ops.mesh.primitive_plane_add(size=1.0, location=(0, 0, 0))
+    obj = bpy.context.active_object
+    obj.name = "Blanket"
+    
+    # Scale to desired size
+    obj.scale = (width, height, 1.0)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    
+    # Subdivide the plane for detail
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    
+    # We want a grid of resolution x resolution. 
+    # The primitive plane is only 2x2 vertices.
+    # Instead of subdividing an existing face, let's rebuild it as a grid for precision.
+    bm.clear()
+    
+    verts = []
+    for i in range(resolution + 1):
+        for j in range(resolution + 1):
+            x = (i / resolution) * width - (width / 2)
+            y = (j / resolution) * height - (height / 2)
+            # Procedural rumpling: combination of sine waves and random noise for a soft look
+            z = 0.0
+            z += 0.03 * math.sin(x * 2.5 + y * 1.2)
+            z += 0.02 * math.cos(y * 4.1 - x * 0.8)
+            z += 0.01 * math.sin(x * 8.0) * math.cos(y * 8.0)
+            # Add a slight global curve so it's not perfectly flat on the edges
+            dist = math.sqrt(x*x + y*y)
+            z += (dist * 0.01) # Slight lift at corners
+            
+            verts.append(bm.verts.new((x, y, z)))
+            
+    # Create faces for the grid
+    for i in range(resolution):
+        for j in range(resolution):
+            v1 = verts[i * (resolution + 1) + j]
+            v2 = verts[(i + 1) * (resolution + 1) + j]
+            v3 = verts[(i + 1) * (resolution + 1) + (j + 1)]
+            v4 = verts[i * (resolution + 1) + (j + 1)]
+            bm.faces.new((v1, v2, v3, v4))
+            
+    bm.to_mesh(obj.data)
+    bm.free()
+    
+    # Smooth shading
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+        
+    # Add a Subdivision Surface modifier for extra softness
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 1
+    subsurf.render_levels = 2
+
+def create_animal_print_material():
+    """Creates a procedural material with pastel animal print colors."""
+    mat = bpy.data.materials.new(name="PastelAnimalPrint")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    # Clear default nodes
+    for n in nodes:
+        nodes.remove(n)
+        
+    # Create output node
+    node_output = nodes.new('ShaderNodeOutputMaterial')
+    
+    # Create principled BSDF
+    node_bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    node_bsdf.inputs['Roughness'].default_value = 0.8 # Fabric look
+    links.new(node_bsdf.outputs['BSDF'], node_output.inputs['Surface'])
+    
+    # Create Voronoi Texture for "spots"
+    node_voronoi = nodes.new('ShaderNodeTexVoronoi')
+    node_voronoi.voronoi_dimensions = '3D'
+    node_voronoi.randomness = 1.0
+    node_voronoi.inputs['Scale'].default_value = 8.0
+    
+    # Use a ColorRamp to define the pastel palette
+    node_ramp = nodes.new('ShaderNodeValTorgb')
+    elements = node_ramp.color_ramp.elements
+    
+    # Clear default elements and add custom colors
+    while len(elements) > 0:
+        elements.remove(elements[0])
+        
+    # Color mapping (White background with pastel spots)
+    # We use a sharp transition to get "blobs"
+    colors = [
+        (0.0, (1.0, 1.0, 1.0, 1.0)), # White base
+        (0.3, (1.0, 1.0, 1.0, 1.0)), # White transition
+        (0.4, (1.0, 0.75, 0.8, 1.0)),# Pastel Pink
+        (0.6, (0.8, 0.7, 1.0, 1.0)), # Lavender
+        (0.8, (0.7, 0.85, 1.0, 1.0)),# Pastel Blue
+        (1.0, (1.0, 0.95, 0.85, 1.0)),# Cream
+    ]
+    
+    for pos, rgba in colors:
+        elem = elements.new(pos)
+        elem.color = rgba
+
+    # Link Voronoi -> ColorRamp -> BSDF Base Color
+    links.new(node_voronoi.outputs['Distance'], node_ramp.inputs['Fac'])
+    links.new(node_ramp.outputs['Color'], node_bsdf.inputs['Base Color'])
+    
+    return mat
+
+def main():
+    clear_scene()
+    
+    # Create geometry
+    create_blanket_geometry()
+    blanket = bpy.context.active_object
+    
+    # Create and assign material
+    mat = create_animal_print_material()
+    if blanket.data.materials:
+        blanket.data.materials[0] = mat
+    else:
+        blanket.data.materials.append(mat)
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'ShaderNodeTexVoronoi' object has no attribute 'randomness'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Blanket_seed0/Blanket_seed0.py", line 142, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Blanket_seed0/Blanket_seed0.py", line 135, in main
+    mat = create_animal_print_material()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Blanket_seed0/Blanket_seed0.py", line 95, in create_animal_print_material
+    node_voronoi.randomness = 1.0
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ShaderNodeTexVoronoi' object has no attribute 'randomness'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

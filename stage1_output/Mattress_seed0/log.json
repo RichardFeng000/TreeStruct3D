@@ -1,0 +1,43 @@
+{
+  "instance": "Mattress_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The render shows a broken, fragmented mesh that looks like a stack of thin slices rather than a solid mattress.\n- There is no recognizable tufting or quilted pattern; the surface has jagged vertical artifacts.\n- The overall shape is completely distorted and does not resemble a rectangular padded slab.\n- The coloring is too pale/white and lacks the requested mint-green hue."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing geometric detail: The quilted/tufted surface pattern is completely invisible in the renders; it's just a smooth block.\n- Wrong color: The mattress appears white or off-white rather than light mint-green."
+    }
+  ]
+}

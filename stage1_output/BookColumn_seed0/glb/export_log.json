@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BookColumn_seed0/BookColumn_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BookColumn_seed0/glb/BookColumn_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 236.1,
+  "latency_s": 0.1,
+  "error": null
+}

@@ -1,0 +1,162 @@
+import bpy
+import bmesh
+import math
+
+# ===== Clear scene =====
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for block in list(bpy.data.meshes):
+    bpy.data.meshes.remove(block)
+for block in list(bpy.data.materials):
+    bpy.data.materials.remove(block)
+for block in list(bpy.data.cameras):
+    bpy.data.cameras.remove(block)
+for block in list(bpy.data.lights):
+    bpy.data.lights.remove(block)
+
+# ===== Bowl parameters =====
+rim_radius = 1.10
+base_radius = 0.35
+bowl_height = 0.90
+bottom_thickness = 0.08
+wall_thickness = 0.05
+rim_round = 0.065
+segments = 128
+
+# ===== Build exterior profile =====
+ext_profile = []
+n_ext = 44
+for i in range(n_ext + 1):
+    t = i / n_ext
+    ease = math.sin(t * math.pi / 2)
+    r = base_radius + (rim_radius - base_radius) * ease
+    z = t * bowl_height
+    ext_profile.append((r, z))
+
+# Rounded rim exterior
+rim_cz = bowl_height
+rim_cr = rim_radius - rim_round
+n_rim = 24
+for i in range(1, n_rim):
+    ang = math.pi * i / n_rim
+    r = rim_cr + rim_round * math.cos(ang)
+    z = rim_cz + rim_round * math.sin(ang)
+    ext_profile.append((r, z))
+
+# ===== Build interior profile =====
+inner_rim_r = rim_radius - wall_thickness - rim_round * 0.5
+inner_base_r = base_radius - wall_thickness * 0.8
+inner_height = bowl_height - bottom_thickness
+int_profile = []
+n_int = 44
+for i in range(n_int + 1):
+    t = i / n_int
+    ease = math.sin((1 - t) * math.pi / 2)
+    r = inner_base_r + (inner_rim_r - inner_base_r) * ease
+    z = inner_height * (1 - t)
+    int_profile.append((r, z))
+
+# ===== Create mesh =====
+mesh_data = bpy.data.meshes.new("Bowl")
+bowl_obj = bpy.data.objects.new("Bowl", mesh_data)
+bowl_obj.location = (0, 0, 0)
+bpy.context.collection.objects.link(bowl_obj)
+
+bm = bmesh.new()
+
+# Generate exterior ring vertices
+ext_rings = []
+for r, z in ext_profile:
+    ring = []
+    for s in range(segments):
+        ang = 2 * math.pi * s / segments
+        v = bm.verts.new((r * math.cos(ang), r * math.sin(ang), z))
+        ring.append(v)
+    ext_rings.append(ring)
+
+# Generate interior ring vertices
+int_rings = []
+for r, z in int_profile:
+    ring = []
+    for s in range(segments):
+        ang = 2 * math.pi * s / segments
+        v = bm.verts.new((r * math.cos(ang), r * math.sin(ang), z))
+        ring.append(v)
+    int_rings.append(ring)
+
+# Create side faces (exterior)
+for i in range(len(ext_rings) - 1):
+    ra = ext_rings[i]
+    rb = ext_rings[i + 1]
+    for s in range(segments):
+        sn = (s + 1) % segments
+        f = bm.faces.new([ra[s], ra[sn], rb[sn], rb[s]])
+        f.material_index = 0
+
+# Create side faces (interior)
+for i in range(len(int_rings) - 1):
+    ra = int_rings[i]
+    rb = int_rings[i + 1]
+    for s in range(segments):
+        sn = (s + 1) % segments
+        f = bm.faces.new([rb[s], rb[sn], ra[sn], ra[s]])
+        f.material_index = 1
+
+# Create bottom face (exterior)
+base_cv = bm.verts.new((0, 0, 0))
+for s in range(segments):
+    sn = (s + 1) % segments
+    f = bm.faces.new([base_cv, ext_rings[0][sn], ext_rings[0][s]])
+    f.material_index = 0
+
+# Create bottom face (interior)
+inner_cv = bm.verts.new((0, 0, inner_height))
+for s in range(segments):
+    sn = (s + 1) % segments
+    f = bm.faces.new([inner_cv, int_rings[-1][s], int_rings[-1][sn]])
+    f.material_index = 1
+
+# Create rim top face (exterior)
+top_cv = bm.verts.new((0, 0, bowl_height + rim_round))
+for s in range(segments):
+    sn = (s + 1) % segments
+    f = bm.faces.new([top_cv, ext_rings[-1][s], ext_rings[-1][sn]])
+    f.material_index = 0
+
+# Recalculate normals
+bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+
+# Smooth shading
+for f in bm.faces:
+    f.smooth = True
+
+bm.to_mesh(mesh_data)
+bm.free()
+
+# ===== Materials =====
+mat_ext = bpy.data.materials.new("DarkExterior")
+mat_ext.use_nodes = True
+bsdf_e = mat_ext.node_tree.nodes["Principled BSDF"]
+bsdf_e.inputs["Base Color"].default_value = (0.04, 0.035, 0.06, 1.0)
+bsdf_e.inputs["Roughness"].default_value = 0.28
+
+mat_int = bpy.data.materials.new("BlueGrayInterior")
+mat_int.use_nodes = True
+bsdf_i = mat_int.node_tree.nodes["Principled BSDF"]
+bsdf_i.inputs["Base Color"].default_value = (0.10, 0.14, 0.21, 1.0)
+bsdf_i.inputs["Roughness"].default_value = 0.20
+
+mesh_data.materials.append(mat_ext)
+mesh_data.materials.append(mat_int)
+
+# ===== Subdivision surface =====
+mod = bowl_obj.modifiers.new("Subsurf", 'SUBSURF')
+mod.levels = 1
+mod.render_levels = 2
+
+# Smooth shading
+for poly in mesh_data.polygons:
+    poly.use_smooth = True
+
+bpy.context.view_layer.objects.active = bowl_obj
+bowl_obj.select_set(True)

@@ -1,0 +1,46 @@
+{
+  "instance": "FanCoral_seed0",
+  "timestamp": "2026-07-10T02:47:48+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 107.87,
+  "code_chars": 10693,
+  "input_tokens": 5331,
+  "output_tokens": 3661,
+  "thoughts_tokens": null,
+  "total_tokens": 8992,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "error_brief": "KeyError: 'bpy_prop_collection[key]: key \"Specular\" not found'"
+    }
+  ],
+  "final_render_status": "OK_REVERTED",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Missing color gradient: entire model is black, ignoring the sandy beige to brown gradient spec.\n- No shadow beneath the coral: the dramatic silhouette shadow is absent.\n- Base geometry is too small and flat: doesn\u2019t match the \u201cwide, solid root\u201d description.\n- Branches lack texture detail: no surface roughness or fine ridges implied by \u201crod-like\u201d and \u201clattice-like\u201d.",
+      "raw_chars": 12292,
+      "reverted": true,
+      "note": "post-fix render failed (ERR_EXEC); reverted to previous good code (renders_history/attempt0/)"
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

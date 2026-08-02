@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Volute_seed0/Volute_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Volute_seed0/glb/Volute_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 12013.0,
+  "latency_s": 0.28,
+  "error": null
+}

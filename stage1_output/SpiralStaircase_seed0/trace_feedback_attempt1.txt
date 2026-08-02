@@ -1,0 +1,159 @@
+Original text-to-3D task:
+
+An elegant spiral staircase rendered as a 3D model, featuring triangular wedge-shaped treads that radiate outward from a central cylindrical post and wrap in a tight helix upward.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Removes all default objects from the scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_central_post(radius, height):
+    """Creates the central support pillar."""
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=32, 
+        radius=radius, 
+        depth=height, 
+        location=(0, 0, height / 2)
+    )
+    post = bpy.context.active_object
+    post.name = "CentralPost"
+    return post
+
+def create_tread(inner_r, outer_r, thickness, angle_deg):
+    """Creates a single wedge-shaped tread using bmesh."""
+    bm = bmesh.new()
+    
+    angle_rad = math.radians(angle_deg)
+    
+    # Vertices for the top face
+    v1 = bm.verts.new(Vector((inner_r, 0, 0)))
+    v2 = bm.verts.new(Vector((outer_r, 0, 0)))
+    v3 = bm.verts.new(Vector((outer_r * math.cos(angle_rad), outer_r * math.sin(angle_rad), 0)))
+    v4 = bm.verts.new(Vector((inner_r * math.cos(angle_rad), inner_r * math.sin(angle_rad), 0)))
+    
+    # Top face
+    bm.faces.new((v1, v2, v3, v4))
+    
+    # Extrude downwards to create thickness
+    edges = bm.edges
+    res = bmesh.ops.extrude_face_region(bm, geom=[bm.faces[0]])
+    
+    # Move the extruded vertices down
+    for v in res['geom']:
+        if isinstance(v, bmesh.types.BMVert):
+            v.co.z -= thickness
+
+    bm.to_mesh("Tread")
+    obj = bpy.data.objects.new("Tread", bm.to_mesh())
+    bpy.context.collection.objects.link(obj)
+    bm.free()
+    return obj
+
+def create_spiral_staircase():
+    # Parameters
+    post_radius = 0.2
+    tread_width = 1.2
+    outer_radius = post_radius + tread_width
+    tread_thickness = 0.05
+    step_height = 0.18
+    angle_per_step = 22.5 # Degrees
+    num_steps = 32        # Total steps (720 degrees total rotation)
+    total_height = num_steps * step_height
+    
+    clear_scene()
+    
+    # 1. Central Post
+    create_central_post(post_radius, total_height)
+    
+    # 2. Treads
+    tread_proto = create_tread(post_radius, outer_radius, tread_thickness, angle_per_step)
+    
+    # We use the prototype to duplicate for efficiency or just loop construction
+    # To keep it clean and procedural, we'll iterate and place them.
+    for i in range(num_steps):
+        # Create a new tread based on parameters since we need unique transforms
+        t = create_tread(post_radius, outer_radius, tread_thickness, angle_per_step)
+        
+        angle_rad = math.radians(i * angle_per_step)
+        z_pos = i * step_height
+        
+        # Rotation and Position
+        t.location = (0, 0, z_pos)
+        t.rotation_euler[2] = angle_rad
+    
+    # Cleanup the prototype if it exists in data but not scene
+    if tread_proto.name == "Tread" and tread_proto not in bpy.context.scene.objects:
+        bpy.data.objects.remove(tread_proto, do_unlink=True)
+
+    # 3. Handrail
+    # Create a curve that follows the outer edge of the treads
+    curve_data = bpy.data.curves.new('HandrailCurve', type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.fill_mode = 'FULL'
+    curve_data.bevel_depth = 0.03
+    curve_data.bevel_resolution = 4
+
+    polyline = curve_data.splines.new('BEZIER')
+    # Number of points: num_steps + 1 for a smooth end
+    polyline.bezier_points.add(num_steps)
+    
+    rail_height_offset = 0.9 # height above the step
+    
+    for i in range(num_steps + 1):
+        angle_rad = math.radians(i * angle_per_step)
+        z_pos = (i * step_height) + rail_height_offset
+        x = outer_radius * math.cos(angle_rad)
+        y = outer_radius * math.sin(angle_rad)
+        
+        p = polyline.bezier_points[i]
+        p.co = Vector((x, y, z_pos))
+        # Set handle types to AUTOMATIC for a smooth spiral
+        p.handle_left_type = 'AUTOMATIC'
+        p.handle_right_type = 'AUTOMATIC'
+
+    rail_obj = bpy.data.objects.new('Handrail', curve_data)
+    bpy.context.collection.objects.link(rail_obj)
+
+if __name__ == "__main__":
+    create_spiral_staircase()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 119, in <module>
+    create_spiral_staircase()
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 70, in create_spiral_staircase
+    tread_proto = create_tread(post_radius, outer_radius, tread_thickness, angle_per_step)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 40, in create_tread
+    res = bmesh.ops.extrude_face_region(bm, geom=[bm.faces[0]])
+                                                  ~~~~~~~~^^^
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

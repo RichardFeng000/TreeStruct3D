@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.09,
+  "error": "IndexError: bpy_prop_collection[index]: index 2 out of range, size 2\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py\", line 210, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py\", line 206, in main\n    create_antenna(1, red_brown)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py\", line 138, in create_antenna\n    point = ant.data.splines[0].bezier_points[i]\n            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^\nIndexError: bpy_prop_collection[index]: index 2 out of range, size 2\n"
+}

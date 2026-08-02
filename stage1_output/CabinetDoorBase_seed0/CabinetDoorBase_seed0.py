@@ -1,0 +1,205 @@
+import bpy
+import bmesh
+import math
+
+# Clear scene
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for m in list(bpy.data.meshes):
+    bpy.data.meshes.remove(m)
+for mat in list(bpy.data.materials):
+    bpy.data.materials.remove(mat)
+
+# Parameters
+panel_width = 0.40
+panel_height = 1.80
+panel_thickness = 0.020
+
+front_y = panel_thickness / 2.0
+back_y = -panel_thickness / 2.0
+
+# Edge detailing parameters
+groove1_inset = 0.018
+groove1_width = 0.005
+groove1_depth = 0.0015
+
+groove2_inset = 0.030
+groove2_width = 0.003
+groove2_depth = 0.0008
+
+field_inset = 0.042
+bevel_width = 0.012
+field_depth = 0.003
+
+half_w = panel_width / 2.0
+half_h = panel_height / 2.0
+
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+# Build front face x-profile: list of (x, y_depth) pairs
+x_defs = []
+
+# Left edge
+x_defs.append((-half_w, front_y))
+x_defs.append((-half_w + 0.004, front_y))
+
+# First left groove
+x_defs.append((-half_w + groove1_inset, front_y))
+x_defs.append((-half_w + groove1_inset, front_y - groove1_depth))
+x_defs.append((-half_w + groove1_inset + groove1_width, front_y - groove1_depth))
+x_defs.append((-half_w + groove1_inset + groove1_width, front_y))
+
+# Second left groove
+x_defs.append((-half_w + groove2_inset, front_y))
+x_defs.append((-half_w + groove2_inset, front_y - groove2_depth))
+x_defs.append((-half_w + groove2_inset + groove2_width, front_y - groove2_depth))
+x_defs.append((-half_w + groove2_inset + groove2_width, front_y))
+
+# Field boundaries
+field_start_x = -half_w + field_inset + bevel_width
+field_end_x = half_w - field_inset - bevel_width
+field_y = front_y - field_depth
+
+# Left bevel (interior steps)
+n_bevel = 4
+for i in range(1, n_bevel):
+    t = i / n_bevel
+    x_defs.append((
+        -half_w + field_inset + bevel_width * t,
+        lerp(front_y, field_y, t)
+    ))
+
+# Field with wood grain striations
+n_grain = 24
+for i in range(n_grain + 1):
+    t = i / n_grain
+    gx = lerp(field_start_x, field_end_x, t)
+    gy = field_y
+    if 0 < i < n_grain:
+        gy += 0.00012 * math.sin(gx * 550.0 + 0.5)
+        gy += 0.00006 * math.sin(gx * 1100.0 + 1.2)
+    x_defs.append((gx, gy))
+
+# Right bevel
+for i in range(1, n_bevel + 1):
+    t = i / n_bevel
+    x_defs.append((
+        field_end_x + bevel_width * t,
+        lerp(field_y, front_y, t)
+    ))
+
+# Right inner border
+x_defs.append((half_w - groove2_inset - groove2_width, front_y))
+
+# Second right groove
+x_defs.append((half_w - groove2_inset - groove2_width, front_y - groove2_depth))
+x_defs.append((half_w - groove2_inset, front_y - groove2_depth))
+x_defs.append((half_w - groove2_inset, front_y))
+
+# First right groove
+x_defs.append((half_w - groove1_inset - groove1_width, front_y))
+x_defs.append((half_w - groove1_inset - groove1_width, front_y - groove1_depth))
+x_defs.append((half_w - groove1_inset, front_y - groove1_depth))
+x_defs.append((half_w - groove1_inset, front_y))
+
+# Right edge
+x_defs.append((half_w - 0.004, front_y))
+x_defs.append((half_w, front_y))
+
+# Deduplicate consecutive entries with same x
+cleaned = [x_defs[0]]
+for x, y in x_defs[1:]:
+    if abs(x - cleaned[-1][0]) > 1e-7:
+        cleaned.append((x, y))
+x_defs = cleaned
+
+# Z positions (height direction)
+n_z = 120
+z_positions = [-half_h + (i / n_z) * panel_height for i in range(n_z + 1)]
+
+# Create mesh and object
+mesh = bpy.data.meshes.new("CabinetDoorPanel")
+obj = bpy.data.objects.new("CabinetDoorPanel", mesh)
+bpy.context.collection.objects.link(obj)
+
+bm = bmesh.new()
+
+# Front vertices with subtle wood grain displacement
+front_verts = []
+for zi, z in enumerate(z_positions):
+    row = []
+    for xi, (x, y) in enumerate(x_defs):
+        grain = 0.00006 * math.sin(z * 85.0 + x * 120.0)
+        grain += 0.00003 * math.sin(z * 211.0 + 1.3)
+        grain += 0.00002 * math.sin(z * 347.0)
+        v = bm.verts.new((x, y + grain, z))
+        row.append(v)
+    front_verts.append(row)
+
+# Front face quads
+for zi in range(n_z):
+    for xi in range(len(x_defs) - 1):
+        bm.faces.new((
+            front_verts[zi][xi],
+            front_verts[zi][xi + 1],
+            front_verts[zi + 1][xi + 1],
+            front_verts[zi + 1][xi]
+        ))
+
+# Back vertices (flat, no grain)
+back_verts = []
+for zi, z in enumerate(z_positions):
+    row = []
+    for xi, (x, y) in enumerate(x_defs):
+        v = bm.verts.new((x, back_y, z))
+        row.append(v)
+    back_verts.append(row)
+
+# Back face quads (reversed winding)
+for zi in range(n_z):
+    for xi in range(len(x_defs) - 1):
+        bm.faces.new((
+            back_verts[zi][xi],
+            back_verts[zi + 1][xi],
+            back_verts[zi + 1][xi + 1],
+            back_verts[zi][xi + 1]
+        ))
+
+# Left and right side faces
+for zi in range(n_z):
+    bm.faces.new((
+        front_verts[zi][0], back_verts[zi][0],
+        back_verts[zi + 1][0], front_verts[zi + 1][0]
+    ))
+    bm.faces.new((
+        front_verts[zi][-1], front_verts[zi + 1][-1],
+        back_verts[zi + 1][-1], back_verts[zi][-1]
+    ))
+
+# Top and bottom edge faces
+for xi in range(len(x_defs) - 1):
+    bm.faces.new((
+        front_verts[0][xi], front_verts[0][xi + 1],
+        back_verts[0][xi + 1], back_verts[0][xi]
+    ))
+    bm.faces.new((
+        front_verts[-1][xi], back_verts[-1][xi],
+        back_verts[-1][xi + 1], front_verts[-1][xi + 1]
+    ))
+
+# Recalculate normals to ensure outward facing
+bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+
+bm.to_mesh(mesh)
+bm.free()
+
+# Add bevel modifier for subtle edge rounding
+bevel_mod = obj.modifiers.new(name="EdgeBevel", type='BEVEL')
+bevel_mod.width = 0.0012
+bevel_mod.segments = 2
+bevel_mod.limit_method = 'ANGLE'
+bevel_mod.angle_limit = math.radians(30)
+
+# Position at origin
+obj.location = (0, 0, 0)

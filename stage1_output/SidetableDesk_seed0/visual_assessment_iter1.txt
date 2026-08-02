@@ -1,0 +1,2 @@
+- Missing two-tone colors: The render is monochrome white/grey, failing to show the wood-toned top and dark legs/shelf.
+- Materials need higher contrast to ensure they are visible under any lighting conditions.

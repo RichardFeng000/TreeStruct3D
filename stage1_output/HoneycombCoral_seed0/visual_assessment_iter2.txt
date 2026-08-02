@@ -1,0 +1,3 @@
+- The "honeycomb" texture lacks defined cellular walls; it looks like smooth lumps rather than porous sponge/coral.
+- Color distribution is extremely blocky and pixelated, failing to look like organic tints settling in pits.
+- Polyps are simply spheres stuck to the surface without organic integration.

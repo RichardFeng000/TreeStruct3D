@@ -1,0 +1,286 @@
+import bpy
+import math
+
+from mathutils import Vector
+
+# Clear the scene completely.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
+    if datablocks not in (bpy.data.materials,):
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+
+def set_socket(node, name, value):
+    socket = node.inputs.get(name)
+    if socket is not None:
+        socket.default_value = value
+
+
+def make_wood_material(name, grain_scale):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (650, 0)
+
+    shader = nodes.new("ShaderNodeBsdfPrincipled")
+    shader.location = (390, 20)
+    set_socket(shader, "Roughness", 0.31)
+    set_socket(shader, "Metallic", 0.0)
+    set_socket(shader, "IOR", 1.46)
+    set_socket(shader, "Specular IOR Level", 0.38)
+
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    texcoord.location = (-850, 10)
+
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.location = (-650, 10)
+    mapping.inputs["Scale"].default_value = grain_scale
+
+    grain = nodes.new("ShaderNodeTexNoise")
+    grain.location = (-410, 100)
+    grain.noise_dimensions = '3D'
+    set_socket(grain, "Scale", 2.2)
+    set_socket(grain, "Detail", 7.0)
+    set_socket(grain, "Roughness", 0.72)
+    set_socket(grain, "Lacunarity", 2.15)
+    set_socket(grain, "Distortion", 0.27)
+
+    ramp = nodes.new("ShaderNodeValToRGB")
+    ramp.location = (-120, 130)
+    color_ramp = ramp.color_ramp
+    color_ramp.elements[0].position = 0.22
+    color_ramp.elements[0].color = (0.018, 0.0065, 0.0027, 1.0)
+    color_ramp.elements[1].position = 0.79
+    color_ramp.elements[1].color = (0.125, 0.041, 0.012, 1.0)
+    middle = color_ramp.elements.new(0.48)
+    middle.color = (0.052, 0.014, 0.0045, 1.0)
+
+    fine = nodes.new("ShaderNodeTexNoise")
+    fine.location = (-390, -190)
+    fine.noise_dimensions = '3D'
+    set_socket(fine, "Scale", 15.0)
+    set_socket(fine, "Detail", 4.0)
+    set_socket(fine, "Roughness", 0.68)
+
+    bump = nodes.new("ShaderNodeBump")
+    bump.location = (140, -120)
+    set_socket(bump, "Strength", 0.16)
+    set_socket(bump, "Distance", 0.045)
+
+    links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], grain.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], fine.inputs["Vector"])
+    links.new(grain.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], shader.inputs["Base Color"])
+    links.new(fine.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    links.new(shader.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+
+wood_x = make_wood_material("Dark Wood - Long Grain X", (0.65, 7.5, 7.5))
+wood_y = make_wood_material("Dark Wood - Long Grain Y", (7.5, 0.65, 7.5))
+wood_z = make_wood_material("Dark Wood - Vertical Dowel Grain", (7.5, 7.5, 0.72))
+endgrain = make_wood_material("Dark Wood - End Grain", (5.0, 5.0, 1.2))
+
+
+def rounded_box(name, location, dimensions, material, bevel=0.07, segments=4):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    modifier = obj.modifiers.new("Softened wooden edges", 'BEVEL')
+    modifier.width = bevel
+    modifier.segments = segments
+    modifier.limit_method = 'ANGLE'
+    modifier.angle_limit = math.radians(25.0)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+    obj.data.materials.append(material)
+    return obj
+
+
+# Rectangular outer frame.
+rounded_box(
+    "Left long side rail",
+    (0.0, -1.48, 0.24),
+    (7.20, 0.44, 0.48),
+    wood_x,
+    0.085,
+    5
+)
+rounded_box(
+    "Right long side rail",
+    (0.0, 1.48, 0.24),
+    (7.20, 0.44, 0.48),
+    wood_x,
+    0.085,
+    5
+)
+rounded_box(
+    "Front end rail",
+    (-3.38, 0.0, 0.24),
+    (0.44, 3.40, 0.48),
+    wood_y,
+    0.085,
+    5
+)
+rounded_box(
+    "Rear end rail",
+    (3.38, 0.0, 0.24),
+    (0.44, 3.40, 0.48),
+    wood_y,
+    0.085,
+    5
+)
+
+# Two recessed longitudinal supports under the plate-bearing crossbars.
+rounded_box(
+    "Lower support rail A",
+    (0.0, -0.86, 0.365),
+    (6.55, 0.20, 0.22),
+    wood_x,
+    0.045,
+    3
+)
+rounded_box(
+    "Lower support rail B",
+    (0.0, 0.86, 0.365),
+    (6.55, 0.20, 0.22),
+    wood_x,
+    0.045,
+    3
+)
+
+# Evenly spaced horizontal crossbars.
+station_count = 8
+x_positions = [
+    -2.90 + i * (5.80 / (station_count - 1))
+    for i in range(station_count)
+]
+
+for index, x in enumerate(x_positions, 1):
+    rounded_box(
+        "Horizontal crossbar %02d" % index,
+        (x, 0.0, 0.49),
+        (0.27, 2.78, 0.22),
+        wood_y,
+        0.045,
+        4
+    )
+
+
+def make_peg_mesh(name, segments=24):
+    # Profile gives each dowel a subtly flared foot and a rounded upper end.
+    profile = [
+        (0.505, 0.108),
+        (0.525, 0.125),
+        (0.570, 0.132),
+        (2.685, 0.132),
+        (2.735, 0.128),
+        (2.785, 0.113),
+        (2.830, 0.088),
+        (2.865, 0.055),
+        (2.885, 0.020)
+    ]
+
+    vertices = []
+    for z, radius in profile:
+        for i in range(segments):
+            angle = 2.0 * math.pi * i / segments
+            vertices.append((radius * math.cos(angle), radius * math.sin(angle), z))
+
+    faces = []
+    ring_count = len(profile)
+    for ring in range(ring_count - 1):
+        lower = ring * segments
+        upper = (ring + 1) * segments
+        for i in range(segments):
+            j = (i + 1) % segments
+            faces.append((lower + i, lower + j, upper + j, upper + i))
+
+    bottom_center = len(vertices)
+    vertices.append((0.0, 0.0, profile[0][0]))
+    top_center = len(vertices)
+    vertices.append((0.0, 0.0, profile[-1][0] + 0.008))
+
+    for i in range(segments):
+        j = (i + 1) % segments
+        faces.append((bottom_center, j, i))
+        top_ring = (ring_count - 1) * segments
+        faces.append((top_ring + i, top_ring + j, top_center))
+
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    return mesh
+
+
+peg_mesh = make_peg_mesh("Turned vertical dowel geometry")
+peg_mesh.materials.append(wood_z)
+
+# Paired vertical pegs create seven plate slots between adjacent stations.
+for index, x in enumerate(x_positions, 1):
+    for row, y in (("A", -0.86), ("B", 0.86)):
+        peg = bpy.data.objects.new("Vertical plate peg %02d%s" % (index, row), peg_mesh)
+        peg.location = (x, y, 0.0)
+        bpy.context.collection.objects.link(peg)
+
+# Small flush wooden joinery plugs at the four frame corners.
+plug_locations = [
+    (-3.38, -1.48),
+    (-3.38, 1.48),
+    (3.38, -1.48),
+    (3.38, 1.48)
+]
+
+for index, (x, y) in enumerate(plug_locations, 1):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=32,
+        radius=0.092,
+        depth=0.018,
+        location=(x, y, 0.487)
+    )
+    plug = bpy.context.object
+    plug.name = "Flush corner joinery plug %02d" % index
+    plug.data.materials.append(endgrain)
+    for poly in plug.data.polygons:
+        poly.use_smooth = True
+
+# Additional smaller fastening plugs emphasize the handmade frame joinery.
+for side_y in (-1.48, 1.48):
+    for x in (-2.90, 2.90):
+        bpy.ops.mesh.primitive_cylinder_add(
+            vertices=24,
+            radius=0.052,
+            depth=0.014,
+            location=(x, side_y, 0.485)
+        )
+        plug = bpy.context.object
+        plug.name = "Side rail fastening plug"
+        plug.data.materials.append(endgrain)
+        for poly in plug.data.polygons:
+            poly.use_smooth = True
+
+# Keep the assembly centered and ensure a clean object selection state.
+bpy.ops.object.select_all(action='DESELECT')
+if bpy.data.objects:
+    active = bpy.data.objects.get("Left long side rail")
+    if active is not None:
+        active.select_set(True)
+        bpy.context.view_layer.objects.active = active
+bpy.context.scene.cursor.location = Vector((0.0, 0.0, 0.0))

@@ -1,0 +1,22 @@
+{
+  "instance": "KelpMonocot_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "DONE",
+      "assessment": "The model faithfully represents the description, featuring a vertical stipe with dense, radiating pointed blades that create the requested feathery aquatic appearance."
+    }
+  ]
+}

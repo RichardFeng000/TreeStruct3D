@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SnakePlant_seed0/SnakePlant_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/SnakePlant_seed0/glb/SnakePlant_seed0.glb",
+  "status": "OK",
+  "n_meshes": 14,
+  "size_kb": 387.5,
+  "latency_s": 0.11,
+  "error": null
+}

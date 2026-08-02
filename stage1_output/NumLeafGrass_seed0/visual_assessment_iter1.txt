@@ -1,0 +1,3 @@
+- The leaflets are far too long and narrow, resembling willow or laurel leaves rather than "rounded clover leaflets".
+- Proportions are wrong; the leaves are nearly twice as long as the stem is high, making the plant look distorted.
+- Need to flatten the leaf geometry and adjust scaling to create wider, more circular/oval shapes typical of a clover.

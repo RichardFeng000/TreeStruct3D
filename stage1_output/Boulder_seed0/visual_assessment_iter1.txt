@@ -1,0 +1,4 @@
+- The surface is far too jagged and faceted, looking like shattered glass or crumpled paper rather than a natural boulder.
+- The "fine pitting" is missing; instead, there are large unnatural spikes.
+- The flat-topped silhouette is obscured by the extreme noise artifacts.
+- Needs a Subdivision Surface modifier before displacement to ensure organic surface transitions.

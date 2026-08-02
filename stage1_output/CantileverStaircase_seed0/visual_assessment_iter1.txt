@@ -1,0 +1,3 @@
+- Floating / disconnected pieces: Most of the steps are not attached to the wall because the wall length (1.5m) is far shorter than the total run of the stairs (~3.6m).
+- Misalignment: The steps drift away from the wall along the Y-axis, leaving them hanging in mid-air without support.
+- Proportions: The wall thickness and step embedding are too shallow to look structurally sound as a cantilever design.

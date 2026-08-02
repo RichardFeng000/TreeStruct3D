@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Jellyfish_seed0/Jellyfish_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Jellyfish_seed0/glb/Jellyfish_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 21.4,
+  "latency_s": 0.11,
+  "error": null
+}

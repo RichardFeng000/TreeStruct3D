@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PineNeedle_seed0/PineNeedle_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/PineNeedle_seed0/glb/PineNeedle_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 55.4,
+  "latency_s": 0.09,
+  "error": null
+}

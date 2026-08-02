@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The monitor is complete and well-proportioned, with a thin framed cloud-textured display, attached central pedestal, and wide dark rectangular base.
+</assessment>

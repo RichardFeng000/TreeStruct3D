@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 2.2060000896453857,
+  "n_views_rendered": 4,
+  "latency_s": 2.07,
+  "error": null
+}

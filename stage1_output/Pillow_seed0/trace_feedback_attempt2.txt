@@ -1,0 +1,204 @@
+Original text-to-3D task:
+
+A 3D model of a soft pillow rendered from an elevated three-quarter perspective, featuring a plump rectangular cushion with a light lavender coloring, natural-looking surface wrinkles and creases from cloth simulation, and slightly irregular edges that give it a realistic resting appearance.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Removes all default objects from the scene."""
+    if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_lavender_material():
+    """Creates a soft fabric-like lavender material."""
+    mat = bpy.data.materials.new(name="LavenderFabric")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    
+    # Create Principled BSDF and Output nodes
+    node_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    
+    # Lavender color: soft purple/blue hue
+    # R=0.82, G=0.76, B=0.91
+    node_bsdf.inputs['Base Color'].default_value = (0.82, 0.76, 0.91, 1.0)
+    node_bsdf.inputs['Roughness'].default_value = 0.9
+    # Slightly lower specular for fabric
+    if 'Specular' in node_bsdf.inputs:
+        node_bsdf.inputs['Specular'].default_value = 0.2
+    
+    links = mat.node_tree.links
+    links.new(node_bsdf.outputs[0], node_output.inputs[0])
+    return mat
+
+def create_pillow():
+    """Generates a plump, wrinkled pillow using procedural geometry."""
+    # Dimensions
+    w = 0.7  # Width X
+    d = 0.5  # Depth Y
+    h = 0.12 # Thickness Z
+    
+    # Resolution for the base mesh before subdivision modifier
+    res_x = 24
+    res_y = 20
+
+    bm = bmesh.new()
+
+    # Create a grid for the top face
+    verts_top = []
+    for i in range(res_x + 1):
+        row = []
+        for j in range(res_y + 1):
+            ux = (i / res_x) * 2 - 1  # Range [-1, 1]
+            uy = (j / res_y) * 2 - 1  # Range [-1, 1]
+            vx = ux * w * 0.5
+            vy = uy * d * 0.5
+            vz = h * 0.5
+            v = bm.verts.new(Vector((vx, vy, vz)))
+            row.append(v)
+        verts_top.append(row)
+
+    # Create a grid for the bottom face
+    verts_bottom = []
+    for i in range(res_x + 1):
+        row = []
+        for j in range(res_y + 1):
+            ux = (i / res_x) * 2 - 1
+            uy = (j / res_y) * 2 - 1
+            vx = ux * w * 0.5
+            vy = uy * d * 0.5
+            vz = -h * 0.5
+            v = bm.verts.new(Vector((vx, vy, vz)))
+            row.append(v)
+        verts_bottom.append(row)
+
+    # Create faces for top and bottom
+    for i in range(res_x):
+        for j in range(res_y):
+            bm.faces.new((verts_top[i][j], verts_top[i+1][j], verts_top[i+1][j+1], verts_top[i][j+1]))
+            bm.faces.new((verts_bottom[i][j], verts_bottom[i][j+1], verts_bottom[i+1][j+1], verts_bottom[i+1][j]))
+
+    # Create side faces
+    for i in range(res_x):
+        # Front and Back sides (along X)
+        bm.faces.new((verts_top[i][0], verts_top[i+1][0], verts_bottom[i+1][0], verts_bottom[i][0]))
+        bm.faces.new((verts_top[i][res_y], verts_bottom[i][res_y], verts_bottom[i+1][res_y], verts_top[i+1][res_y]))
+        # Left and Right sides (along Y)
+        bm.faces.new((verts_top[0][i], verts_bottom[0][i], verts_bottom[0][i+1], verts_top[0][i+1]))
+        bm.faces.new((verts_top[res_x][i], verts_top[res_x][i+1], verts_bottom[res_x][i+1], verts_bottom[res_x][i]))
+
+    # Procedural Deformation (Bulge and Wrinkles)
+    for v in bm.verts:
+        x, y, z = v.co
+        # Normalize coords for the bulge effect
+        nx = x / (w * 0.5)
+        ny = y / (d * 0.5)
+        dist_sq = nx*nx + ny*ny
+        
+        # Plumpness: Gaussian-like swell in the center
+        bulge = math.exp(-dist_sq * 1.5) * (h * 0.4)
+        
+        # Wrinkles: Sum of sine waves for a cloth look
+        wrinkle = 0
+        # Octaves of noise/sines
+        octaves = [
+            (4.0, 0.02),  # frequency, amplitude
+            (8.0, 0.01),
+            (16.0, 0.005)
+        ]
+        for freq, amp in octaves:
+            wrinkle += math.sin(x * freq + y * freq * 0.7) * amp
+            wrinkle += math.cos(y * freq - x * freq * 0.4) * amp
+
+        # Apply deformation differently to top and bottom for realism
+        if z > 0:
+            v.co.z += bulge + wrinkle
+            # Slight outward expansion in the middle (plumping)
+            v.co.x += (nx * bulge * 0.5)
+            v.co.y += (ny * bulge * 0.5)
+        else:
+            # Bottom is flatter, slightly concave due to gravity
+            v.co.z -= bulge * 0.3 + abs(wrinkle) * 0.4
+
+        # Irregular edges jitter
+        if abs(nx) > 0.95 or abs(ny) > 0.95:
+            v.co.x += (random.random() - 0.5) * 0.015
+            v.co.y += (random.random() - 0.5) * 0.015
+
+    # Finalize mesh
+    mesh = bpy.data.meshes.new("PillowMesh")
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj = bpy.data.objects.new("Pillow", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    # Smooth Shading
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    # Modifiers for high fidelity organic look
+    # 1. Subdivision Surface for overall smoothness and plumpness
+    subdiv = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    subdiv.levels = 2
+    subdiv.render_levels = 3
+
+    # Material assignment
+    mat = create_lavender_material()
+    obj.data.materials.append(mat)
+    
+    return obj
+
+def main():
+    clear_scene()
+    pillow = create_pillow()
+    
+    # Place at origin
+    pillow.location = (0, 0, 0)
+    pillow.rotation_euler = (0, 0, 0)
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: list index out of range
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/Pillow_seed0.py", line 164, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/Pillow_seed0.py", line 157, in main
+    pillow = create_pillow()
+             ^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/Pillow_seed0.py", line 90, in create_pillow
+    bm.faces.new((verts_top[0][i], verts_bottom[0][i], verts_bottom[0][i+1], verts_top[0][i+1]))
+                                                       ~~~~~~~~~~~~~~~^^^^^
+IndexError: list index out of range
+
+This is repair attempt 3 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

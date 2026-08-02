@@ -1,0 +1,4 @@
+- Wrong overall shape: The render does not look like a T-shirt; it lacks distinct sleeves and a clear torso silhouette.
+- Missing parts: The dark patterned trim along the edges is completely invisible or absent.
+- Wrong colors: The garment appears white/grey instead of blush pink.
+- Topology issues: There are visible radial artifacts (fan-like geometry) around the neck hole.

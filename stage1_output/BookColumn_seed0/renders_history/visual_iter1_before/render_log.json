@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BookColumn_seed0/BookColumn_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 10,
+  "extent": 0.4376727230846882,
+  "n_views_rendered": 4,
+  "latency_s": 6.02,
+  "error": null
+}

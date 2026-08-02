@@ -1,0 +1,4 @@
+- The vertical mullions are rendered as horizontal beams protruding from the window because of a scale mismatch in the helper function.
+- Side frames are missing or improperly oriented (acting as horizontal bars).
+- The overall structural integrity is broken; it does not look like a window with panels.
+- I need to rewrite the `create_rect_mesh` logic and all calls to ensure correct X, Y, Z dimensions for frame parts and slats.

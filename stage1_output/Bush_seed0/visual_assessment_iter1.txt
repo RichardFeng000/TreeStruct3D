@@ -1,0 +1,4 @@
+- The branches are perfectly straight segments, making the bush look mechanical rather than organic.
+- The "rounded mass" is more of a radial burst; it lacks the dense, tangled interior of a real bush.
+- The branching is random (2 or 3 children) instead of strictly following the requested repeated bifurcation pattern.
+- Need to add sub-segments per branch for natural curvature and increase overall density.

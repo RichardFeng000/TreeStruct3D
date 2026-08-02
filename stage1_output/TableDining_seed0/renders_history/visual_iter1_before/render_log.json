@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TableDining_seed0/TableDining_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 14,
+  "extent": 1.7400000095367432,
+  "n_views_rendered": 4,
+  "latency_s": 1.91,
+  "error": null
+}

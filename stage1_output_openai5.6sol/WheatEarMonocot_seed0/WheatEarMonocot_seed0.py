@@ -1,0 +1,402 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks is not bpy.data.materials:
+        for block in list(datablocks):
+            if block.users == 0:
+                datablocks.remove(block)
+
+# Materials.
+def make_material(name, color, roughness=0.72):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+mat_chaff = make_material("Muted green-gold chaff", (0.49, 0.47, 0.20), 0.78)
+mat_light = make_material("Chaff ridges", (0.62, 0.57, 0.25), 0.74)
+mat_kernel = make_material("Ripening grain", (0.57, 0.49, 0.19), 0.70)
+mat_rachis = make_material("Rachis", (0.36, 0.38, 0.14), 0.82)
+materials = [mat_chaff, mat_light, mat_kernel, mat_rachis]
+
+verts = []
+faces = []
+face_materials = []
+
+def add_face(indices, material_index):
+    faces.append(tuple(indices))
+    face_materials.append(material_index)
+
+def safe_basis(direction, preferred=None):
+    d = Vector(direction).normalized()
+    if preferred is not None:
+        u = Vector(preferred) - d * Vector(preferred).dot(d)
+        if u.length > 1.0e-6:
+            u.normalize()
+            v = d.cross(u).normalized()
+            return d, u, v
+    helper = Vector((0.0, 0.0, 1.0))
+    if abs(d.dot(helper)) > 0.9:
+        helper = Vector((0.0, 1.0, 0.0))
+    u = d.cross(helper).normalized()
+    v = d.cross(u).normalized()
+    return d, u, v
+
+def append_tube(points, radii, sides=7, material_index=0):
+    if len(points) < 2:
+        return
+    pts = [Vector(p) for p in points]
+    start = len(verts)
+    rings = []
+    previous_u = None
+
+    for i, p in enumerate(pts):
+        if i == 0:
+            tangent = pts[1] - pts[0]
+        elif i == len(pts) - 1:
+            tangent = pts[-1] - pts[-2]
+        else:
+            tangent = pts[i + 1] - pts[i - 1]
+        tangent.normalize()
+
+        if previous_u is None:
+            _, u, v = safe_basis(tangent)
+        else:
+            u = previous_u - tangent * previous_u.dot(tangent)
+            if u.length < 1.0e-6:
+                _, u, v = safe_basis(tangent)
+            else:
+                u.normalize()
+                v = tangent.cross(u).normalized()
+        previous_u = u
+
+        ring = []
+        radius = radii[i] if hasattr(radii, "__len__") else radii
+        for j in range(sides):
+            angle = 2.0 * math.pi * j / sides
+            q = p + radius * (math.cos(angle) * u + math.sin(angle) * v)
+            ring.append(len(verts))
+            verts.append(tuple(q))
+        rings.append(ring)
+
+    for i in range(len(rings) - 1):
+        for j in range(sides):
+            add_face((rings[i][j], rings[i][(j + 1) % sides],
+                      rings[i + 1][(j + 1) % sides], rings[i + 1][j]), material_index)
+
+    cap0 = len(verts)
+    verts.append(tuple(pts[0]))
+    cap1 = len(verts)
+    verts.append(tuple(pts[-1]))
+    for j in range(sides):
+        add_face((cap0, rings[0][(j + 1) % sides], rings[0][j]), material_index)
+        add_face((cap1, rings[-1][j], rings[-1][(j + 1) % sides]), material_index)
+
+def append_ellipsoid(center, axis, length, radius_a, radius_b, preferred_side,
+                     material_index=2, segments=10, rings=7):
+    center = Vector(center)
+    axis = Vector(axis).normalized()
+    _, side, normal = safe_basis(axis, preferred_side)
+    bottom = center - axis * (length * 0.5)
+    top = center + axis * (length * 0.5)
+
+    bottom_index = len(verts)
+    verts.append(tuple(bottom))
+    ring_indices = []
+
+    for r in range(1, rings):
+        theta = math.pi * r / rings
+        axial = -math.cos(theta) * length * 0.5
+        radial = math.sin(theta)
+        ring = []
+        for s in range(segments):
+            phi = 2.0 * math.pi * s / segments
+            q = center + axis * axial
+            q += side * (radius_a * radial * math.cos(phi))
+            q += normal * (radius_b * radial * math.sin(phi))
+            ring.append(len(verts))
+            verts.append(tuple(q))
+        ring_indices.append(ring)
+
+    top_index = len(verts)
+    verts.append(tuple(top))
+
+    first = ring_indices[0]
+    for s in range(segments):
+        add_face((bottom_index, first[s], first[(s + 1) % segments]), material_index)
+
+    for r in range(len(ring_indices) - 1):
+        a = ring_indices[r]
+        b = ring_indices[r + 1]
+        for s in range(segments):
+            add_face((a[s], b[s], b[(s + 1) % segments], a[(s + 1) % segments]),
+                     material_index)
+
+    last = ring_indices[-1]
+    for s in range(segments):
+        add_face((last[s], top_index, last[(s + 1) % segments]), material_index)
+
+def append_lanceolate(base, tip, side_hint, outward, width, depth,
+                      material_index=0, ridge=True):
+    base = Vector(base)
+    tip = Vector(tip)
+    axis = tip - base
+    axis_length = axis.length
+    axis.normalize()
+
+    side = Vector(side_hint) - axis * Vector(side_hint).dot(axis)
+    if side.length < 1.0e-5:
+        _, side, _ = safe_basis(axis)
+    else:
+        side.normalize()
+
+    out = Vector(outward) - axis * Vector(outward).dot(axis)
+    out -= side * out.dot(side)
+    if out.length < 1.0e-5:
+        out = axis.cross(side)
+    out.normalize()
+
+    sections = 8
+    ring_count = 6
+    section_rings = []
+    ridge_path = []
+
+    for i in range(sections):
+        t = i / (sections - 1)
+        bend = 0.075 * math.sin(math.pi * t)
+        center = base.lerp(tip, t) + out * bend
+
+        if t < 0.13:
+            profile = 0.20 + 0.80 * (t / 0.13)
+        else:
+            profile = max(0.025, math.sin(math.pi * (t - 0.03) / 1.08) ** 0.72)
+        if i == sections - 1:
+            profile = 0.015
+
+        w = width * profile
+        d = depth * profile
+        cross = [
+            center - side * w,
+            center - side * (w * 0.48) + out * (d * 0.82),
+            center + out * (d * 1.48),
+            center + side * (w * 0.48) + out * (d * 0.82),
+            center + side * w,
+            center - out * (d * 0.72),
+        ]
+        ring = []
+        for q in cross:
+            ring.append(len(verts))
+            verts.append(tuple(q))
+        section_rings.append(ring)
+        ridge_path.append(center + out * (d * 1.53))
+
+    for i in range(sections - 1):
+        a = section_rings[i]
+        b = section_rings[i + 1]
+        for j in range(ring_count):
+            add_face((a[j], a[(j + 1) % ring_count],
+                      b[(j + 1) % ring_count], b[j]), material_index)
+
+    add_face(tuple(reversed(section_rings[0])), material_index)
+    add_face(tuple(section_rings[-1]), material_index)
+
+    if ridge:
+        ridge_points = ridge_path[1:-1]
+        ridge_radii = []
+        for i in range(len(ridge_points)):
+            t = (i + 1) / (sections - 1)
+            ridge_radii.append(0.0105 * math.sin(math.pi * t) + 0.003)
+        append_tube(ridge_points, ridge_radii, sides=5, material_index=1)
+
+def rachis_point(t):
+    z = -2.72 + 5.35 * t
+    x = -0.13 + 0.11 * t + 0.42 * t * t
+    y = 0.035 * math.sin(math.pi * t)
+    return Vector((x, y, z))
+
+def rachis_tangent(t):
+    e = 0.002
+    a = rachis_point(max(0.0, t - e))
+    b = rachis_point(min(1.0, t + e))
+    return (b - a).normalized()
+
+# Curved central rachis.
+rachis_points = [rachis_point(i / 24.0) for i in range(25)]
+rachis_radii = []
+for i in range(25):
+    t = i / 24.0
+    rachis_radii.append(0.068 * (1.0 - 0.45 * t) + 0.015)
+append_tube(rachis_points, rachis_radii, sides=9, material_index=3)
+
+# Short basal continuation of the stalk.
+p0 = rachis_point(0.0)
+t0 = rachis_tangent(0.0)
+append_tube(
+    [p0 - t0 * 0.34, p0 - t0 * 0.17, p0],
+    [0.052, 0.068, 0.082],
+    sides=9,
+    material_index=3
+)
+
+# Dense overlapping spikelets in two opposed ranks, rotating gently around the head.
+levels = 18
+for i in range(levels):
+    t = 0.035 + i * (0.91 / (levels - 1))
+    centerline = rachis_point(t)
+    tangent = rachis_tangent(t)
+
+    envelope = math.sin(math.pi * (0.06 + 0.88 * t)) ** 0.46
+    envelope *= 0.86 + 0.14 * math.sin(math.pi * t)
+    if t > 0.78:
+        envelope *= 1.0 - 0.52 * ((t - 0.78) / 0.22)
+
+    base_phi = i * math.radians(104.0)
+    for rank in range(2):
+        phi = base_phi + rank * math.pi
+        raw_radial = Vector((math.cos(phi), math.sin(phi), 0.0))
+        radial = raw_radial - tangent * raw_radial.dot(tangent)
+        radial.normalize()
+        lateral = tangent.cross(radial).normalized()
+
+        stagger = (rank - 0.5) * 0.035
+        base = centerline + tangent * stagger + radial * 0.025
+
+        kernel_axis = (tangent * 0.90 + radial * 0.34).normalized()
+        kernel_length = (0.43 + 0.10 * envelope) * (0.82 if t > 0.88 else 1.0)
+        kernel_radius = 0.115 + 0.055 * envelope
+        kernel_center = base + tangent * 0.22 + radial * (0.19 + 0.10 * envelope)
+
+        append_ellipsoid(
+            kernel_center,
+            kernel_axis,
+            kernel_length,
+            kernel_radius * 0.82,
+            kernel_radius,
+            lateral,
+            material_index=2,
+            segments=10,
+            rings=7
+        )
+
+        # Paired outer glumes form the overlapping chaff shell.
+        glume_height = 0.51 + 0.18 * envelope
+        glume_reach = 0.35 + 0.22 * envelope
+        outer_width = 0.125 + 0.045 * envelope
+        outer_depth = 0.052 + 0.021 * envelope
+
+        tip_a = base + tangent * glume_height + radial * glume_reach + lateral * 0.095
+        tip_b = base + tangent * (glume_height * 0.96) + radial * (glume_reach * 1.02) - lateral * 0.095
+
+        append_lanceolate(
+            base - lateral * 0.045,
+            tip_a,
+            lateral,
+            radial,
+            outer_width,
+            outer_depth,
+            material_index=0,
+            ridge=True
+        )
+        append_lanceolate(
+            base + lateral * 0.045,
+            tip_b,
+            lateral,
+            radial,
+            outer_width,
+            outer_depth,
+            material_index=0,
+            ridge=True
+        )
+
+        # A narrower central lemma gives each spikelet a layered, keeled appearance.
+        central_tip = base + tangent * (glume_height + 0.10) + radial * (glume_reach + 0.045)
+        append_lanceolate(
+            base + radial * 0.025,
+            central_tip,
+            lateral,
+            radial,
+            outer_width * 0.76,
+            outer_depth * 0.92,
+            material_index=0,
+            ridge=True
+        )
+
+        # Fine upward awns continuing from the pointed chaff tips.
+        awn_scale = 0.55 + 0.45 * envelope
+        for awn_index, tip in enumerate((tip_a, tip_b, central_tip)):
+            side_offset = (awn_index - 1) * 0.035
+            end = tip + tangent * (0.54 + 0.40 * awn_scale)
+            end += radial * (0.20 + 0.10 * awn_scale) + lateral * side_offset
+            mid = tip.lerp(end, 0.48) + radial * 0.025
+            append_tube(
+                [tip, mid, end],
+                [0.012, 0.008, 0.0025],
+                sides=5,
+                material_index=1
+            )
+
+# Compact terminal spikelets close the tapered tip.
+tip_center = rachis_point(0.985)
+tip_tangent = rachis_tangent(0.985)
+for j in range(5):
+    phi = 2.0 * math.pi * j / 5.0 + 0.35
+    radial = Vector((math.cos(phi), math.sin(phi), 0.0))
+    radial -= tip_tangent * radial.dot(tip_tangent)
+    radial.normalize()
+    lateral = tip_tangent.cross(radial).normalized()
+    base = tip_center - tip_tangent * 0.12 + radial * 0.018
+    tip = base + tip_tangent * (0.50 + 0.04 * (j % 2)) + radial * 0.21
+    append_lanceolate(
+        base,
+        tip,
+        lateral,
+        radial,
+        0.105,
+        0.045,
+        material_index=0,
+        ridge=True
+    )
+    awn_end = tip + tip_tangent * 0.78 + radial * 0.16
+    append_tube(
+        [tip, tip.lerp(awn_end, 0.5) + radial * 0.02, awn_end],
+        [0.010, 0.006, 0.002],
+        sides=5,
+        material_index=1
+    )
+
+# Build the single final mesh object.
+mesh = bpy.data.meshes.new("Wheat_Ear_Mesh")
+mesh.from_pydata(verts, [], faces)
+mesh.materials.clear()
+for mat in materials:
+    mesh.materials.append(mat)
+
+for poly, material_index in zip(mesh.polygons, face_materials):
+    poly.material_index = material_index
+    poly.use_smooth = True
+
+mesh.update()
+
+wheat = bpy.data.objects.new("Wheat Ear", mesh)
+bpy.context.collection.objects.link(wheat)
+
+# Recalculate normals and keep the assembly centered at the world origin.
+bpy.context.view_layer.objects.active = wheat
+wheat.select_set(True)
+bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.mesh.select_all(action='SELECT')
+bpy.ops.mesh.normals_make_consistent(inside=False)
+bpy.ops.object.mode_set(mode='OBJECT')
+
+# A subtle overall lean accentuates the gentle upward curve.
+wheat.rotation_euler = (math.radians(-2.0), math.radians(3.0), math.radians(-4.0))
+wheat.location = (0.0, 0.0, 0.0)

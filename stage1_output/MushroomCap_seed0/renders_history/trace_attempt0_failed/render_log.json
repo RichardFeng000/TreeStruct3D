@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/MushroomCap_seed0/MushroomCap_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.03,
+  "error": "TypeError: 'BMVertSeq' object does not support item assignment\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/MushroomCap_seed0/MushroomCap_seed0.py\", line 118, in <module>\n    create_mushroom_cap()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/MushroomCap_seed0/MushroomCap_seed0.py\", line 45, in create_mushroom_cap\n    bm.verts[:] = [v for v in bm.verts if v.co.z > -0.1]\n    ~~~~~~~~^^^\nTypeError: 'BMVertSeq' object does not support item assignment\n"
+}

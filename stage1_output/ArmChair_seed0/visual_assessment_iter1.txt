@@ -1,0 +1,3 @@
+- Floating/Disconnected Pieces: All components (seat, backrest, arms, ottoman) are completely separated by large gaps.
+- Wrong Proportions: The parts are half the size intended due to a math error in scaling (dividing target dimensions by 2 when applying scale to a unit cube).
+- Misalignment: Because of the sizing error, the coordinates calculated for placement do not align with the actual geometry.

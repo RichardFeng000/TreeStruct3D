@@ -1,0 +1,3 @@
+- The color in the render is far too light (appearing almost white), not matching the "muted olive-brown" description.
+- The shape is more of a uniform curved slab than a "wedge"; it should taper in height towards the ends of the crescent.
+- Surface variation is present but slightly too erratic; it needs to feel more like organic moss clumps and less like random noise.

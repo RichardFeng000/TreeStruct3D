@@ -1,0 +1,179 @@
+Original text-to-3D task:
+
+A 3D model of a low, wide TV stand rendered from a three-quarter perspective. The stand has a long horizontal rectangular body with four open shelf compartments side-by-side, divided by simple vertical partitions, all in a uniform pale peach-blond wood-grain finish.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_plank(name, width, height, depth, location):
+    """Creates a rectangular plank at the specified location."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    # Create a cube and scale it to match the plank dimensions
+    bmesh.ops.create_cube(bm, size=1.0)
+    
+    # Scale is relative to center, so we apply scale manually via vertex offsets 
+    # or just use a simple box creation logic.
+    # For simplicity, we'll define the 8 corners of the box.
+    
+    half_w = width / 2
+    half_h = height / 2
+    half_d = depth / 2
+    
+    verts = [
+        Vector((-half_w, -half_h, -half_d)),
+        Vector((half_w, -half_h, -half_d)),
+        Vector((half_w, -half_h, half_d)),
+        Vector((-half_w, -half_h, half_d)),
+        Vector((-half_w, half_h, -half_d)),
+        Vector((half_w, half_h, -half_d)),
+        Vector((half_w, half_h, half_d)),
+        Vector((-half_w, half_h, half_d)),
+    ]
+    
+    bm.verts.clear()
+    for v in verts:
+        bm.verts.new(v)
+        
+    bm.faces.new([bm.verts[0], bm.verts[1], bm.verts[2], bm.verts[3]]) # Bottom
+    bm.faces.new([bm.verts[4], bm.verts[5], bm.verts[6], bm.verts[7]]) # Top
+    bm.faces.new([bm.verts[0], bm.verts[1], bm.verts[5], bm.verts[4]]) # Front
+    bm.faces.new([bm.verts[2], bm.verts[3], bm.verts[7], bm.verts[6]]) # Back
+    bm.faces.new([bm.verts[0], bm.verts[3], bm.verts[7], bm.verts[4]]) # Left
+    bm.faces.new([bm.verts[1], bm.verts[2], bm.verts[6], bm.verts[5]]) # Right
+
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj.location = location
+    return obj
+
+def main():
+    clear_scene()
+    
+    # Dimensions for a low, wide TV stand
+    total_width = 1.8  # meters
+    total_height = 0.4 # meters
+    total_depth = 0.4  # meters
+    thickness = 0.02   # thickness of the wood planks
+    
+    # Offset to center the model on origin
+    # The stand sits slightly above ground with small feet (optional, but looks better)
+    feet_height = 0.05
+    base_y = feet_height / 2 
+
+    parts = []
+
+    # 1. Bottom Horizontal Plank
+    bottom = create_plank("Bottom", total_width, thickness, total_depth, (0, base_y, 0))
+    parts.append(bottom)
+
+    # 2. Top Horizontal Plank
+    top_y = base_y + total_height - thickness
+    top = create_plank("Top", total_width, thickness, total_depth, (0, top_y, 0))
+    parts.append(top)
+
+    # 3. Back Panel (thin board covering the back for structural look)
+    back_h = total_height - (2 * thickness)
+    back_w = total_width - (2 * thickness)
+    back_y = base_y + (total_height / 2)
+    back_z = -(total_depth / 2) + (thickness / 2)
+    back = create_plank("Back", back_w, back_h, thickness, (0, back_y, back_z))
+    parts.append(back)
+
+    # 4. Vertical Partitions (Outer walls and internal dividers)
+    # Total of 5 vertical planks for 4 compartments: Left wall, 3 Dividers, Right wall
+    num_compartments = 4
+    num_verticals = num_compartments + 1
+    
+    inner_height = total_height - (2 * thickness)
+    
+    # Calculate spacing
+    # Width minus the space taken by all vertical planks
+    available_width = total_width - (num_verticals * thickness)
+    comp_width = available_width / num_compartments
+    
+    for i in range(num_verticals):
+        # X position: start at left edge, move right by plank width + compartment width
+        x_pos = (-total_width / 2) + (thickness / 2) + (i * (comp_width + thickness))
+        y_pos = base_y + (inner_height / 2) + thickness
+        z_pos = 0 # Center in depth
+        
+        div = create_plank(f"Divider_{i}", thickness, inner_height, total_depth - thickness, (x_pos, y_pos, z_pos))
+        parts.append(div)
+
+    # 5. Feet (small blocks at the four corners to lift it slightly)
+    foot_size = 0.03
+    foot_y = base_y - (thickness / 2) - (foot_size / 2)
+    foot_x_offset = (total_width / 2) - foot_size
+    foot_z_offset = (total_depth / 2) - foot_size
+    
+    foot_coords = [
+        (foot_x_offset, foot_y, foot_z_offset),
+        (-foot_x_offset, foot_y, foot_z_offset),
+        (foot_x_offset, foot_y, -foot_z_offset),
+        (-foot_x_offset, foot_y, -foot_z_offset),
+    ]
+    
+    for i, coord in enumerate(foot_coords):
+        foot = create_plank(f"Foot_{i}", foot_size, foot_size, foot_size, coord)
+        parts.append(foot)
+
+    # Join all parts into one object for a clean final result
+    bpy.ops.object.select_all(action='DESELECT')
+    for p in parts:
+        p.select_set(True)
+    
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.join()
+    
+    # Rename final object
+    bpy.context.active_object.name = "TV_Stand"
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'BMVertSeq' object has no attribute 'clear'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/TVStand_seed0/TVStand_seed0.py", line 139, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/TVStand_seed0/TVStand_seed0.py", line 73, in main
+    bottom = create_plank("Bottom", total_width, thickness, total_depth, (0, base_y, 0))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/TVStand_seed0/TVStand_seed0.py", line 39, in create_plank
+    bm.verts.clear()
+    ^^^^^^^^^^^^^^
+AttributeError: 'BMVertSeq' object has no attribute 'clear'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

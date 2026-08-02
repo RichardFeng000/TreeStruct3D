@@ -1,0 +1,495 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+
+def smooth_object(obj):
+    if obj.type == 'MESH':
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+    return obj
+
+
+def simple_material(name, color, roughness=0.42, metallic=0.0):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = color
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    shader = nodes.get("Principled BSDF")
+    shader.inputs["Base Color"].default_value = color
+    shader.inputs["Roughness"].default_value = roughness
+    shader.inputs["Metallic"].default_value = metallic
+    return material
+
+
+def mottled_shell_material():
+    material = bpy.data.materials.new("Mottled dark reddish-brown carapace")
+    material.diffuse_color = (0.20, 0.035, 0.018, 1.0)
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    shader = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    noise_large = nodes.new("ShaderNodeTexNoise")
+    noise_fine = nodes.new("ShaderNodeTexNoise")
+    mix = nodes.new("ShaderNodeMixRGB")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    output.location = (700, 0)
+    shader.location = (430, 0)
+    bump.location = (210, -170)
+    ramp.location = (150, 90)
+    mix.location = (-60, 100)
+    noise_large.location = (-520, 130)
+    noise_fine.location = (-520, -90)
+    texcoord.location = (-760, 80)
+
+    noise_large.inputs["Scale"].default_value = 2.8
+    noise_large.inputs["Detail"].default_value = 5.0
+    noise_large.inputs["Roughness"].default_value = 0.72
+    noise_large.inputs["Distortion"].default_value = 0.16
+
+    noise_fine.inputs["Scale"].default_value = 13.0
+    noise_fine.inputs["Detail"].default_value = 4.0
+    noise_fine.inputs["Roughness"].default_value = 0.65
+
+    mix.blend_type = 'MULTIPLY'
+    mix.inputs[0].default_value = 0.72
+
+    color_ramp = ramp.color_ramp
+    color_ramp.elements[0].position = 0.20
+    color_ramp.elements[0].color = (0.045, 0.007, 0.004, 1.0)
+    color_ramp.elements[1].position = 0.80
+    color_ramp.elements[1].color = (0.34, 0.065, 0.022, 1.0)
+    middle = color_ramp.elements.new(0.49)
+    middle.color = (0.15, 0.022, 0.010, 1.0)
+    warm = color_ramp.elements.new(0.66)
+    warm.color = (0.27, 0.042, 0.014, 1.0)
+
+    shader.inputs["Roughness"].default_value = 0.29
+    shader.inputs["Metallic"].default_value = 0.0
+    if "Specular IOR Level" in shader.inputs:
+        shader.inputs["Specular IOR Level"].default_value = 0.48
+    bump.inputs["Strength"].default_value = 0.20
+    bump.inputs["Distance"].default_value = 0.055
+
+    links.new(texcoord.outputs["Generated"], noise_large.inputs["Vector"])
+    links.new(texcoord.outputs["Generated"], noise_fine.inputs["Vector"])
+    links.new(noise_large.outputs["Fac"], mix.inputs[1])
+    links.new(noise_fine.outputs["Fac"], mix.inputs[2])
+    links.new(mix.outputs["Color"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], shader.inputs["Base Color"])
+    links.new(noise_fine.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    links.new(shader.outputs["BSDF"], output.inputs["Surface"])
+    return material
+
+
+shell_mat = mottled_shell_material()
+underside_mat = simple_material("Warm dark underside", (0.18, 0.045, 0.018, 1.0), 0.52)
+leg_mat = simple_material("Orange-brown legs", (0.53, 0.145, 0.035, 1.0), 0.39)
+leg_dark_mat = simple_material("Dark leg joints", (0.28, 0.055, 0.018, 1.0), 0.44)
+claw_red_mat = simple_material("Rich red claw", (0.58, 0.045, 0.018, 1.0), 0.31)
+claw_dark_mat = simple_material("Claw joint red-brown", (0.31, 0.025, 0.010, 1.0), 0.37)
+cream_mat = simple_material("Ivory claw tips", (0.86, 0.78, 0.61, 1.0), 0.34)
+eye_white_mat = simple_material("Eye stalk white", (0.90, 0.89, 0.78, 1.0), 0.27)
+eye_dark_mat = simple_material("Glossy black eyes", (0.008, 0.004, 0.003, 1.0), 0.16)
+mouth_mat = simple_material("Mouthparts", (0.43, 0.095, 0.025, 1.0), 0.46)
+
+
+def ellipsoid(name, location, scale, material, rotation=(0.0, 0.0, 0.0),
+              segments=32, rings=16):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+
+def tapered_segment(name, start, end, radius_start, radius_end, material, vertices=16):
+    start = Vector(start)
+    end = Vector(end)
+    direction = end - start
+    length = direction.length
+    if length < 0.0001:
+        return None
+    midpoint = (start + end) * 0.5
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius_start,
+        radius2=radius_end,
+        depth=length,
+        location=midpoint
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = direction.to_track_quat('Z', 'Y')
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+
+def tube_mesh(name, points, radii, material, sides=12):
+    points = [Vector(p) for p in points]
+    vertices = []
+    faces = []
+
+    for index, point in enumerate(points):
+        if index == 0:
+            tangent = (points[1] - point).normalized()
+        elif index == len(points) - 1:
+            tangent = (point - points[index - 1]).normalized()
+        else:
+            tangent = (points[index + 1] - points[index - 1]).normalized()
+
+        reference = Vector((0.0, 0.0, 1.0))
+        if abs(tangent.dot(reference)) > 0.90:
+            reference = Vector((0.0, 1.0, 0.0))
+        normal = tangent.cross(reference).normalized()
+        binormal = tangent.cross(normal).normalized()
+
+        for side in range(sides):
+            angle = 2.0 * math.pi * side / sides
+            offset = normal * math.cos(angle) + binormal * math.sin(angle)
+            vertices.append(tuple(point + offset * radii[index]))
+
+    for ring in range(len(points) - 1):
+        for side in range(sides):
+            next_side = (side + 1) % sides
+            a = ring * sides + side
+            b = ring * sides + next_side
+            c = (ring + 1) * sides + next_side
+            d = (ring + 1) * sides + side
+            faces.append((a, b, c, d))
+
+    start_center = len(vertices)
+    vertices.append(tuple(points[0]))
+    end_center = len(vertices)
+    vertices.append(tuple(points[-1]))
+
+    for side in range(sides):
+        next_side = (side + 1) % sides
+        faces.append((start_center, next_side, side))
+        last = (len(points) - 1) * sides
+        faces.append((end_center, last + side, last + next_side))
+
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+
+# Low, rounded body and visible underside.
+ellipsoid(
+    "Carapace",
+    (0.0, 0.05, 0.72),
+    (2.48, 1.47, 0.65),
+    shell_mat,
+    segments=64,
+    rings=32
+)
+ellipsoid(
+    "Underside",
+    (0.0, 0.12, 0.37),
+    (2.08, 1.20, 0.39),
+    underside_mat,
+    segments=48,
+    rings=24
+)
+
+# Slightly raised dorsal regions create the irregular shore-crab shell relief.
+dorsal_relief = [
+    (-1.18, -0.38, 1.245, 0.53, 0.38, 0.075, 0.12),
+    (1.18, -0.38, 1.245, 0.53, 0.38, 0.075, -0.12),
+    (-0.62, 0.28, 1.315, 0.56, 0.40, 0.065, -0.06),
+    (0.62, 0.28, 1.315, 0.56, 0.40, 0.065, 0.06),
+    (0.0, 0.72, 1.286, 0.62, 0.32, 0.055, 0.0),
+]
+for i, (x, y, z, sx, sy, sz, rz) in enumerate(dorsal_relief):
+    ellipsoid(
+        "Dorsal shell relief %02d" % i,
+        (x, y, z),
+        (sx, sy, sz),
+        shell_mat,
+        rotation=(0.0, 0.0, rz),
+        segments=24,
+        rings=12
+    )
+
+# Serrated lateral shell margins.
+for side in (-1, 1):
+    for index, (y, length, z) in enumerate([
+        (-0.82, 0.34, 0.78),
+        (-0.28, 0.30, 0.71),
+        (0.30, 0.25, 0.64),
+    ]):
+        base = (side * (2.24 - index * 0.03), y, z)
+        tip = (side * (2.24 + length), y - 0.05 + index * 0.035, z - 0.04)
+        tapered_segment(
+            "Shell side tooth %d %d" % (side, index),
+            base, tip, 0.17 - index * 0.018, 0.015, shell_mat, 12
+        )
+
+# Four articulated walking legs on each side.
+leg_layouts = [
+    ((2.02, -0.35, 0.54), (2.68, -0.42, 0.43), (3.32, -0.50, 0.30), (4.08, -0.72, 0.13)),
+    ((2.13, 0.12, 0.52), (2.82, 0.17, 0.42), (3.50, 0.27, 0.27), (4.25, 0.30, 0.12)),
+    ((2.05, 0.58, 0.50), (2.72, 0.76, 0.40), (3.36, 1.03, 0.25), (4.02, 1.35, 0.11)),
+    ((1.82, 0.96, 0.49), (2.42, 1.31, 0.38), (2.96, 1.76, 0.23), (3.48, 2.27, 0.10)),
+]
+for side in (-1, 1):
+    for leg_index, layout in enumerate(leg_layouts):
+        points = [(side * p[0], p[1], p[2]) for p in layout]
+        widths = [(0.185, 0.155), (0.155, 0.105), (0.105, 0.045)]
+        for segment_index in range(3):
+            tapered_segment(
+                "Walking leg %s %d segment %d" % (
+                    "L" if side < 0 else "R", leg_index + 1, segment_index + 1
+                ),
+                points[segment_index],
+                points[segment_index + 1],
+                widths[segment_index][0],
+                widths[segment_index][1],
+                leg_mat,
+                14
+            )
+        ellipsoid(
+            "Walking leg knee %s %d" % ("L" if side < 0 else "R", leg_index + 1),
+            points[2],
+            (0.16, 0.16, 0.13),
+            leg_dark_mat,
+            segments=20,
+            rings=10
+        )
+        ellipsoid(
+            "Walking leg ankle %s %d" % ("L" if side < 0 else "R", leg_index + 1),
+            points[1],
+            (0.19, 0.17, 0.15),
+            leg_mat,
+            segments=20,
+            rings=10
+        )
+
+# Dominant, greatly enlarged right claw.
+dominant_arm = [
+    ((1.78, -0.72, 0.58), (2.48, -0.94, 0.53), 0.30, 0.27),
+    ((2.48, -0.94, 0.53), (3.13, -1.48, 0.50), 0.28, 0.24),
+    ((3.13, -1.48, 0.50), (3.22, -1.91, 0.53), 0.25, 0.22),
+]
+for i, (a, b, r1, r2) in enumerate(dominant_arm):
+    tapered_segment("Dominant claw arm %d" % i, a, b, r1, r2, claw_dark_mat, 20)
+for i, joint in enumerate([(2.48, -0.94, 0.53), (3.13, -1.48, 0.50)]):
+    ellipsoid("Dominant claw joint %d" % i, joint, (0.34, 0.31, 0.28),
+              claw_red_mat, segments=28, rings=14)
+
+ellipsoid(
+    "Dominant claw palm",
+    (3.18, -2.68, 0.59),
+    (0.72, 1.08, 0.46),
+    claw_red_mat,
+    rotation=(0.02, -0.06, -0.07),
+    segments=48,
+    rings=24
+)
+ellipsoid(
+    "Dominant palm upper lobe",
+    (3.33, -2.80, 0.79),
+    (0.52, 0.79, 0.22),
+    claw_dark_mat,
+    rotation=(0.0, 0.0, -0.08),
+    segments=32,
+    rings=16
+)
+
+dominant_outer_red = [
+    (3.55, -3.34, 0.60),
+    (3.77, -3.73, 0.61),
+    (3.76, -4.02, 0.61),
+]
+dominant_outer_white = [
+    (3.76, -4.02, 0.61),
+    (3.64, -4.31, 0.61),
+    (3.40, -4.53, 0.60),
+]
+dominant_inner_red = [
+    (2.83, -3.35, 0.68),
+    (2.58, -3.64, 0.75),
+    (2.52, -3.91, 0.77),
+]
+dominant_inner_white = [
+    (2.52, -3.91, 0.77),
+    (2.57, -4.19, 0.75),
+    (2.78, -4.42, 0.70),
+]
+tube_mesh("Dominant outer finger red", dominant_outer_red, [0.24, 0.20, 0.17], claw_red_mat, 16)
+tube_mesh("Dominant outer finger ivory", dominant_outer_white, [0.175, 0.125, 0.055], cream_mat, 16)
+tube_mesh("Dominant inner finger red", dominant_inner_red, [0.22, 0.18, 0.15], claw_red_mat, 16)
+tube_mesh("Dominant inner finger ivory", dominant_inner_white, [0.155, 0.105, 0.05], cream_mat, 16)
+
+# Small opposing teeth within the dominant open pincer.
+for i, (x, y, z, target_x) in enumerate([
+    (3.67, -3.88, 0.61, 3.52),
+    (3.60, -4.15, 0.61, 3.45),
+    (2.59, -3.82, 0.76, 2.75),
+    (2.61, -4.07, 0.74, 2.77),
+]):
+    tapered_segment(
+        "Dominant pincer tooth %d" % i,
+        (x, y, z),
+        (target_x, y - 0.015, z),
+        0.065,
+        0.012,
+        cream_mat,
+        10
+    )
+
+# Smaller, opposite claw.
+small_arm = [
+    ((-1.78, -0.72, 0.56), (-2.33, -0.93, 0.51), 0.25, 0.21),
+    ((-2.33, -0.93, 0.51), (-2.69, -1.43, 0.47), 0.22, 0.18),
+    ((-2.69, -1.43, 0.47), (-2.63, -1.78, 0.48), 0.19, 0.16),
+]
+for i, (a, b, r1, r2) in enumerate(small_arm):
+    tapered_segment("Small claw arm %d" % i, a, b, r1, r2, claw_dark_mat, 16)
+for i, joint in enumerate([(-2.33, -0.93, 0.51), (-2.69, -1.43, 0.47)]):
+    ellipsoid("Small claw joint %d" % i, joint, (0.27, 0.24, 0.22),
+              claw_red_mat, segments=24, rings=12)
+
+ellipsoid(
+    "Small claw palm",
+    (-2.62, -2.18, 0.51),
+    (0.48, 0.69, 0.34),
+    claw_red_mat,
+    rotation=(0.0, 0.03, 0.08),
+    segments=40,
+    rings=20
+)
+tube_mesh(
+    "Small claw outer red",
+    [(-2.89, -2.62, 0.51), (-3.04, -2.87, 0.53), (-3.02, -3.05, 0.54)],
+    [0.17, 0.13, 0.105],
+    claw_red_mat,
+    14
+)
+tube_mesh(
+    "Small claw outer ivory",
+    [(-3.02, -3.05, 0.54), (-2.94, -3.23, 0.55), (-2.81, -3.35, 0.55)],
+    [0.11, 0.078, 0.035],
+    cream_mat,
+    14
+)
+tube_mesh(
+    "Small claw inner red",
+    [(-2.36, -2.62, 0.58), (-2.22, -2.84, 0.63), (-2.22, -3.00, 0.64)],
+    [0.16, 0.12, 0.095],
+    claw_red_mat,
+    14
+)
+tube_mesh(
+    "Small claw inner ivory",
+    [(-2.22, -3.00, 0.64), (-2.29, -3.18, 0.62), (-2.42, -3.30, 0.60)],
+    [0.10, 0.07, 0.032],
+    cream_mat,
+    14
+)
+
+# White eye stalks and dark, glossy eye caps.
+for side in (-1, 1):
+    base = (side * 0.68, -1.16, 0.91)
+    tip = (side * 0.79, -1.53, 1.10)
+    tapered_segment(
+        "White eye stalk %s" % ("L" if side < 0 else "R"),
+        base,
+        tip,
+        0.115,
+        0.145,
+        eye_white_mat,
+        18
+    )
+    ellipsoid(
+        "White eye bulb %s" % ("L" if side < 0 else "R"),
+        tip,
+        (0.18, 0.16, 0.16),
+        eye_white_mat,
+        segments=28,
+        rings=14
+    )
+    ellipsoid(
+        "Dark eye cap %s" % ("L" if side < 0 else "R"),
+        (tip[0], tip[1] - 0.105, tip[2] + 0.018),
+        (0.115, 0.075, 0.105),
+        eye_dark_mat,
+        rotation=(math.radians(8), 0.0, 0.0),
+        segments=24,
+        rings=12
+    )
+
+# Compact mouth plates beneath the eyes.
+for i, (x, y, z, sx, sy, sz, rz) in enumerate([
+    (-0.42, -1.28, 0.48, 0.30, 0.17, 0.11, -0.16),
+    (0.42, -1.28, 0.48, 0.30, 0.17, 0.11, 0.16),
+    (-0.16, -1.37, 0.42, 0.20, 0.14, 0.09, -0.10),
+    (0.16, -1.37, 0.42, 0.20, 0.14, 0.09, 0.10),
+]):
+    ellipsoid(
+        "Mouth plate %d" % i,
+        (x, y, z),
+        (sx, sy, sz),
+        mouth_mat,
+        rotation=(0.0, 0.0, rz),
+        segments=24,
+        rings=12
+    )
+
+# Short sensory antennae at the front center.
+tube_mesh(
+    "Left short antenna",
+    [(-0.18, -1.32, 0.72), (-0.27, -1.60, 0.76), (-0.34, -1.80, 0.72)],
+    [0.035, 0.024, 0.010],
+    mouth_mat,
+    8
+)
+tube_mesh(
+    "Right short antenna",
+    [(0.18, -1.32, 0.72), (0.27, -1.60, 0.76), (0.34, -1.80, 0.72)],
+    [0.035, 0.024, 0.010],
+    mouth_mat,
+    8
+)
+
+# Organize the coherent assembly without adding any environmental objects.
+crab_collection = bpy.data.collections.new("Shore Crab")
+bpy.context.scene.collection.children.link(crab_collection)
+for obj in list(bpy.context.scene.collection.objects):
+    for collection in list(obj.users_collection):
+        collection.objects.unlink(obj)
+    crab_collection.objects.link(obj)
+
+bpy.context.scene.world.color = (0.05, 0.05, 0.05)
+bpy.context.view_layer.objects.active = None
+for obj in bpy.context.selected_objects:
+    obj.select_set(False)

@@ -1,0 +1,5 @@
+- Wrong overall shape: The current model looks like a distorted blob rather than a conch shell.
+- Missing pointed spire: There is no distinct, tapering tip at the top.
+- Poor aperture definition: The opening is not wide or well-defined as requested.
+- Subtle ridges: The "prominent wavy ridges" are nearly invisible; they need significantly more amplitude and better alignment.
+- Material pattern is too blocky: Need higher resolution or a smoother procedural logic.

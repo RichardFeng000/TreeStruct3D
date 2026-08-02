@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Succulent_seed0/Succulent_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Succulent_seed0/glb/Succulent_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 483.6,
+  "latency_s": 0.22,
+  "error": null
+}

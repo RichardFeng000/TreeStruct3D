@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Lichen_seed0/Lichen_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Lichen_seed0/glb/Lichen_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 9994.6,
+  "latency_s": 0.2,
+  "error": null
+}

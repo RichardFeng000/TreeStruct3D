@@ -1,0 +1,4 @@
+- The legs are incorrectly oriented; they overlap in the center rather than forming two distinct parallel supports.
+- Proportions are too spindly, making the table look fragile and visually thin in renders.
+- The "inverted-U" structure is poorly defined because the top bar is completely hidden by the tabletop.
+- Wood grain planks are barely visible due to lack of contrast/depth.

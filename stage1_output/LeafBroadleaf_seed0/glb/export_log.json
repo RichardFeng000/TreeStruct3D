@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafBroadleaf_seed0/LeafBroadleaf_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LeafBroadleaf_seed0/glb/LeafBroadleaf_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 3390.2,
+  "latency_s": 0.15,
+  "error": null
+}

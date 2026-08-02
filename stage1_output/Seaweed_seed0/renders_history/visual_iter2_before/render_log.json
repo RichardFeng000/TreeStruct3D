@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Seaweed_seed0/Seaweed_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 8,
+  "extent": 6.015091240406036,
+  "n_views_rendered": 4,
+  "latency_s": 2.37,
+  "error": null
+}

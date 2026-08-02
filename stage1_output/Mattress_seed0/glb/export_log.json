@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Mattress_seed0/Mattress_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Mattress_seed0/glb/Mattress_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1535.5,
+  "latency_s": 1.92,
+  "error": null
+}

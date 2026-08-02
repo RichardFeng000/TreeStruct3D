@@ -1,0 +1,3 @@
+- The black wire dish rack is completely missing from the renders; BMesh edges with a Skin modifier without vertex radii are invisible.
+- The body material lacks sufficient glossiness.
+- I need to replace the dish rack logic with actual geometry (thin cylinders/boxes) and refine materials to be more "glossy".

@@ -1,0 +1,4 @@
+- The petals are arranged as a jagged cluster rather than a cup or bowl shape; they don't flow logically from a center point.
+- Brown stamens are completely hidden by the petal arrangement and not visible in the renders.
+- Green sepals are barely visible and don't form a distinct ring at the base.
+- Petal geometry is too spiky and lacks an organic bloom feel.

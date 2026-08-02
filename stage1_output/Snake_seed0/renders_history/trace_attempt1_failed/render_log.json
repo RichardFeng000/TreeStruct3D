@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "TypeError: mathutils.Vector(): sequence index 2 expected a number, found 'complex' type, \nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py\", line 181, in <module>\n    generate_snake()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py\", line 75, in generate_snake\n    tangent = get_snake_tangent(t)\n              ^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py\", line 48, in get_snake_tangent\n    p2 = get_snake_path(t + delta)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py\", line 42, in get_snake_path\n    return Vector((x, y, z))\n           ^^^^^^^^^^^^^^^^^\nTypeError: mathutils.Vector(): sequence index 2 expected a number, found 'complex' type, \n"
+}

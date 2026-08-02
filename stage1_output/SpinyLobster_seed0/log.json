@@ -1,0 +1,43 @@
+{
+  "instance": "SpinyLobster_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 18,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 22,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The abdomen segments look like a string of spheres rather than overlapping carapace plates.\n- The tail fan is barely distinguishable from the body; it needs to be wider and flatter (fan-shaped).\n- Antennae are long but lack a pronounced \"upward curve\" described in the prompt.\n- Walking legs are too simplistic and don't clearly attach beneath the cephalothorax."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Abdomen segments are too spherical and look like beads rather than wide, overlapping carapace plates.\n- The tail fan is a single flat disc instead of a radiating \"fan\" structure.\n- Antennae exhibit visible angular bends; they need higher resolution for smooth curves.\n- Walking legs lack the \"pointed tips\" mentioned in the description."
+    }
+  ]
+}

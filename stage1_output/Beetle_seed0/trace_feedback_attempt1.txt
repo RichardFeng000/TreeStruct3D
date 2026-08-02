@@ -1,0 +1,287 @@
+Original text-to-3D task:
+
+A large beetle rendered as a textured 3D model. The creature has a broad, flat oval body with a dark brown to deep burgundy elytra (wing covers) featuring swirling organic patterns in vivid magenta-pink and dark crimson. The head is small and rounded with a prominent pair of large curved mandibles or horns projecting forward — dark reddish-brown with a slightly glossy surface. Six slender, articulated legs extend from beneath the body, each with pointed tips. The exoskeleton has a low surface roughness with subtle iridescence on the wing covers.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default scene objects."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+    # Clean up orphan data
+    for mesh in bpy.data.meshes:
+        bpy.data.meshes.remove(mesh)
+    for mat in bpy.data.materials:
+        bpy.data.materials.remove(mat)
+
+def create_material(name, color, roughness=0.1, metallic=0.0):
+    """Creates a simple Principled BSDF material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs['Base Color'].default_value = color
+    bsdf.inputs['Roughness'].default_value = roughness
+    bsdf.inputs['Metallic'].default_value = metallic
+    return mat
+
+def create_beetle():
+    # Materials
+    mat_elytra = create_material("Mat_Elytra", (0.1, 0.02, 0.05, 1.0), roughness=0.1) # Deep burgundy
+    mat_pattern = create_material("Mat_Pattern", (0.8, 0.0, 0.4, 1.0), roughness=0.2) # Magenta-pink
+    mat_body = create_material("Mat_Body", (0.05, 0.03, 0.02, 1.0), roughness=0.3) # Dark brown/black
+    mat_horns = create_material("Mat_Horns", (0.2, 0.05, 0.03, 1.0), roughness=0.15) # Glossy reddish-brown
+
+    # --- BODY / ELYTRA ---
+    # Create the main broad flat oval body
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 0))
+    body_obj = bpy.context.active_object
+    body_obj.name = "Beetle_Body"
+    
+    # Flatten and scale to an oval
+    body_obj.scale = (0.8, 1.4, 0.35)
+    bpy.ops.object.transform_apply(scale=True)
+
+    # Use BMesh to sculpt the body slightly and divide it into elytra
+    bm = bmesh.new()
+    bm.from_mesh(body_obj.data)
+    
+    # Create a slight indentation for the thorax/elytra split
+    for v in bm.verts:
+        if v.co.y > 0.2 and v.co.y < 0.5:
+            v.co.z *= 0.8
+        # Add some organic noise to simulate surface patterns / texture
+        dist = math.sqrt(v.co.x**2 + v.co.y**2)
+        v.co.z += (math.sin(v.co.x * 10) * math.cos(v.co.y * 10)) * 0.01
+
+    bm.to_mesh(body_obj.data)
+    bm.free()
+
+    # Split the body into two elytra and a thorax
+    # We do this by assigning different materials based on location
+    body_obj.data.materials.append(mat_body)   # Index 0: Thorax/Body
+    body_obj.data.materials.append(mat_elytra) # Index 1: Elytra
+    body_obj.data.materials.append(mat_pattern)# Index 2: Accents
+
+    bm = bmesh.new()
+    bm.from_mesh(body_obj.data)
+    for face in bm.faces:
+        center = face.calc_center_median()
+        if center.y < 0.4:
+            face.material_index = 0 # Thorax
+        else:
+            # Create a "swirling" pattern based on coordinates
+            pattern_val = math.sin(center.x * 5 + center.y * 2) * math.cos(center.x * 2 - center.y * 5)
+            if pattern_val > 0.6:
+                face.material_index = 2 # Magenta patterns
+            else:
+                face.material_index = 1 # Burgundy elytra
+    bm.to_mesh(body_obj.data)
+    bm.free()
+
+    # --- HEAD ---
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.3, location=(0, -1.5, 0.1))
+    head = bpy.context.active_object
+    head.name = "Beetle_Head"
+    head.scale = (0.8, 1.0, 0.7)
+    bpy.ops.object.transform_apply(scale=True)
+    head.data.materials.append(mat_body)
+
+    # --- HORNS / MANDIBLES ---
+    def create_horn(side):
+        # Side is 1 or -1
+        mesh = bpy.data.meshes.new(f"Horn_{'L' if side == -1 else 'R'}")
+        obj = bpy.data.objects.new(f"Horn_{'L' if side == -1 else 'R'}", mesh)
+        bpy.context.collection.objects.link(obj)
+        
+        bm = bmesh.new()
+        # Start at the head
+        verts = []
+        segments = 12
+        for i in range(segments):
+            t = i / (segments - 1)
+            # Curve projecting forward and slightly outward/upward
+            x = side * (0.1 + t * 0.2)
+            y = -1.5 - t * 0.6
+            z = 0.1 + t * 0.4 * math.sin(t * math.pi)
+            verts.append(bm.verts.new((x, y, z)))
+        
+        # Create the thickness of the horn by extruding circles along the path
+        for i in range(segments - 1):
+            v1 = verts[i]
+            v2 = verts[i+1]
+            edge = bm.edges.new((v1, v2))
+            
+            # Create a small ring around each point
+            ring_verts = []
+            res = 8
+            radius = 0.06 * (1.0 - t * 0.5) if 't' in locals() else 0.06
+            # Re-calculate t for current segment
+            t_curr = i / (segments - 1)
+            radius = 0.07 * (1.0 - t_curr * 0.6)
+            
+            # Normal for the ring
+            dir = (v2.co - v1.co).normalized()
+            up = Vector((0, 0, 1))
+            right = dir.cross(up).normalized()
+            forward = right.cross(dir).normalized()
+            
+            for j in range(res):
+                angle = (2 * math.pi / res) * j
+                offset = right * math.cos(angle) * radius + forward * math.sin(angle) * radius
+                ring_verts.append(bm.verts.new(v1.co + offset))
+            
+            # This part is complex for a simple loop, let's use a simpler approach: 
+            # Just create the centerline and then skin it with a modifier.
+        
+        bm.to_mesh(mesh)
+        bm.free()
+        return obj
+
+    # Actually, using Curves to mesh for horns is cleaner in Blender
+    def create_curved_horn(side):
+        curve_data = bpy.data.curves.new(name=f"HornCurve_{side}", type='CURVE')
+        curve_data.dimensions = '3D'
+        curve_data.bevel_depth = 0.05
+        curve_data.bevel_resolution = 4
+        
+        polyline = curve_data.splines.new('BEZIER')
+        polyline.bezier_points.add(3)
+        
+        # Points: Base, Middle, Tip
+        pts = [
+            Vector((side * 0.15, -1.6, 0.2)),
+            Vector((side * 0.3, -2.0, 0.4)),
+            Vector((side * 0.2, -2.4, 0.5))
+        ]
+        for i, p in enumerate(pts):
+            polyline.bezier_points[i].co = p
+            polyline.bezier_points[i].handle_left = p - Vector((0, 0.2, 0))
+            polyline.bezier_points[i].handle_right = p + Vector((0, 0.2, 0))
+            
+        obj = bpy.data.objects.new(f"Horn_{side}", curve_data)
+        bpy.context.collection.objects.link(obj)
+        obj.data.materials.append(mat_horns)
+        return obj
+
+    create_curved_horn(1)
+    create_curved_horn(-1)
+
+    # --- LEGS ---
+    def create_leg(side, index):
+        # side: 1 or -1, index: 0, 1, 2 (front, middle, back)
+        leg_obj = bpy.data.objects.new(f"Leg_{'L' if side == -1 else 'R'}_{index}", bpy.data.meshes.new())
+        bpy.context.collection.objects.link(leg_obj)
+        
+        bm = bmesh.new()
+        
+        # Leg segments: Coxa, Femur, Tibia, Tarsus
+        # Starting position relative to center
+        start_x = side * 0.6
+        start_y = -0.5 + index * 0.8
+        start_z = 0.0
+        
+        curr_pos = Vector((start_x, start_y, start_z))
+        prev_vert = bm.verts.new(curr_pos)
+        
+        # Define segment directions and lengths
+        segments = [
+            Vector((side * 0.3, -0.1, -0.2)), # Coxa
+            Vector((side * 0.6, side * 0.2, -0.3)), # Femur
+            Vector((side * 0.2, side * 0.3, -0.6)), # Tibia
+            Vector((0, 0, -0.3)) # Tarsus (pointed)
+        ]
+        
+        for i, vec in enumerate(segments):
+            # Create a cylinder for each segment
+            res = 8
+            radius_start = 0.08 * (1.0 - i * 0.2)
+            radius_end = radius_start * 0.8 if i < 3 else 0.01 # Taper to point
+            
+            # Create two rings of vertices
+            ring1 = []
+            ring2 = []
+            
+            dir = vec.normalized()
+            right = dir.cross(Vector((0, 1, 0))).normalized() if abs(dir.z) < 0.9 else dir.cross(Vector((1, 0, 0))).normalized()
+            up = right.cross(dir).normalized()
+            
+            for j in range(res):
+                angle = (2 * math.pi / res) * j
+                off1 = (right * math.cos(angle) + up * math.sin(angle)) * radius_start
+                off2 = (right * math.cos(angle) + up * math.sin(angle)) * radius_end
+                ring1.append(bm.verts.new(curr_pos + off1))
+                ring2.append(bm.verts.new(curr_pos + vec + off2))
+            
+            # Create faces between rings
+            for j in range(res):
+                v1 = ring1[j]
+                v2 = ring1[(j+1)%res]
+                v3 = ring2[(j+1)%res]
+                v4 = ring2[j]
+                bm.faces.new((v1, v2, v3, v4))
+            
+            # Cap the start (except for first segment)
+            if i == 0: # Coxa base
+                 pass # Let it attach to body
+            
+            curr_pos += vec
+            
+        bm.to_mesh(leg_obj.data)
+        bm.free()
+        leg_obj.data.materials.append(mat_body)
+
+    # Generate all 6 legs
+    for s in [-1, 1]:
+        for idx in range(3):
+            create_leg(s, idx)
+
+    # Final Polish: Group everything into a collection or just leave as is
+    # Move head slightly closer to body and ensure positioning
+    head.location = (0, -1.4, 0.1)
+
+clear_scene()
+create_beetle()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: BlendDataMeshes.new(): required parameter "name" not specified
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py", line 248, in <module>
+    create_beetle()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py", line 241, in create_beetle
+    create_leg(s, idx)
+  File "/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py", line 177, in create_leg
+    leg_obj = bpy.data.objects.new(f"Leg_{'L' if side == -1 else 'R'}_{index}", bpy.data.meshes.new())
+                                                                                ^^^^^^^^^^^^^^^^^^^^^
+TypeError: BlendDataMeshes.new(): required parameter "name" not specified
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

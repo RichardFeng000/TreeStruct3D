@@ -1,0 +1,4 @@
+- Missing Materials: The shell is plain white; it needs brown/cream growth rings and a darker interior as requested.
+- Wrong Shape: The geometry is too "wavy" and lacks the structural integrity of a real scallop shell (dome shape with distinct radial ribs).
+- Hinge Detail: The valves meet at a single point rather than sharing a cohesive hinged edge.
+- Proportions: The fan shape is distorted; it needs to be more clearly rounded and organic.

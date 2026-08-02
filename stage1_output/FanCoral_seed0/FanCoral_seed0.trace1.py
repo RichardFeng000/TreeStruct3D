@@ -1,0 +1,179 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears all objects from the default scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple Principled BSDF material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def generate_coral_skeleton():
+    """Generates the branching structure of a sea fan."""
+    # Constants for growth
+    ROOT_HEIGHT = 1.5
+    ITERATIONS = 6
+    INITIAL_LENGTH = 0.8
+    BIFURCATION_ANGLE = math.radians(35)
+    LENGTH_DECAY = 0.75
+    RADIUS_DECAY = 0.7
+    PLANAR_STRICTNESS = 0.15  # Small Y-axis variance to keep it fan-like
+
+    segments = [] # List of (start, end, start_rad, end_rad)
+    
+    # Root segment: straight up from origin
+    root_start = Vector((0, 0, 0))
+    root_end = Vector((0, 0, ROOT_HEIGHT))
+    segments.append((root_start, root_end, 0.12, 0.08))
+
+    # Recursive growth function
+    def grow(start, direction, length, radius, depth):
+        if depth <= 0:
+            return [start]
+        
+        # Calculate end point of this branch
+        end = start + direction * length
+        new_radius = radius * RADIUS_DECAY
+        segments.append((start, end, radius, new_radius))
+        
+        # To keep it planar in the XZ plane, we primarily rotate around the Y axis
+        # Local frame for bifurcation
+        y_axis = Vector((0, 1, 0))
+        right = direction.cross(y_axis).normalized()
+        up_local = right.cross(direction).normalized()
+        
+        # Two diverging directions
+        angle1 = BIFURCATION_ANGLE + random.uniform(-0.1, 0.1)
+        angle2 = -BIFURCATION_ANGLE + random.uniform(-0.1, 0.1)
+        
+        # Branch 1: Rotate around Y axis (main fan spread) and add slight organic jitter
+        rot1 = Vector((0, 1, 0)) # Rotation axis for the "fan" spread
+        dir1 = (Vector((0, 1, 0)) * random.uniform(-PLANAR_STRICTNESS, PLANAR_STRICTNESS)).normalized() # Jitter
+        # Actual rotation logic: rotate 'direction' around y_axis by angle1
+        import mathutils
+        rot_mat1 = mathutils.Matrix.Rotation(angle1, 4, y_axis)
+        dir1 = (rot_mat1 @ direction).normalized()
+        dir1 += Vector((0, random.uniform(-PLANAR_STRICTNESS, PLANAR_STRICTNESS), 0))
+        dir1 = dir1.normalized()
+
+        # Branch 2: Rotate around Y axis by angle2
+        rot_mat2 = mathutils.Matrix.Rotation(angle2, 4, y_axis)
+        dir2 = (rot_mat2 @ direction).normalized()
+        dir2 += Vector((0, random.uniform(-PLANAR_STRICTNESS, PLANAR_STRICTNESS), 0))
+        dir2 = dir2.normalized()
+
+        points = []
+        points.extend(grow(end, dir1, length * LENGTH_DECAY, new_radius, depth - 1))
+        points.extend(grow(end, dir2, length * LENGTH_DECAY, new_radius, depth - 1))
+        return points
+
+    # Start growing from the root top
+    grow(root_end, Vector((0, 0, 1)), INITIAL_LENGTH, 0.08, ITERATIONS)
+    
+    # Create cross-links for the "net" structure
+    # Collect all segment endpoints
+    endpoints = []
+    for s in segments:
+        endpoints.append(s[0])
+        endpoints.append(s[1])
+    
+    # Deduplicate points roughly
+    unique_points = []
+    for p in endpoints:
+        is_new = True
+        for up in unique_points:
+            if (p - up).length < 0.05:
+                is_new = False
+                break
+        if is_new:
+            unique_points.append(p)
+
+    # Link points that are close to each other but not already connected
+    link_dist = INITIAL_LENGTH * 0.7
+    for i in range(len(unique_points)):
+        for j in range(i + 1, len(unique_points)):
+            p1 = unique_points[i]
+            p2 = unique_points[j]
+            dist = (p1 - p2).length
+            if 0.1 < dist < link_dist:
+                # Only link if they are roughly at similar height to avoid vertical lines
+                if abs(p1.z - p2.z) < link_dist * 0.5:
+                    avg_rad = 0.02
+                    segments.append((p1, p2, avg_rad, avg_rad))
+
+    return segments
+
+def build_coral_mesh(segments):
+    """Constructs the coral geometry using a Curve object with beveling for thickness."""
+    # Create a new curve data block
+    curve_data = bpy.data.curves.new('SeaFanCurve', type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.fill_mode = 'FULL'
+    curve_data.bevel_resolution = 3
+    curve_data.bevel_factor = 0 # We will set radius per point
+
+    # Each segment is a separate spline in the curve object
+    for start, end, r1, r2 in segments:
+        spline = curve_data.splines.new('BEZIER')
+        spline.bezier_points.add(1) # Add one more point (total 2)
+        
+        p0 = spline.bezier_points[0]
+        p1 = spline.bezier_points[1]
+        
+        p0.co = start
+        p1.co = end
+        
+        # Make them straight lines instead of curves
+        p0.handle_left_type = 'VECTOR'
+        p0.handle_right_type = 'VECTOR'
+        p1.handle_left_type = 'VECTOR'
+        p1.handle_right_type = 'VECTOR'
+        p0.handle_right = end - start
+        p1.handle_left = start - end
+        
+        # Set thickness (bevel depth is global, so we use radius per point)
+        # Since the Curve bevel works based on a base offset and radii multipliers:
+        # We'll set curve_data.bevel_depth to a small constant and scale radii.
+        p0.radius = r1 * 10 # Scaling factor because bevel_depth is shared
+        p1.radius = r2 * 10
+
+    # Set the base thickness for all splines
+    curve_data.bevel_depth = 0.01 
+
+    # Create object and link to scene
+    obj = bpy.data.objects.new('SeaFanCoral', curve_data)
+    bpy.context.collection.objects.link(obj)
+    
+    return obj
+
+def main():
+    clear_scene()
+    
+    # 1. Generate the skeletal data (points and radii)
+    segments = generate_coral_skeleton()
+    
+    # 2. Build the geometry using Curve objects for efficient organic tubing
+    coral_obj = build_coral_mesh(segments)
+    
+    # 3. Apply a material (Warm Sandy Beige / Tan)
+    mat_beige = create_material("CoralBeige", (0.8, 0.7, 0.5, 1.0))
+    coral_obj.data.materials.append(mat_beige)
+    
+    # To ensure the base is slightly darker/brown (simulated by material or logic),
+    # we usually use a gradient texture, but here we stick to one solid organic color.
+    # We can add a second material if needed, but for simplicity and "no textures", 
+    # one warm tone suffices.
+
+if __name__ == "__main__":
+    main()

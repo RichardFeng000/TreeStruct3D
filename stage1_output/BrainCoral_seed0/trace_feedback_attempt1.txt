@@ -1,0 +1,154 @@
+Original text-to-3D task:
+
+A rounded, dome-shaped brain coral rendered as a 3D model. The coral has a compact spherical form with intricate, continuous labyrinthine groove-and-ridge patterns covering the entire surface, mimicking the folded structure of a brain. The surface coloring is warm beige and tan with subtle pale green tints settling in the groove valleys, giving it a natural reef-tone appearance. A dark shadow beneath the object grounds it against the plain white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+
+def create_coral_material():
+    """Creates the organic coral material with valley-specific coloring."""
+    mat = bpy.data.materials.new(name="BrainCoralMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    # Clear default nodes
+    for node in nodes:
+        nodes.remove(node)
+
+    # Create nodes
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_mix = nodes.new(type='ShaderNodeMixRGB')
+    node_ao = nodes.new(type='ShaderNodeAmbientOcclusion')
+    
+    # Colors
+    # Warm Beige/Tan for the ridges
+    color_ridge = (0.85, 0.72, 0.55, 1.0) 
+    # Pale Green for the valleys
+    color_valley = (0.55, 0.62, 0.45, 1.0)
+
+    node_mix.inputs[0].default_value = 0.5 # Factor handled by AO
+    node_mix.inputs[1].default_value = color_ridge
+    node_mix.inputs[2].default_value = color_valley
+
+    # Set BSDF properties for a biological look
+    node_bsdf.inputs['Base Color'].socket = node_mix.outputs[0] 
+    # Correct way to link:
+    links.new(node_ao.outputs[0], node_mix.inputs[0])
+    links.new(node_mix.outputs[0], node_bsdf.inputs['Base Color'])
+    links.new(node_bsdf.outputs[0], node_output.inputs[0])
+
+    # Roughness for organic surface (not too shiny)
+    node_bsdf.inputs['Roughness'].default_value = 0.8
+    node_bsdf.inputs['Specular'].default_value = 0.2
+
+    return mat
+
+def create_brain_coral():
+    """Generates the high-detail brain coral geometry."""
+    # 1. Create base sphere (the dome)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
+    obj = bpy.context.active_object
+    obj.name = "BrainCoral"
+
+    # Flatten slightly to make it a 'dome' rather than a perfect sphere
+    obj.scale = (1.2, 1.2, 0.8)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    # 2. High Subdivision for detail
+    # We use the modifier approach first to keep it parametric, then apply
+    subdiv = obj.modifiers.new(name="SubdivBase", type='SUBSURF')
+    subdiv.levels = 4 
+    subdiv.render_levels = 4
+
+    # 3. Create textures for displacement (Labyrinthine effect)
+    # Texture A: Large meanders
+    tex_large = bpy.data.textures.new("CoralLarge", type='CLOUDS')
+    tex_large.noise_scale = 0.8
+    tex_large.contrast = 1.5
+
+    # Texture B: Finer ridge patterns
+    tex_fine = bpy.data.textures.new("CoralFine", type='VORONOI')
+    tex_fine.noise_scale = 2.5
+    tex_fine.voronoi_dim = '3D'
+
+    # 4. Apply displacement modifiers
+    # Large folds
+    disp_large = obj.modifiers.new(name="DispLarge", type='DISPLACE')
+    disp_large.texture = tex_large
+    disp_large.strength = 0.15
+
+    # Fine ridges (adding another layer of complexity)
+    disp_fine = obj.modifiers.new(name="DispFine", type='DISPLACE')
+    disp_fine.texture = tex_fine
+    disp_fine.strength = 0.06
+
+    # Final smoothing pass to avoid jagged artifacts from displacement
+    subdiv_smooth = obj.modifiers.new(name="SmoothFinal", type='SUBSURF')
+    subdiv_smooth.levels = 1
+
+    # Apply all modifiers to bake the geometry for the material's AO/Pointiness calculation
+    bpy.context.view_layer.objects.active = obj
+    for mod in obj.modifiers:
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+
+    # Smooth shading
+    bpy.ops.object.shade_smooth()
+
+    # 5. Material Assignment
+    mat = create_coral_material()
+    obj.data.materials.append(mat)
+
+def main():
+    clear_scene()
+    create_brain_coral()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'VoronoiTexture' object has no attribute 'voronoi_dim'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/BrainCoral_seed0/BrainCoral_seed0.py", line 115, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/BrainCoral_seed0/BrainCoral_seed0.py", line 112, in main
+    create_brain_coral()
+  File "/Users/fengruiding/Downloads/3d_code/Output/BrainCoral_seed0/BrainCoral_seed0.py", line 81, in create_brain_coral
+    tex_fine.voronoi_dim = '3D'
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VoronoiTexture' object has no attribute 'voronoi_dim'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

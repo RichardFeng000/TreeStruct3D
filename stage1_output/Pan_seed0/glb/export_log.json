@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pan_seed0/Pan_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Pan_seed0/glb/Pan_seed0.glb",
+  "status": "OK",
+  "n_meshes": 3,
+  "size_kb": 109.9,
+  "latency_s": 0.1,
+  "error": null
+}

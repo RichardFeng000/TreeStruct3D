@@ -1,0 +1,3 @@
+- Color is too pale; it looks cream/white rather than a "warm peachy pink".
+- The procedural streaks are invisible in the renders; they should be vertical, radiating from the top.
+- The material mapping scale was incorrect (stretched too much), resulting in a flat color.

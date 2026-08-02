@@ -1,0 +1,232 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+def make_material(name, color, roughness=0.9):
+    material = bpy.data.materials.new(name=name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+    return material
+
+stem_material = make_material("Dark Green Stem", (0.008, 0.060, 0.014))
+leaf_material = make_material("Dark Clover Green", (0.010, 0.095, 0.020))
+leaf_highlight_material = make_material("Leaf Facet Green", (0.016, 0.135, 0.030))
+leaf_edge_material = make_material("Leaf Edge Green", (0.005, 0.042, 0.010))
+
+created_objects = []
+
+def set_flat_shading(obj):
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = False
+
+def add_cylinder_between(name, start, end, radius, vertices, material):
+    start = Vector(start)
+    end = Vector(end)
+    direction = end - start
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=direction.length,
+        end_fill_type='NGON',
+        location=(start + end) * 0.5
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = direction.to_track_quat('Z', 'Y')
+    obj.data.materials.append(material)
+    set_flat_shading(obj)
+    created_objects.append(obj)
+    return obj
+
+# A thin, modestly sized upright stem.
+stem_height = 1.12
+bpy.ops.mesh.primitive_cylinder_add(
+    vertices=9,
+    radius=0.029,
+    depth=stem_height,
+    end_fill_type='NGON',
+    location=(0.0, 0.0, stem_height * 0.5)
+)
+stem = bpy.context.object
+stem.name = "Thin Upright Stem"
+stem.data.materials.append(stem_material)
+set_flat_shading(stem)
+created_objects.append(stem)
+
+cluster_center = Vector((0.0, 0.0, stem_height))
+
+leaf_angles = [
+    math.radians(0.0),
+    math.radians(90.0),
+    math.radians(180.0),
+    math.radians(270.0)
+]
+leaf_tilts = [
+    math.radians(5.0),
+    math.radians(7.0),
+    math.radians(4.0),
+    math.radians(6.0)
+]
+leaf_scales = [1.00, 0.96, 0.98, 0.95]
+
+# Short petioles visibly connect every leaflet to the stem.
+for index, (angle, tilt) in enumerate(zip(leaf_angles, leaf_tilts)):
+    radial_flat = Vector((math.cos(angle), math.sin(angle), 0.0))
+    start = cluster_center + Vector((0.0, 0.0, 0.012))
+    end = (
+        cluster_center
+        + radial_flat * 0.145
+        + Vector((0.0, 0.0, 0.012 + math.sin(tilt) * 0.10))
+    )
+    add_cylinder_between(
+        "Leaf Petiole %02d" % (index + 1),
+        start,
+        end,
+        0.012,
+        7,
+        stem_material
+    )
+
+# Compact central junction.
+bpy.ops.mesh.primitive_ico_sphere_add(
+    subdivisions=1,
+    radius=0.052,
+    location=cluster_center + Vector((0.0, 0.0, 0.014))
+)
+junction = bpy.context.object
+junction.name = "Clover Junction"
+junction.scale = (1.0, 1.0, 0.68)
+junction.data.materials.append(stem_material)
+set_flat_shading(junction)
+created_objects.append(junction)
+
+# Local leaflet outline: attachment point at the origin and a shallow
+# heart-shaped notch at the broad outer end.
+leaf_outline = [
+    (0.000,  0.000),
+    (0.070, -0.070),
+    (0.155, -0.125),
+    (0.255, -0.145),
+    (0.345, -0.120),
+    (0.405, -0.065),
+    (0.335,  0.000),
+    (0.405,  0.065),
+    (0.345,  0.120),
+    (0.255,  0.145),
+    (0.155,  0.125),
+    (0.070,  0.070)
+]
+
+def create_leaflet(name, angle, tilt, scale):
+    radial_flat = Vector((math.cos(angle), math.sin(angle), 0.0))
+    tangent = Vector((-math.sin(angle), math.cos(angle), 0.0))
+    radial = Vector((
+        math.cos(angle) * math.cos(tilt),
+        math.sin(angle) * math.cos(tilt),
+        math.sin(tilt)
+    )).normalized()
+
+    # Correct upward-facing normal for the tilted leaf plane.
+    normal = radial.cross(tangent).normalized()
+    base = cluster_center + radial_flat * 0.125 + Vector((0.0, 0.0, 0.020))
+
+    count = len(leaf_outline)
+    vertices = []
+
+    # Low-poly domed upper perimeter.
+    for x, y in leaf_outline:
+        sx = x * scale
+        sy = y * scale
+        normalized_x = min(max(x / 0.405, 0.0), 1.0)
+        arch = 0.012 * math.sin(math.pi * normalized_x)
+        edge_drop = 0.006 * abs(y) / 0.145
+        point = base + radial * sx + tangent * sy + normal * (0.011 + arch - edge_drop)
+        vertices.append(tuple(point))
+
+    # Solid lower perimeter.
+    for x, y in leaf_outline:
+        sx = x * scale
+        sy = y * scale
+        point = base + radial * sx + tangent * sy - normal * 0.012
+        vertices.append(tuple(point))
+
+    top_center = base + radial * (0.220 * scale) + normal * 0.033
+    bottom_center = base + radial * (0.215 * scale) - normal * 0.014
+    vertices.append(tuple(top_center))
+    vertices.append(tuple(bottom_center))
+
+    top_center_index = count * 2
+    bottom_center_index = count * 2 + 1
+    faces = []
+    material_indices = []
+
+    for i in range(count):
+        nxt = (i + 1) % count
+        faces.append((top_center_index, i, nxt))
+        material_indices.append(1 if i in (1, 2, 7, 8) else 0)
+
+    for i in range(count):
+        nxt = (i + 1) % count
+        faces.append((bottom_center_index, count + nxt, count + i))
+        material_indices.append(2)
+
+    for i in range(count):
+        nxt = (i + 1) % count
+        faces.append((i, count + i, count + nxt, nxt))
+        material_indices.append(2)
+
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.materials.append(leaf_material)
+    mesh.materials.append(leaf_highlight_material)
+    mesh.materials.append(leaf_edge_material)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+
+    for polygon, material_index in zip(mesh.polygons, material_indices):
+        polygon.material_index = material_index
+        polygon.use_smooth = False
+
+    created_objects.append(obj)
+    return obj
+
+for index, angle in enumerate(leaf_angles):
+    create_leaflet(
+        "Rounded Leaflet %02d" % (index + 1),
+        angle,
+        leaf_tilts[index],
+        leaf_scales[index]
+    )
+
+# Join the connected assembly into one final mesh object.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in created_objects:
+    if obj and obj.name in bpy.data.objects:
+        obj.select_set(True)
+
+bpy.context.view_layer.objects.active = stem
+bpy.ops.object.join()
+
+plant = bpy.context.object
+plant.name = "Small Dark Green Low-Poly Clover"
+set_flat_shading(plant)
+
+plant.select_set(True)
+bpy.context.view_layer.objects.active = plant

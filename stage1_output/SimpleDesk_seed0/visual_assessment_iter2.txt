@@ -1,0 +1,3 @@
+- The lower shelf is too light in the renders; it appears as a light gray or white instead of "dark gray".
+- The legs are simple cylinders, which look less like a "metal frame" than square-profile tubing would.
+- Material reflectivity on the shelf may be causing the wash-out effect seen in the images.

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SimpleBookcase_seed0/SimpleBookcase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/SimpleBookcase_seed0/glb/SimpleBookcase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 61.0,
+  "latency_s": 0.38,
+  "error": null
+}

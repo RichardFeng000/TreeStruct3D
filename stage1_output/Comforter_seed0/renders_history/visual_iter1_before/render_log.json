@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Comforter_seed0/Comforter_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 3.228659749031067,
+  "n_views_rendered": 4,
+  "latency_s": 3.48,
+  "error": null
+}

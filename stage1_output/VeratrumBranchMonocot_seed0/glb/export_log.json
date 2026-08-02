@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumBranchMonocot_seed0/VeratrumBranchMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumBranchMonocot_seed0/glb/VeratrumBranchMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 153,
+  "size_kb": 749.3,
+  "latency_s": 0.18,
+  "error": null
+}

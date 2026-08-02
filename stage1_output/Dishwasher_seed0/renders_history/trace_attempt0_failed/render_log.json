@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.02,
+  "error": "ValueError: math domain error\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py\", line 132, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py\", line 129, in main\n    create_dish_rack(loc=Vector((0, 0, wall_t + 0.02)), mat=black_glossy)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py\", line 76, in create_dish_rack\n    create_wire_segment(f\"Slot_{i}\", Vector((x, y_pos, 0)) + loc, Vector((x, y_pos, z_top)) + loc, wire_r, mat)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py\", line 38, in create_wire_segment\n    theta = math.acos(direction.z / length)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: math domain error\n"
+}

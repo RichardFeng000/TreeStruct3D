@@ -1,0 +1,4 @@
+- Petals are too pointy and needle-like; they should be "thick" and "fleshy" (more ovate/rounded).
+- Filaments at the center are essentially invisible in the renders.
+- Geometry is very faceted; needs smooth shading to look organic/waxy.
+- The rosette layout is a bit sparse; it needs to be more compact with better overlapping.

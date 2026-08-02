@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/DiffGrowthBaseCoral_seed0/DiffGrowthBaseCoral_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 9.513911724090576,
+  "n_views_rendered": 4,
+  "latency_s": 9.38,
+  "error": null
+}

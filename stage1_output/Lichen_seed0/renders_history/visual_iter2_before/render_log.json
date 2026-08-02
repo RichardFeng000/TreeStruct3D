@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Lichen_seed0/Lichen_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 1.928346037864685,
+  "n_views_rendered": 4,
+  "latency_s": 3.19,
+  "error": null
+}

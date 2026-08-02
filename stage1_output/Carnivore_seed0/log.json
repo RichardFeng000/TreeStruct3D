@@ -1,0 +1,46 @@
+{
+  "instance": "Carnivore_seed0",
+  "timestamp": "2026-07-10T02:47:48+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 142.64,
+  "code_chars": 11873,
+  "input_tokens": 6784,
+  "output_tokens": 4831,
+  "thoughts_tokens": null,
+  "total_tokens": 11615,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "error_brief": "AttributeError: 'ParticleSettings' object has no attribute 'use_hair_length'"
+    }
+  ],
+  "final_render_status": "OK_REVERTED",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Missing fluffy fur texture; particle hair system is present but not visible in renders.\n- Stripes are too sparse and poorly aligned; body lacks dense horizontal banding.\n- Paws/claws are not darkened as specified; appear gray instead of black.\n- Head is misshapen with no visible ears or facial markings.\n- Overall scale and pose look squashed; legs are too thin and crouch is not pronounced.",
+      "raw_chars": 12509,
+      "reverted": true,
+      "note": "post-fix render failed (ERR_EXEC); reverted to previous good code (renders_history/attempt0/)"
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

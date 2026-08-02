@@ -1,0 +1,56 @@
+{
+  "instance": "Lid_seed0",
+  "timestamp": "2026-07-09T16:06:41+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 90.94,
+  "code_chars": 4484,
+  "input_tokens": 7040,
+  "output_tokens": 3184,
+  "thoughts_tokens": null,
+  "total_tokens": 10224,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 2,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 2,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Lid rim is invisible; should be a thin raised edge but renders as flat.\n- Knob lacks clear material separation; pink/blue colors blend instead of contrasting.\n- Dome profile is too shallow; should look slightly domed, not nearly flat.\n- No bevel on lid edge; should have smooth transition but appears sharp.\n- Knob proportions are too squat; should be more cylindrical with distinct cap.",
+      "raw_chars": 4881
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Lid lacks visible rim; edge appears flat, not raised as described.\n- Knob\u2019s pink/blue color split is incorrect \u2014 blue should cap top, pink base, but rendering shows reversed or blended colors.\n- Dome profile is too shallow; lid looks nearly flat, not slightly domed.\n- No material assignment to knob\u2019s cap vs body \u2014 both use same material index.",
+      "raw_chars": 4897
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

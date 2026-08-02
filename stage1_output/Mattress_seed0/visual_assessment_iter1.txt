@@ -1,0 +1,4 @@
+- The render shows a broken, fragmented mesh that looks like a stack of thin slices rather than a solid mattress.
+- There is no recognizable tufting or quilted pattern; the surface has jagged vertical artifacts.
+- The overall shape is completely distorted and does not resemble a rectangular padded slab.
+- The coloring is too pale/white and lacks the requested mint-green hue.

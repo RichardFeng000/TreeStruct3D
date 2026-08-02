@@ -1,0 +1,211 @@
+Original text-to-3D task:
+
+A 3D model of a single banana tree leaf rendered from a slightly elevated perspective. The leaf features a large, broad elliptical blade with a prominent central midrib, fine parallel lateral veins running across the bright green upper surface, and a dark underside.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default scene of all objects."""
+    if bpy.context.object:
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_leaf_materials():
+    """Creates materials for the upper and lower surfaces of the leaf."""
+    mat_top = bpy.data.materials.new(name="BananaLeaf_Top")
+    mat_top.use_nodes = True
+    nodes_top = mat_top.node_tree.nodes
+    bsdf_top = nodes_top.get("Principled BSDF")
+    if bsdf_top:
+        bsdf_top.inputs['Base Color'].default_value = (0.25, 0.75, 0.1, 1.0)
+        bsdf_top.inputs['Roughness'].default_value = 0.3
+
+    mat_bot = bpy.data.materials.new(name="BananaLeaf_Bottom")
+    mat_bot.use_nodes = True
+    nodes_bot = mat_bot.node_tree.nodes
+    bsdf_bot = nodes_bot.get("Principled BSDF")
+    if bsdf_bot:
+        bsdf_bot.inputs['Base Color'].default_value = (0.08, 0.25, 0.05, 1.0)
+        bsdf_bot.inputs['Roughness'].default_value = 0.7
+
+    return mat_top, mat_bot
+
+def build_banana_leaf():
+    # Parameters for a broad, large leaf
+    length = 6.0
+    width_max = 2.5  # Significantly wider
+    res_u = 100      # Length resolution
+    res_v = 60       # Width resolution
+    thickness = 0.01
+    
+    bm = bmesh.new()
+
+    grid = []
+    
+    for i in range(res_u):
+        # u from -1 to 1 along length
+        u = (i / (res_u - 1)) * 2.0 - 1.0 
+        # Broad elliptical shape: widen the center, taper ends
+        # Using a power of 0.7 for a slightly more rectangular-oval look than a perfect circle
+        w_factor = math.sqrt(max(0, 1.0 - u*u)) * 1.2
+        
+        row = []
+        for j in range(res_v):
+            # v from -1 to 1 across width
+            v = (j / (res_v - 1)) * 2.0 - 1.0 
+            
+            # X is the width axis, Y is the length axis
+            x = v * w_factor * (width_max * 0.5)
+            y = u * (length * 0.5)
+            z = 0.0
+            
+            # 1. Prominent Midrib: Ridge along the center line (v=0)
+            # Create a sharper peak at v=0
+            midrib_width = 0.15
+            if abs(v) < midrib_width:
+                z += (midrib_width - abs(v)) * 0.8
+            else:
+                z += max(0, (midrib_width*2 - abs(v))) * 0.1
+
+            # 2. Fine Parallel Lateral Veins: Ridges across the width
+            # These vary along u and create "folds" in the leaf surface
+            vein_freq = 35.0 # Number of veins along length
+            # The sin creates the ridge, scaled by distance from midrib to taper slightly
+            vein_strength = 0.04 * (1.0 - abs(v)*0.5)
+            z += math.sin(u * vein_freq) * vein_strength
+
+            # 3. Organic Shape and Curvature
+            # Longitude arc: a gentle downward bend
+            z -= (u**2) * 0.4 
+            # Widthwise curl: the edges droop slightly more than the center
+            z -= (v**2) * 0.3
+            # General S-curve/twist for realism
+            x += math.sin(y * 0.5) * 0.6
+            z += math.cos(y * 0.4) * 0.2
+
+            vert = bm.verts.new(Vector((x, y, z)))
+            row.append(vert)
+        grid.append(row)
+
+    # Top Surface Faces
+    top_faces = []
+    for i in range(res_u - 1):
+        for j in range(res_v - 1):
+            face = bm.faces.new([
+                grid[i][j], 
+                grid[i+1][j], 
+                grid[i+1][j+1], 
+                grid[i][j+1]
+            ])
+            top_faces.append(face)
+
+    # Bottom Surface: Offset the top surface slightly along local normal (mostly -Z)
+    bot_grid = []
+    for i in range(res_u):
+        row = []
+        for j in range(res_v):
+            co = grid[i][j].co
+            # Push down and slightly inward for thickness
+            new_co = co + Vector((0, 0, -thickness))
+            vert = bm.verts.new(new_co)
+            row.append(vert)
+        bot_grid.append(row)
+
+    # Bottom Surface Faces (reversed winding)
+    bottom_faces = []
+    for i in range(res_u - 1):
+        for j in range(res_v - 1):
+            face = bm.faces.new([
+                bot_grid[i][j+1], 
+                bot_grid[i+1][j+1], 
+                bot_grid[i+1][j], 
+                bot_grid[i][j]
+            ])
+            bottom_faces.append(face)
+
+    # Rim / Edges
+    for i in range(res_u - 1):
+        bm.faces.new([grid[i][0], grid[i+1][0], bot_grid[i+1][0], bot_grid[i][0]])
+        bm.faces.new([grid[i][res_v-1], bot_grid[i][res_v-1], bot_grid[i+1][res_v-1], grid[i+1][res_v-1]])
+
+    for j in range(res_v - 1):
+        bm.faces.new([grid[0][j], bot_grid[0][j], bot_grid[0][j+1], grid[0][j+1]])
+        bm.faces.new([grid[res_u-1][j], grid[res_u-1][j+1], bot_grid[res_u-1][j+1], grid[res_u-1][j]])
+
+    mesh = bpy.data.meshes.new("BananaLeafMesh")
+    bm.to_mesh(mesh)
+    
+    # Save face indices for material assignment before freeing bmesh
+    top_indices = [f.index for f in top_faces]
+    bottom_indices = [f.index for f in bottom_faces]
+    bm.free()
+    
+    obj = bpy.data.objects.new("BananaLeaf", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj, top_indices, bottom_indices
+
+def assign_materials(obj, mat_top, mat_bot, top_indices, bot_indices):
+    obj.data.materials.append(mat_top)
+    obj.data.materials.append(mat_bot)
+    for idx in top_indices:
+        if idx < len(obj.data.polygons):
+            obj.data.polygons[idx].material_index = 0
+    for idx in bot_indices:
+        if idx < len(obj.data.polygons):
+            obj.data.polygons[idx].material_index = 1
+
+def main():
+    clear_scene()
+    
+    mat_top, mat_bot = create_leaf_materials()
+    leaf_obj, top_indices, bot_indices = build_banana_leaf()
+    
+    assign_materials(leaf_obj, mat_top, mat_bot, top_indices, bot_indices)
+    
+    bpy.context.view_layer.objects.active = leaf_obj
+    bpy.ops.object.origin_set(type='GEOMETRY_ORIGIN', center='BOUNDS')
+    leaf_obj.location = (0, 0, 0)
+    
+    bpy.ops.object.shade_smooth()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+ValueError: faces.new(...): found the same (BMVert) used multiple times
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py", line 172, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py", line 161, in main
+    leaf_obj, top_indices, bot_indices = build_banana_leaf()
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py", line 133, in build_banana_leaf
+    bm.faces.new([grid[res_u-1][j], grid[res_u-1][j+1], bot_grid[res_u-1][j+1], grid[res_u-1][j]])
+ValueError: faces.new(...): found the same (BMVert) used multiple times
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

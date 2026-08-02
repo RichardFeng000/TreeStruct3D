@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ElkhornCoral_seed0/ElkhornCoral_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.01,
+  "error": "AttributeError: 'ShaderNodeValToRGB' object has no attribute 'elements'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/ElkhornCoral_seed0/ElkhornCoral_seed0.py\", line 181, in <module>\n    build_elkhorn()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/ElkhornCoral_seed0/ElkhornCoral_seed0.py\", line 107, in build_elkhorn\n    mat = create_coral_material()\n          ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/ElkhornCoral_seed0/ElkhornCoral_seed0.py\", line 31, in create_coral_material\n    node_color_ramp.elements[1].color = (0.9, 0.85, 0.75, 1.0) # Lighter beige\n    ^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'ShaderNodeValToRGB' object has no attribute 'elements'\n"
+}

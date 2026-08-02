@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FallenTree_seed0/FallenTree_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/FallenTree_seed0/glb/FallenTree_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 275.0,
+  "latency_s": 0.1,
+  "error": null
+}

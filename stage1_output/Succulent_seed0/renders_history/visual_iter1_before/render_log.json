@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Succulent_seed0/Succulent_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 6.744527578353882,
+  "n_views_rendered": 4,
+  "latency_s": 2.83,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- Wrong proportions: The "knots" are far too large and frequent, making the tree look like a string of beads or coral rather than a wooden tree.
+- Missing geometric detail: Branches lack the requested "slender" quality; they appear chunky and thick.
+- Overall shape is unnatural: The lumpy appearance overrides the silhouette of a dead tree. Need to significantly reduce knot size/frequency and increase branch slenderness.

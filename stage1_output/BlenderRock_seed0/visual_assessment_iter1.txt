@@ -1,0 +1,4 @@
+- Wrong overall shape: The rock looks too spherical/bloated (like a cupcake), lacking a natural compact rock silhouette.
+- Base artifacts: The bottom has unnatural vertical streaks ("comb effect") caused by simple Z-axis snapping of an IcoSphere.
+- Artificial layering: The ridges look like perfect mathematical sine waves rather than organic geological strata.
+- Missing detail: No tonal variation in the material; it is a flat gray.

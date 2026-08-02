@@ -1,0 +1,3 @@
+- The body color in the renders appears as a medium grey/silver rather than the requested "dark body".
+- There is likely Z-fighting or overlapping geometry where the chimney base meets the canopy top, as both sets of faces are created at the same Z-level.
+- The "filter grill" detail from the previous script creates disconnected floating bars underneath that don't contribute to the overall look and may cause artifacts.

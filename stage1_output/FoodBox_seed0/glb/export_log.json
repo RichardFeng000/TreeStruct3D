@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FoodBox_seed0/FoodBox_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/FoodBox_seed0/glb/FoodBox_seed0.glb",
+  "status": "OK",
+  "n_meshes": 150,
+  "size_kb": 7708.5,
+  "latency_s": 1.07,
+  "error": null
+}

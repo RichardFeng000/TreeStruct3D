@@ -1,0 +1,201 @@
+Original text-to-3D task:
+
+A snake rendered as a textured 3D model. The creature is shown in a simple sinuous S-curve pose with the head elevated at the upper left and the body sweeping downward in a smooth curve, tapering to a very thin tail at the bottom right. The entire body is a uniform deep olive-green with a smooth, slightly matte surface. The head is small and slightly flattened with a blunt rounded snout. The long tubular body has a subtle bilateral flattening that emphasizes the smooth serpentine form. The cast shadow mirrors the curved silhouette of the body.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector, Matrix
+
+def clear_scene():
+    """Clears the default scene objects."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple material with a given RGBA color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    
+    # Create Principled BSDF and Output nodes
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Base Color'].default_value = color
+    bsdf.inputs['Roughness'].default_value = 0.7 # Matte surface
+    
+    output = nodes.new('ShaderNodeOutputMaterial')
+    
+    links = mat.node_tree.links
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+    return mat
+
+def get_snake_path(t):
+    """
+    Parametric function for the snake's S-curve path.
+    t ranges from 0 (head) to 1 (tail).
+    """
+    # X: move from left to right
+    x = -6 + 12 * t
+    # Y: sinuous curve
+    y = 3 * math.sin(2 * math.pi * t)
+    # Z: elevated head, descending body
+    z = 5 * (1 - t)
+    return Vector((x, y, z))
+
+def get_snake_tangent(t):
+    """Approximate tangent vector at point t."""
+    delta = 0.01
+    p1 = get_snake_path(t)
+    p2 = get_snake_path(t + delta)
+    return (p2 - p1).normalized()
+
+def generate_snake():
+    clear_scene()
+    
+    # Parameters
+    segments = 100
+    vertices_per_ring = 16
+    head_radius = 0.5
+    tail_radius = 0.05
+    flattening_factor = 0.7 # Width is 70% of height for bilateral flattening
+    
+    # Create a new mesh and object
+    mesh = bpy.data.meshes.new("Snake")
+    obj = bpy.data.objects.new("Snake", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    
+    prev_ring = []
+    
+    for i in range(segments + 1):
+        t = i / segments
+        pos = get_snake_path(t)
+        tangent = get_snake_tangent(t)
+        
+        # Create a coordinate frame for the ring (TNB frame approximation)
+        # We want 'up' to be generally upward but adjust to path
+        up_ref = Vector((0, 0, 1))
+        if abs(tangent.dot(up_ref)) > 0.9:
+            up_ref = Vector((0, 1, 0))
+            
+        bitangent = tangent.cross(up_ref).normalized()
+        normal = bitangent.cross(tangent).normalized()
+        
+        # Taper radius from head to tail
+        # Use a slight non-linear taper for smoother look
+        current_radius = head_radius * (1.0 - 0.95 * (t**0.7))
+        
+        # Bilateral flattening: scale one axis of the ring
+        width_rad = current_radius * flattening_factor
+        height_rad = current_radius
+        
+        current_ring = []
+        for v_idx in range(vertices_per_ring):
+            angle = (2 * math.pi / vertices_per_ring) * v_idx
+            # Elliptical cross section
+            offset = (bitangent * math.cos(angle) * width_rad + 
+                      normal * math.sin(angle) * height_rad)
+            
+            vert = bm.verts.new(pos + offset)
+            current_ring.append(vert)
+        
+        # Bridge rings with faces
+        if prev_ring:
+            for v_idx in range(vertices_per_ring):
+                v1 = prev_ring[v_idx]
+                v2 = prev_ring[(v_idx + 1) % vertices_per_ring]
+                v3 = current_ring[(v_idx + 1) % vertices_per_ring]
+                v4 = current_ring[v_idx]
+                bm.faces.new((v1, v2, v3, v4))
+        
+        prev_ring = current_ring
+
+    # Close the tail end (small cap)
+    last_ring = prev_ring
+    tail_center = bm.verts.new(get_snake_path(1.0))
+    for v_idx in range(vertices_per_ring):
+        v1 = last_ring[v_idx]
+        v2 = last_ring[(v_idx + 1) % vertices_per_ring]
+        bm.faces.new((v1, v2, tail_center))
+
+    # Head Detail: The first ring is the back of the head. 
+    # We need to extrude and shape a blunt rounded snout.
+    # First ring is index [0...vertices_per_ring-1] in the vertices list.
+    head_ring = []
+    # Find verts at t=0 (the first batch created)
+    # Since we added rings sequentially, indices 0 to vertices_per_ring-1 are head_ring
+    for i in range(vertices_per_ring):
+        head_ring.append(bm.verts[i])
+
+    # Create the snout
+    snout_center = get_snake_path(-0.15) # Slightly ahead of t=0
+    snout_vert = bm.verts.new(snout_center)
+    
+    # Connect head ring to a blunt face and then to the snout tip
+    for i in range(vertices_per_ring):
+        v1 = head_ring[i]
+        v2 = head_ring[(i + 1) % vertices_per_ring]
+        bm.faces.new((v1, v2, snout_vert))
+
+    # Flatten the head top/bottom slightly by moving some verts
+    # The 'normal' at t=0 is roughly (0,0,1), and 'bitangent' is (-1, 0, 0) approx
+    for v in head_ring:
+        # Gently push vertices to make it a bit more "blunt"
+        # We already have an ellipse, let's just ensure the snout isn't too pointy
+        pass
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Apply Subdivision Surface for smoothness
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+    
+    # Smooth shading
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    # Material: Deep Olive Green
+    # RGBA for olive green: approx (0.2, 0.3, 0.1)
+    olive_green = (0.15, 0.25, 0.08, 1.0)
+    mat = create_material("OliveGreen", olive_green)
+    obj.data.materials.append(mat)
+
+if __name__ == "__main__":
+    generate_snake()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py", line 164, in <module>
+    generate_snake()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Snake_seed0/Snake_seed0.py", line 126, in generate_snake
+    head_ring.append(bm.verts[i])
+                     ~~~~~~~~^^^
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

@@ -1,0 +1,3 @@
+- The books appear as thin slabs or plates rather than volumetric books with distinct covers and spines.
+- Geometric structure is confusing; parts look disconnected or intersecting unnaturally, resulting in a "glitchy" stack of sheets.
+- Material assignment is unreliable, making it hard to distinguish between pages and cover materials.

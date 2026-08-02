@@ -1,0 +1,3 @@
+- Colors are far too light; the body looks beige/tan instead of dark brown, and the top is royal blue instead of dark navy.
+- Ventilation slots appear as protruding grey blocks rather than slits or recessed gaps along the front lower edge.
+- The overall lighting in previous renders makes materials look washed out; need to use significantly darker RGB values.

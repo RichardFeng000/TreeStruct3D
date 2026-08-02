@@ -1,0 +1,35 @@
+{
+  "instance": "KitchenIsland_seed0",
+  "timestamp": "2026-07-20T04:49:35+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 2.87,
+  "code_chars": 8819,
+  "input_tokens": 5038,
+  "output_tokens": 51,
+  "thoughts_tokens": 0,
+  "total_tokens": 5089,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The render clearly shows a complete long, low kitchen island with a light overhanging countertop, varied closed cabinet and drawer fronts, finished ends, and coherent three-quarter silhouettes.",
+      "raw_chars": 234
+    }
+  ],
+  "error": null
+}

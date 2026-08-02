@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/3dcodebench/output/Countertop_seed0/Countertop_seed0.py",
+  "samples": 8,
+  "resolution": 256,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 5.25,
+  "n_views_rendered": 4,
+  "latency_s": 0.5,
+  "error": null
+}

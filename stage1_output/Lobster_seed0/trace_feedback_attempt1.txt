@@ -1,0 +1,249 @@
+Original text-to-3D task:
+
+A lobster rendered as a textured 3D model. The creature is depicted resting horizontally, showing a long segmented body with a large rounded cephalothorax and a multi-segmented abdomen in warm reddish-brown. Two large unequal chelae (claws) extend from the front — a larger crusher claw with a rounded tip and a white-tipped pincer, and a smaller cutting claw. Two long reddish antennae rise upward from the head region. Several pairs of small walking legs extend beneath the thorax, and a small fan-shaped tail is visible at the rear. The smooth exoskeleton has subtle specular highlights across the segments.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs[0].default_value = color # Base Color
+    # Give it a bit of shine for the exoskeleton
+    bsdf.inputs[7].default_value = 0.1 # Roughness
+    return mat
+
+def add_subsurf(obj, level=2):
+    mod = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    mod.levels = level
+    mod.render_levels = level
+
+def create_segmented_part(name, count, length, radius, material):
+    segments = []
+    for i in range(count):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=radius * (1 - i*0.05), location=(0, i * length * 0.8, 0))
+        obj = bpy.context.active_object
+        obj.name = f"{name}_{i}"
+        obj.scale = (1, 0.6, 0.7)
+        obj.data.materials.append(material)
+        segments.append(obj)
+    return segments
+
+def create_limb(name, start_pos, joints, scale_factor, material):
+    # joints: list of relative vectors for each segment
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    current_pos = Vector(start_pos)
+    
+    for i, joint_vec in enumerate(joints):
+        # Create a cylinder for each limb segment
+        v1 = current_pos
+        v2 = current_pos + Vector(joint_vec)
+        
+        # Simple approximation: create 8 vertices around the axis
+        radius = 0.05 * scale_factor
+        segments = 8
+        for j in range(segments):
+            angle = (2 * math.pi / segments) * j
+            offset = Vector((math.cos(angle), 0, math.sin(angle))) * radius
+            # We need to rotate the offset relative to the joint vector
+            # For simplicity here we just use a fixed axis and rotate later or simplify
+            pass
+        
+        # Easier way: Use primitive cylinders via bpy and join them
+        current_pos = v2
+
+    bm.free()
+    return obj
+
+def create_cylinder_limb(name, start, direction, length, radius, material):
+    bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=length, location=(0,0,0))
+    limb = bpy.context.active_object
+    limb.name = name
+    
+    # Rotate to align with direction
+    phi = math.atan2(direction.y, direction.x)
+    theta = math.acos(direction.z / direction.length)
+    
+    # Align the cylinder (default Z-up) to the direction vector
+    rot_quat = Vector((0, 0, 1)).rotation_difference(direction)
+    limb.rotation_euler = rot_quat.to_euler()
+    
+    # Move to start pos + half length in direction
+    limb.location = start + direction * (length / 2)
+    limb.data.materials.append(material)
+    return limb
+
+def create_claw(side, is_crusher, material, white_mat):
+    prefix = "Claw_R" if side == 1 else "Claw_L"
+    mult = side # 1 or -1
+    
+    # Arm segments
+    arm1 = create_cylinder_limb(f"{prefix}_Arm1", Vector((0.4 * mult, 0.5, 0),), Vector((0.8 * mult, 0.3, 0.2),), 0.7, 0.12, material)
+    arm2 = create_cylinder_limb(f"{prefix}_Arm2", arm1.location + Vector((0.8*mult, 0.3, 0.2)), Vector((0.5 * mult, -0.2, 0),), 0.6, 0.1, material)
+    
+    # Pincer base (Propodus)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.2 * (1.5 if is_crusher else 1.0), location=(arm2.location.x + 0.4*mult, arm2.location.y - 0.3, arm2.location.z))
+    pincer_base = bpy.context.active_object
+    pincer_base.name = f"{prefix}_Base"
+    pincer_base.scale = (0.6, 1.4 if is_crusher else 1.0, 0.8)
+    pincer_base.data.materials.append(material)
+    add_subsurf(pincer_base)
+
+    # The moving finger (Dactylus)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12 * (1.5 if is_crusher else 1.0), location=(pincer_base.location.x + 0.2*mult, pincer_base.location.y - 0.4, pincer_base.location.z))
+    finger = bpy.context.active_object
+    finger.name = f"{prefix}_Finger"
+    finger.scale = (0.5, 1.8 if is_crusher else 1.2, 0.6)
+    # Rotate finger slightly to look like a pincer
+    finger.rotation_euler[1] = math.radians(-15 * mult)
+    
+    # Material for the tip
+    if is_crusher:
+        finger.data.materials.append(white_mat) # White tip (Blender will assign based on index, but we'll just set the whole finger white or leave it red and assume user knows)
+        # To truly make only the tip white without UVs, we can add a smaller sphere at the end
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.1 * (1.5 if is_crusher else 1.0), location=(finger.location.x + 0.1*mult, finger.location.y - 0.6, finger.location.z))
+        tip = bpy.context.active_object
+        tip.scale = (0.8, 0.4, 0.8)
+        tip.data.materials.append(white_mat)
+    else:
+        finger.data.materials.append(material)
+
+def create_antenna(side, material):
+    mult = side # 1 or -1
+    bpy.ops.curve.primitive_bezier_curve_add()
+    ant = bpy.context.active_object
+    ant.name = f"Antenna_{'R' if side==1 else 'L'}"
+    
+    # Shape the antenna: starts at head, goes up and back
+    coords = [
+        (0.2 * mult, 0.8, 0),
+        (0.5 * mult, 1.5, 1.0),
+        (0.3 * mult, 2.5, 2.5)
+    ]
+    
+    # Convert curve to mesh for consistent materials/rendering if needed, 
+    # but here we'll just use the curve with a bevel
+    ant.data.bevel_depth = 0.02
+    ant.data.bevel_resolution = 3
+    
+    for i, coord in enumerate(coords):
+        point = ant.data.splines[0].bezier_points[i]
+        point.co = Vector(coord)
+        point.handle_left = point.co - Vector((0, 0.2, 0.5))
+        point.handle_right = point.co + Vector((0, 0.2, 0.5))
+
+    # Assign material to the curve object (requires a different way than mesh)
+    ant.data.materials.append(material)
+
+def main():
+    clear_scene()
+    
+    # Materials
+    red_brown = create_material("LobsterRed", (0.4, 0.12, 0.05, 1.0))
+    white = create_material("PincerWhite", (0.9, 0.9, 0.9, 1.0))
+
+    # --- Cephalothorax ---
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 0))
+    body = bpy.context.active_object
+    body.name = "Cephalothorax"
+    body.scale = (0.8, 1.4, 0.7)
+    body.data.materials.append(red_brown)
+    add_subsurf(body)
+
+    # --- Abdomen ---
+    for i in range(6):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.7 * (1 - i*0.08), location=(0, -1.2 - i*0.5, 0))
+        seg = bpy.context.active_object
+        seg.name = f"Abdomen_{i}"
+        seg.scale = (0.7, 0.6, 0.5)
+        seg.data.materials.append(red_brown)
+        add_subsurf(seg)
+
+    # --- Tail Fan ---
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.4, location=(0, -4.5, 0))
+    telson = bpy.context.active_object
+    telson.name = "Telson"
+    telson.scale = (0.5, 0.3, 0.1)
+    telson.data.materials.append(red_brown)
+    add_subsurf(telson)
+
+    for side in [1, -1]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.3, location=(0.4 * side, -4.6, 0))
+        uropod = bpy.context.active_object
+        uropod.name = f"Uropod_{'R' if side==1 else 'L'}"
+        uropod.scale = (0.3, 0.7, 0.05)
+        uropod.rotation_euler[1] = math.radians(10 * side)
+        uropod.data.materials.append(red_brown)
+        add_subsurf(uropod)
+
+    # --- Claws ---
+    create_claw(1, True, red_brown, white)   # Crusher (Right)
+    create_claw(-1, False, red_brown, white) # Cutter (Left)
+
+    # --- Walking Legs ---
+    for i in range(4):
+        for side in [1, -1]:
+            y_pos = 0.3 - (i * 0.4)
+            x_pos = 0.7 * side
+            # Leg jointed structure: Thorax -> Down -> Out
+            create_cylinder_limb(f"Leg_{i}_{'R' if side==1 else 'L'}_1", 
+                                 Vector((x_pos, y_pos, 0)), 
+                                 Vector((0.2 * side, 0, -0.5),), 0.5, 0.06, red_brown)
+            # We simulate the bend by adding a second segment at the end of the first
+            create_cylinder_limb(f"Leg_{i}_{'R' if side==1 else 'L'}_2", 
+                                 Vector((x_pos + 0.2*side, y_pos, -0.5),), 
+                                 Vector((0.3 * side, 0, -0.2),), 0.4, 0.05, red_brown)
+
+    # --- Antennae ---
+    create_antenna(1, red_brown)
+    create_antenna(-1, red_brown)
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: bpy_prop_collection[index]: index 2 out of range, size 2
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py", line 210, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py", line 206, in main
+    create_antenna(1, red_brown)
+  File "/Users/fengruiding/Downloads/3d_code/Output/Lobster_seed0/Lobster_seed0.py", line 138, in create_antenna
+    point = ant.data.splines[0].bezier_points[i]
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+IndexError: bpy_prop_collection[index]: index 2 out of range, size 2
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

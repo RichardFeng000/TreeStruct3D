@@ -1,0 +1,334 @@
+Original text-to-3D task:
+
+A 3D model of a maple leaf rendered from a three-quarter perspective. The leaf features a palmate shape with multiple pointed lobes radiating from a central point, serrated edges along each lobe with sharp teeth, a long petiole stem, and a gently undulating three-dimensional surface with visible veins extending into each lobe.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+# ============================================================
+# Clear scene
+# ============================================================
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for mesh in list(bpy.data.meshes):
+    bpy.data.meshes.remove(mesh)
+for mat in list(bpy.data.materials):
+    bpy.data.materials.remove(mat)
+
+# ============================================================
+# Parameters
+# ============================================================
+leaf_scale = 1.5
+petiole_length = 1.8
+petiole_radius_base = 0.045
+petiole_radius_tip = 0.025
+
+# Lobe definitions: (angle_deg, length, width_deg, sharpness)
+lobe_defs = [
+    (0,   1.00, 13, 1.5),
+    (42,  0.80, 12, 1.3),
+    (88,  0.62, 13, 1.2),
+    (-88, 0.62, 13, 1.2),
+    (-42, 0.80, 12, 1.3),
+]
+
+# ============================================================
+# Helper functions
+# ============================================================
+
+def smoothstep(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+def lobe_radius(theta_deg):
+    """Compute the smooth leaf radius at a given angle."""
+    r = 0.08
+    for angle, length, width, sharpness in lobe_defs:
+        delta = theta_deg - angle
+        while delta > 180:
+            delta -= 360
+        while delta < -180:
+            delta += 360
+        delta = abs(delta)
+        if delta < width * 3.0:
+            t = delta / (width * 3.0)
+            lobe_r = length * (1 - smoothstep(t)) ** (1.0 / sharpness)
+            r = max(r, lobe_r + 0.04)
+    return r
+
+def serration_value(theta_deg, base_r):
+    """Compute serration tooth offset at a given angle."""
+    if base_r < 0.20:
+        return 0.0
+    amp = 0.038 * min(1.0, (base_r - 0.12) / 0.5)
+    freq = 48
+    phase = theta_deg * freq / 360.0
+    t = phase % 1.0
+    if t < 0.5:
+        tooth = 4 * t - 1
+    else:
+        tooth = 3 - 4 * t
+    # Slight irregularity for natural look
+    irregularity = 0.12 * math.sin(theta_deg * 7.3) + 0.08 * math.sin(theta_deg * 13.1)
+    tooth *= (1 + irregularity)
+    return amp * tooth
+
+def generate_outline(num_points=540, serrated=True):
+    """Generate 2D outline points of the leaf."""
+    points = []
+    for i in range(num_points):
+        theta = -180 + 360 * i / num_points
+        r = lobe_radius(theta)
+        if serrated:
+            r += serration_value(theta, r)
+        theta_rad = math.radians(theta)
+        x = r * math.sin(theta_rad) * leaf_scale
+        y = r * math.cos(theta_rad) * leaf_scale
+        points.append((x, y))
+    return points
+
+def compute_undulation(x, y, t):
+    """Compute gentle 3D undulation of the leaf surface."""
+    dist = math.sqrt(x * x + y * y)
+    angle = math.atan2(x, y)
+    z = 0.0
+    z += 0.05 * math.sin(angle * 3 + 0.5) * t
+    z += 0.028 * math.sin(dist * 3.5) * t
+    z += 0.02 * math.cos(angle * 5 - dist * 2) * t
+    # Edge cupping — edges curl slightly upward
+    z += 0.055 * t * t
+    return z
+
+def compute_vein_displacement(x, y, t):
+    """Compute z-displacement for main and secondary veins."""
+    z = 0.0
+    point = Vector((x, y))
+
+    for lobe_angle, lobe_length, _, _ in lobe_defs:
+        la = math.radians(lobe_angle)
+        vein_dir = Vector((math.sin(la), math.cos(la)))
+        proj = point.dot(vein_dir)
+        perp = point - vein_dir * proj
+        perp_dist = perp.length
+
+        max_proj = lobe_length * leaf_scale * t * 1.05
+        if 0.01 < proj < max_proj:
+            vein_progress = proj / max_proj
+            vein_width = 0.045 * (1 - vein_progress * 0.6)
+            vein_falloff = math.exp(-(perp_dist / vein_width) ** 2)
+            vein_height = 0.045 * (1 - vein_progress * 0.3)
+            z += vein_height * vein_falloff * t
+
+            # Secondary veins branching from main vein
+            num_secondary = 5
+            for s in range(num_secondary):
+                s_t = (s + 1) / (num_secondary + 1)
+                branch_point = vein_dir * (max_proj * s_t)
+                branch_offset = point - branch_point
+
+                for side in [-1, 1]:
+                    branch_angle = la + side * math.radians(38)
+                    bdir = Vector((math.sin(branch_angle), math.cos(branch_angle)))
+                    bproj = branch_offset.dot(bdir)
+                    bperp = branch_offset - bdir * bproj
+                    bperp_dist = bperp.length
+
+                    branch_len = max_proj * 0.30 * (1 - s_t * 0.3)
+                    if bproj > 0 and bproj < branch_len:
+                        bprogress = bproj / branch_len
+                        bwidth = 0.016 * (1 - bprogress * 0.7)
+                        bfalloff = math.exp(-(bperp_dist / bwidth) ** 2)
+                        bheight = 0.022 * (1 - bprogress * 0.5)
+                        z += bheight * bfalloff * t * (1 - s_t * 0.2)
+
+    # Tertiary vein network — fine texture
+    z += 0.005 * math.sin(x * 22) * math.cos(y * 22) * t
+
+    return z
+
+# ============================================================
+# Create leaf blade
+# ============================================================
+
+def create_leaf_blade():
+    bm = bmesh.new()
+
+    smooth_outline = generate_outline(540, serrated=False)
+    serrated_outline = generate_outline(540, serrated=True)
+    num_outline = len(smooth_outline)
+
+    num_rings = 10
+    ring_verts = []
+
+    for ring_idx in range(num_rings + 1):
+        t = ring_idx / num_rings
+        scale = t ** 0.65
+        # Serration only appears on outer rings
+        serration_blend = smoothstep((t - 0.75) / 0.25)
+
+        verts = []
+        for i in range(num_outline):
+            sx, sy = smooth_outline[i]
+            ex, ey = serrated_outline[i]
+            ox = sx * (1 - serration_blend) + ex * serration_blend
+            oy = sy * (1 - serration_blend) + ey * serration_blend
+
+            x = ox * scale
+            y = oy * scale
+
+            z = compute_undulation(x, y, t)
+            z += compute_vein_displacement(x, y, t)
+
+            verts.append(bm.verts.new((x, y, z)))
+
+        ring_verts.append(verts)
+
+    bm.verts.ensure_lookup_table()
+
+    # Create quad faces between concentric rings
+    for ring_idx in range(num_rings):
+        r1 = ring_verts[ring_idx]
+        r2 = ring_verts[ring_idx + 1]
+        for i in range(num_outline):
+            j = (i + 1) % num_outline
+            try:
+                bm.faces.new([r1[i], r1[j], r2[j], r2[i]])
+            except ValueError:
+                pass
+
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in bm.faces:
+        f.smooth = True
+
+    return bm
+
+# ============================================================
+# Create petiole (stem)
+# ============================================================
+
+def create_petiole():
+    bm = bmesh.new()
+
+    segments = 32
+    radial_segments = 16
+
+    start = Vector((0, -0.05 * leaf_scale, 0))
+    end = Vector((0, -0.05 * leaf_scale - petiole_length, 0))
+
+    verts_grid = []
+    for i in range(segments + 1):
+        t = i / segments
+        pos = start.lerp(end, t)
+        # Gentle curve
+        pos.x += 0.035 * math.sin(t * math.pi * 0.8)
+        pos.z += 0.02 * math.sin(t * math.pi)
+
+        # Tapered radius with slight swelling at base
+        radius = petiole_radius_base * (1 - t * 0.35) + petiole_radius_tip * t * 0.35
+        if t < 0.1:
+            radius *= 1 + (0.1 - t) * 4
+
+        ring = []
+        for j in range(radial_segments):
+            angle = 2 * math.pi * j / radial_segments
+            x = pos.x + radius * math.cos(angle)
+            y = pos.y
+            z = pos.z + radius * math.sin(angle)
+            ring.append(bm.verts.new((x, y, z)))
+        verts_grid.append(ring)
+
+    # Side faces
+    for i in range(segments):
+        for j in range(radial_segments):
+            j2 = (j + 1) % radial_segments
+            v1 = verts_grid[i][j]
+            v2 = verts_grid[i][j2]
+            v3 = verts_grid[i + 1][j2]
+            v4 = verts_grid[i + 1][j]
+            bm.faces.new([v1, v2, v3, v4])
+
+    # Cap the distal end
+    end_verts = verts_grid[-1]
+    end_center = bm.verts.new((end.x, end.y, end.z))
+    for j in range(radial_segments):
+        j2 = (j + 1) % radial_segments
+        bm.faces.new([end_verts[j], end_verts[j2], end_center])
+
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in bm.faces:
+        f.smooth = True
+
+    return bm
+
+# ============================================================
+# Build geometry
+# ============================================================
+
+# Leaf blade mesh
+blade_bm = create_leaf_blade()
+blade_mesh = bpy.data.meshes.new("LeafBladeMesh")
+blade_bm.to_mesh(blade_mesh)
+blade_bm.free()
+
+# Petiole mesh
+petiole_bm = create_petiole()
+petiole_mesh = bpy.data.meshes.new("PetioleMesh")
+petiole_bm.to_mesh(petiole_mesh)
+petiole_bm.free()
+
+# Combine into single mesh
+combined_mesh = bpy.data.meshes.new("MapleLeafMesh")
+combined_bm = bmesh.new()
+combined_bm.from_mesh(blade_mesh)
+combined_bm.from_mesh(petiole_mesh)
+bmesh.ops.remove_doubles(combined_bm, verts=combined_bm.verts, dist=0.005)
+bmesh.ops.recalc_face_normals(combined_bm, faces=combined_bm.faces)
+for f in combined_bm.faces:
+    f.smooth = True
+combined_bm.to_mesh(combined_mesh)
+combined_bm.free()
+
+# Remove intermediate meshes
+bpy.data.meshes.remove(blade_mesh)
+bpy.data.meshes.remove(petiole_mesh)
+
+# Create final object
+leaf = bpy.data.objects.new("MapleLeaf", combined_mesh)
+bpy.context.collection.objects.link(leaf)
+
+# ============================================================
+# Modifiers
+# ============================================================
+
+# Solidify for leaf thickness
+solidify = leaf.modifiers.new(name="Solidify", type='SOLIDIFY')
+solidify.thickness = 0.014
+solidify.offset = 0
+solidify.use_even_offset = True
+
+# Subdivision surface for smoothness
+subsurf = leaf.modifiers.new(name="Subdivision", type='SUBSURF')
+subsurf.levels = 1
+subsurf.render_levels = 2
+try:
+    subsurf.boundary_smooth = 'PRESERVE_CORNERS'
+except AttributeError:
+    pass
+
+# ============================================================
+# Orient for three-quarter view
+# ============================================================
+leaf.rotation_euler = (math.radians(15), math.radians(-10), math.radians(5))
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

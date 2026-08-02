@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CeilingClassicLamp_seed0/CeilingClassicLamp_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/CeilingClassicLamp_seed0/glb/CeilingClassicLamp_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 5765.0,
+  "latency_s": 0.22,
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/StraightStaircase_seed0/StraightStaircase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/StraightStaircase_seed0/glb/StraightStaircase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 48,
+  "size_kb": 70.6,
+  "latency_s": 0.15,
+  "error": null
+}

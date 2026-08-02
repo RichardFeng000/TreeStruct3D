@@ -1,0 +1,2 @@
+- The render lacks the required two-tone appearance; all components are monochromatic white instead of wood-toned top and dark legs/shelf.
+- Material assignment needs to be more robust using named BSDF inputs to ensure colors render correctly across different Blender versions.

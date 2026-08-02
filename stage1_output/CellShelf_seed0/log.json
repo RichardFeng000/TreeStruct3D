@@ -1,0 +1,38 @@
+{
+  "instance": "CellShelf_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "TypeError: 'str' object cannot be interpreted as an integer\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__mai\n\n... [truncated 605 chars] ...\n\n\\\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'str' object cannot be interpreted as an integer"
+    },
+    {
+      "stage": "trace",
+      "attempt": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "TypeError: must be real number, not tuple\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<fro\n\n... [truncated 521 chars] ...\n\nd0.py\", line 45, in add_box\n    Matrix.Scale((w, h, d), 4)\nTypeError: must be real number, not tuple"
+    },
+    {
+      "stage": "trace",
+      "attempt": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

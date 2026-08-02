@@ -1,0 +1,46 @@
+{
+  "instance": "CabinetDoorBase_seed0",
+  "timestamp": "2026-07-09T15:59:58+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 62.3,
+  "code_chars": 5683,
+  "input_tokens": 3873,
+  "output_tokens": 2199,
+  "thoughts_tokens": null,
+  "total_tokens": 6072,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "error_brief": "KeyError: 'bpy_prop_collection[key]: key \"Specular\" not found'"
+    }
+  ],
+  "final_render_status": "OK_REVERTED",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Missing wood grain texture; surface is uniformly flat gray.\n- No vertical edge detailing visible \u2014 grooves and bevels are not rendered.\n- Panel appears as a featureless slab; no depth or profile detail.\n- Proportions may be off \u2014 too thin to show intended features.\n- Material and lighting don\u2019t convey light wood appearance.",
+      "raw_chars": 6805,
+      "reverted": true,
+      "note": "post-fix render failed (ERR_EXEC); reverted to previous good code (renders_history/attempt0/)"
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

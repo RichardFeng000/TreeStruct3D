@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BoulderPile_seed0/BoulderPile_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 80,
+  "extent": 11.76508903503418,
+  "n_views_rendered": 4,
+  "latency_s": 3.01,
+  "error": null
+}

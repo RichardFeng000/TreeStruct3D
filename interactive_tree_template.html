@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactive Code Structure Tree</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #ffffff;
+      --foreground: #1f2328;
+      --card: #ffffff;
+      --card-foreground: #1f2328;
+      --muted: #f6f8fa;
+      --muted-foreground: #57606a;
+      --accent: #ddf4ff;
+      --accent-foreground: #0550ae;
+      --border: #d0d7de;
+      --input: #d0d7de;
+      --ring: #0969da;
+      --primary: #0969da;
+      --primary-foreground: #ffffff;
+      --series-1: #0969da;
+      --series-2: #1a7f37;
+      --series-3: #9a6700;
+      --series-4: #8250df;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #0d1117;
+        --foreground: #e6edf3;
+        --card: #161b22;
+        --card-foreground: #e6edf3;
+        --muted: #21262d;
+        --muted-foreground: #8c959f;
+        --accent: #1f3a5f;
+        --accent-foreground: #cae8ff;
+        --border: #30363d;
+        --input: #30363d;
+        --ring: #58a6ff;
+        --primary: #1f6feb;
+        --primary-foreground: #ffffff;
+        --series-1: #58a6ff;
+        --series-2: #3fb950;
+        --series-3: #d29922;
+        --series-4: #a371f7;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #interactive-code-tree {
+      padding: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    label {
+      display: grid;
+      gap: 4px;
+      color: var(--muted-foreground);
+      font-size: 13px;
+    }
+
+    button,
+    input,
+    select {
+      min-height: 34px;
+      border: 1px solid var(--input);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--card-foreground);
+      font: inherit;
+    }
+
+    button {
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--muted); }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+    }
+
+    button.active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border-color: var(--primary);
+    }
+
+    input,
+    select { padding: 6px 9px; }
+    input { width: min(280px, 72vw); }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-bottom: 8px;
+      color: var(--muted-foreground);
+      font-size: 13px;
+    }
+
+    #tree-stage {
+      position: relative;
+      height: 660px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--background);
+      touch-action: none;
+    }
+
+    #tree-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      user-select: none;
+    }
+
+    .edge-path {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 1.5;
+    }
+
+    .edge-label {
+      fill: var(--muted-foreground);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    .tree-node { cursor: pointer; }
+    .tree-node rect {
+      fill: var(--card);
+      stroke: var(--border);
+      stroke-width: 1.5;
+    }
+
+    .tree-node text {
+      fill: var(--card-foreground);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .tree-node .node-meta {
+      fill: var(--muted-foreground);
+      font-size: 10px;
+    }
+
+    .tree-node.selected rect {
+      fill: var(--accent);
+      stroke: var(--ring);
+      stroke-width: 2;
+    }
+
+    .tree-node.match rect {
+      stroke: var(--series-3);
+      stroke-width: 3;
+    }
+
+    .disclosure {
+      fill: var(--muted);
+      stroke: var(--border);
+    }
+
+    .disclosure-mark {
+      fill: var(--foreground);
+      font-size: 11px;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    #node-detail {
+      min-height: 48px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--series-1);
+      background: var(--muted);
+      color: var(--foreground);
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 640px) {
+      #interactive-code-tree { padding: 10px; }
+      #tree-stage { height: 560px; }
+      .toolbar { align-items: stretch; }
+      label { width: 100%; }
+      input, select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main id="interactive-code-tree">
+    <div class="toolbar">
+      <label>
+        Tree
+        <select id="view-select" aria-label="Choose tree type">
+          <option value="parts">Blender part tree</option>
+          <option value="calls">Execution call tree</option>
+          <option value="definitions">Definition tree</option>
+        </select>
+      </label>
+      <label>
+        Search nodes
+        <input id="tree-search" type="search" placeholder="body, create_wing, Beak…">
+      </label>
+      <div class="control-group" aria-label="Tree controls">
+        <button id="expand-all" type="button">Expand all</button>
+        <button id="collapse-all" type="button">Collapse all</button>
+        <button id="fit-view" type="button">Fit</button>
+        <button id="zoom-in" type="button" aria-label="Zoom in">＋</button>
+        <button id="zoom-out" type="button" aria-label="Zoom out">－</button>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <span id="tree-status"></span>
+      <span>Click a node for details · click ● to expand/collapse · drag to pan · wheel to zoom</span>
+    </div>
+
+    <section id="tree-stage" aria-label="Interactive code structure tree">
+      <svg id="tree-svg" role="img" aria-label="Code structure graph">
+        <g id="viewport">
+          <g id="edge-layer"></g>
+          <g id="node-layer"></g>
+        </g>
+      </svg>
+    </section>
+    <output id="node-detail" aria-live="polite">Select a node to inspect its source location and structural evidence.</output>
+  </main>
+
+  <script>
+    window.CODE_TREE_DATA = __TREE_DATA_JSON__;
+  </script>
+  <script>
+    (() => {
+      const data = window.CODE_TREE_DATA;
+      const root = document.getElementById("interactive-code-tree");
+      const svg = document.getElementById("tree-svg");
+      const stage = document.getElementById("tree-stage");
+      const viewport = document.getElementById("viewport");
+      const edgeLayer = document.getElementById("edge-layer");
+      const nodeLayer = document.getElementById("node-layer");
+      const viewSelect = document.getElementById("view-select");
+      const searchInput = document.getElementById("tree-search");
+      const status = document.getElementById("tree-status");
+      const detail = document.getElementById("node-detail");
+      const namespace = "http://www.w3.org/2000/svg";
+
+      const availableViews = Object.entries(data.views)
+        .filter(([, view]) => view.nodes.length > 0);
+      if (!data.views.parts.nodes.length) {
+        viewSelect.value = data.views.calls.nodes.length ? "calls" : "definitions";
+      }
+      for (const option of [...viewSelect.options]) {
+        option.disabled = !data.views[option.value].nodes.length;
+      }
+
+      const state = {
+        view: viewSelect.value,
+        collapsed: new Set(),
+        selected: null,
+        query: "",
+        scale: 1,
+        tx: 28,
+        ty: 28,
+        dragging: false,
+        dragX: 0,
+        dragY: 0,
+        startTx: 0,
+        startTy: 0,
+        positions: new Map(),
+        contentWidth: 1,
+        contentHeight: 1
+      };
+
+      function currentView() {
+        return data.views[state.view];
+      }
+
+      function nodeMap(view) {
+        return new Map(view.nodes.map(node => [node.id, node]));
+      }
+
+      function graphLayout(view) {
+        const nodes = nodeMap(view);
+        const children = new Map(view.nodes.map(node => [node.id, []]));
+        const incoming = new Map(view.nodes.map(node => [node.id, 0]));
+        for (const edge of view.edges) {
+          if (!children.has(edge.parent)) children.set(edge.parent, []);
+          children.get(edge.parent).push(edge);
+          incoming.set(edge.child, (incoming.get(edge.child) || 0) + 1);
+        }
+        for (const edges of children.values()) {
+          edges.sort((a, b) => (a.line || 0) - (b.line || 0) || a.child.localeCompare(b.child));
+        }
+
+        const roots = view.roots.length
+          ? view.roots.filter(id => nodes.has(id))
+          : view.nodes.filter(node => !incoming.get(node.id)).map(node => node.id);
+        const ordered = [];
+        const depthById = new Map();
+        const visited = new Set();
+
+        function walk(id, depth, path) {
+          if (!nodes.has(id) || visited.has(id)) return;
+          visited.add(id);
+          ordered.push(id);
+          depthById.set(id, depth);
+          if (state.collapsed.has(id)) return;
+          const nextPath = new Set(path);
+          nextPath.add(id);
+          for (const edge of children.get(id) || []) {
+            if (!nextPath.has(edge.child)) walk(edge.child, depth + 1, nextPath);
+          }
+        }
+
+        roots.forEach(rootId => walk(rootId, 0, new Set()));
+        view.nodes.forEach(node => {
+          if (!visited.has(node.id)) walk(node.id, 0, new Set());
+        });
+
+        const positions = new Map();
+        ordered.forEach((id, index) => {
+          positions.set(id, { x: (depthById.get(id) || 0) * 250, y: index * 66 });
+        });
+        return { nodes, children, ordered, positions };
+      }
+
+      function makeSvg(tag, attributes = {}) {
+        const element = document.createElementNS(namespace, tag);
+        for (const [name, value] of Object.entries(attributes)) {
+          element.setAttribute(name, String(value));
+        }
+        return element;
+      }
+
+      function truncate(value, length = 28) {
+        return value.length <= length ? value : value.slice(0, length - 1) + "…";
+      }
+
+      function updateTransform() {
+        viewport.setAttribute("transform", `translate(${state.tx} ${state.ty}) scale(${state.scale})`);
+      }
+
+      function render() {
+        const view = currentView();
+        const layout = graphLayout(view);
+        state.positions = layout.positions;
+        edgeLayer.replaceChildren();
+        nodeLayer.replaceChildren();
+        const visible = new Set(layout.ordered);
+        const query = state.query.trim().toLowerCase();
+
+        for (const edge of view.edges) {
+          if (!visible.has(edge.parent) || !visible.has(edge.child)) continue;
+          const from = layout.positions.get(edge.parent);
+          const to = layout.positions.get(edge.child);
+          if (!from || !to) continue;
+          const x1 = from.x + 210;
+          const y1 = from.y + 23;
+          const x2 = to.x;
+          const y2 = to.y + 23;
+          const middle = (x1 + x2) / 2;
+          const path = makeSvg("path", {
+            class: "edge-path",
+            d: `M ${x1} ${y1} C ${middle} ${y1}, ${middle} ${y2}, ${x2} ${y2}`
+          });
+          edgeLayer.append(path);
+
+          if (state.view === "parts") {
+            const label = makeSvg("text", {
+              class: "edge-label",
+              x: middle,
+              y: (y1 + y2) / 2 - 4,
+              "text-anchor": "middle"
+            });
+            label.textContent = edge.relation;
+            edgeLayer.append(label);
+          }
+        }
+
+        for (const id of layout.ordered) {
+          const node = layout.nodes.get(id);
+          const position = layout.positions.get(id);
+          const childEdges = layout.children.get(id) || [];
+          const group = makeSvg("g", {
+            class: "tree-node",
+            transform: `translate(${position.x} ${position.y})`,
+            "data-node-id": id,
+            role: "button",
+            "aria-label": node.label
+          });
+          if (id === state.selected) group.classList.add("selected");
+          if (query && node.label.toLowerCase().includes(query)) group.classList.add("match");
+
+          group.append(makeSvg("rect", { x: 0, y: 0, width: 210, height: 46, rx: 7 }));
+          const label = makeSvg("text", { x: 14, y: 19 });
+          label.textContent = truncate(node.label);
+          group.append(label);
+          const meta = makeSvg("text", { class: "node-meta", x: 14, y: 36 });
+          const line = node.line ? ` · L${node.line}` : "";
+          meta.textContent = `${node.kind}${line}`;
+          group.append(meta);
+          const title = makeSvg("title");
+          title.textContent = node.label;
+          group.append(title);
+
+          if (childEdges.length) {
+            const circle = makeSvg("circle", {
+              class: "disclosure",
+              cx: 198,
+              cy: 23,
+              r: 9,
+              "data-disclosure": id
+            });
+            group.append(circle);
+            const mark = makeSvg("text", {
+              class: "disclosure-mark",
+              x: 198,
+              y: 23
+            });
+            mark.textContent = state.collapsed.has(id) ? "+" : "−";
+            group.append(mark);
+          }
+          nodeLayer.append(group);
+        }
+
+        const maxDepthX = Math.max(0, ...[...layout.positions.values()].map(point => point.x));
+        state.contentWidth = maxDepthX + 230;
+        state.contentHeight = Math.max(80, layout.ordered.length * 66);
+        status.textContent = `${view.label} · ${layout.ordered.length}/${view.nodes.length} nodes · ${view.edges.length} edges`;
+        updateTransform();
+      }
+
+      function selectNode(id) {
+        state.selected = id;
+        const view = currentView();
+        const node = view.nodes.find(item => item.id === id);
+        if (!node) return;
+        const related = view.edges.filter(edge => edge.parent === id || edge.child === id);
+        const lines = [
+          node.label,
+          `${node.kind}${node.line ? ` · lines ${node.line}-${node.end_line || node.line}` : ""}`
+        ];
+        if (node.parameters && node.parameters.length) lines.push(`parameters: ${node.parameters.join(", ")}`);
+        if (node.docstring) lines.push(node.docstring.split("\n")[0]);
+        const evidence = node.evidence || [];
+        if (evidence.length) lines.push(...evidence);
+        else if (related.length) {
+          lines.push(...related.map(edge => `L${edge.line}: ${edge.parent} → ${edge.child} [${edge.relation}]`));
+        }
+        detail.textContent = lines.join("\n");
+        render();
+      }
+
+      function fitView() {
+        const rect = stage.getBoundingClientRect();
+        const scaleX = (rect.width - 52) / Math.max(state.contentWidth, 1);
+        const scaleY = (rect.height - 52) / Math.max(state.contentHeight, 1);
+        state.scale = Math.max(0.18, Math.min(1.35, scaleX, scaleY));
+        state.tx = 26;
+        state.ty = 26;
+        updateTransform();
+      }
+
+      viewSelect.addEventListener("change", () => {
+        state.view = viewSelect.value;
+        state.collapsed.clear();
+        state.selected = null;
+        state.query = searchInput.value.trim().toLowerCase();
+        detail.textContent = "Select a node to inspect its source location and structural evidence.";
+        render();
+        fitView();
+      });
+
+      searchInput.addEventListener("input", () => {
+        state.query = searchInput.value.trim().toLowerCase();
+        if (state.query) state.collapsed.clear();
+        render();
+      });
+
+      document.getElementById("expand-all").addEventListener("click", () => {
+        state.collapsed.clear();
+        render();
+        fitView();
+      });
+
+      document.getElementById("collapse-all").addEventListener("click", () => {
+        const view = currentView();
+        const parents = new Set(view.edges.map(edge => edge.parent));
+        const roots = new Set(view.roots);
+        state.collapsed = new Set([...parents].filter(id => !roots.has(id)));
+        render();
+        fitView();
+      });
+
+      document.getElementById("fit-view").addEventListener("click", fitView);
+      document.getElementById("zoom-in").addEventListener("click", () => {
+        state.scale = Math.min(3, state.scale * 1.2);
+        updateTransform();
+      });
+      document.getElementById("zoom-out").addEventListener("click", () => {
+        state.scale = Math.max(0.15, state.scale / 1.2);
+        updateTransform();
+      });
+
+      svg.addEventListener("click", event => {
+        const disclosure = event.target.closest("[data-disclosure]");
+        if (disclosure) {
+          const id = disclosure.getAttribute("data-disclosure");
+          if (state.collapsed.has(id)) state.collapsed.delete(id);
+          else state.collapsed.add(id);
+          render();
+          return;
+        }
+        const node = event.target.closest("[data-node-id]");
+        if (node) selectNode(node.getAttribute("data-node-id"));
+      });
+
+      svg.addEventListener("wheel", event => {
+        event.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        const pointerY = event.clientY - rect.top;
+        const oldScale = state.scale;
+        const nextScale = Math.max(0.15, Math.min(3, oldScale * (event.deltaY < 0 ? 1.1 : 0.9)));
+        const worldX = (pointerX - state.tx) / oldScale;
+        const worldY = (pointerY - state.ty) / oldScale;
+        state.scale = nextScale;
+        state.tx = pointerX - worldX * nextScale;
+        state.ty = pointerY - worldY * nextScale;
+        updateTransform();
+      }, { passive: false });
+
+      svg.addEventListener("pointerdown", event => {
+        if (event.target.closest("[data-node-id]")) return;
+        state.dragging = true;
+        state.dragX = event.clientX;
+        state.dragY = event.clientY;
+        state.startTx = state.tx;
+        state.startTy = state.ty;
+        svg.setPointerCapture(event.pointerId);
+      });
+      svg.addEventListener("pointermove", event => {
+        if (!state.dragging) return;
+        state.tx = state.startTx + event.clientX - state.dragX;
+        state.ty = state.startTy + event.clientY - state.dragY;
+        updateTransform();
+      });
+      svg.addEventListener("pointerup", event => {
+        state.dragging = false;
+        if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+      });
+
+      render();
+      requestAnimationFrame(fitView);
+      window.addEventListener("resize", fitView);
+      root.dataset.ready = "true";
+    })();
+  </script>
+</body>
+</html>

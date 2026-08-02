@@ -1,0 +1,48 @@
+{
+  "instance": "Crab_seed0",
+  "timestamp": "2026-07-20T04:48:17+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 62.83,
+  "code_chars": 13638,
+  "input_tokens": 15388,
+  "output_tokens": 5244,
+  "thoughts_tokens": 588,
+  "total_tokens": 21220,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 89,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Pale dorsal plates read as foreign scales, not subtle shell mottling; remove them and use shader-based mottling.\n- Walking legs bunch into rear-facing bundles; spread four articulated legs laterally on each side.\n- Pincer fingers are short and blunt, weakening the open-claw silhouette; lengthen, taper, and separate them.\n- Make the dominant claw more obviously larger and more elongated than the opposing claw.",
+      "raw_chars": 14110
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The crab is complete and recognizable, with a broad glossy shell, eight attached legs, visible eye stalks, and prominent unequal red-and-white claws.",
+      "raw_chars": 190
+    }
+  ],
+  "error": null
+}

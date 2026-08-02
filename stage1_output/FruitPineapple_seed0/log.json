@@ -1,0 +1,35 @@
+{
+  "instance": "FruitPineapple_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing parts: The \"dark spine tips\" at the bottom are invisible because they were created as edges rather than meshes.\n- Wrong proportions: Leaves look like thin needles/spikes instead of \"sword-shaped leaves.\"\n- Missing geometric detail: Material is a flat color; it lacks the requested golden-yellow with subtle green tints.\n- Overall shape: Scale segments are too sharp (pyramidal) compared to natural pineapple fruitlets."
+    },
+    {
+      "iteration": 2,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

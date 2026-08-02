@@ -1,0 +1,2 @@
+- The shelves are rendered in default light grey/white instead of "dark-colored" because the script sets `active_material` but does not append the material to the object's material slots.
+- I will fix the material assignment and ensure a deep charcoal color for the shelves.

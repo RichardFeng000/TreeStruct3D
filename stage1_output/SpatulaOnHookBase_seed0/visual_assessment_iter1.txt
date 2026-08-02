@@ -1,0 +1,4 @@
+- The renders show only a white monolithic slab; spatulas and hooks are virtually invisible or blended into the panel.
+- Missing the "dark frame border" as everything is rendered in a single color/mass.
+- Spatulas are not clearly "hanging"; they appear merged with the backplate.
+- Need to improve geometry separation, scale, and placement so components are distinct and recognizable.

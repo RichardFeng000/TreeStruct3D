@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ReedBranchMonocot_seed0/ReedBranchMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/ReedBranchMonocot_seed0/glb/ReedBranchMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 917.5,
+  "latency_s": 0.12,
+  "error": null
+}

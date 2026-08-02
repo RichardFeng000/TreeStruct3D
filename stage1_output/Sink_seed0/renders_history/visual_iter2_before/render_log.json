@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Sink_seed0/Sink_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 4,
+  "extent": 0.6000000238418579,
+  "n_views_rendered": 4,
+  "latency_s": 2.89,
+  "error": null
+}

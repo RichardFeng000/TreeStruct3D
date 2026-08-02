@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TriangleShelf_seed0/TriangleShelf_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 6,
+  "extent": 1.100000023841858,
+  "n_views_rendered": 4,
+  "latency_s": 1.82,
+  "error": null
+}

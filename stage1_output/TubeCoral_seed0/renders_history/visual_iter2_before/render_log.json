@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/TubeCoral_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 11,
+  "extent": 8.30984777212143,
+  "n_views_rendered": 4,
+  "latency_s": 3.62,
+  "error": null
+}

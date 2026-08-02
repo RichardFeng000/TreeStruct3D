@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LShapedStaircase_seed0/LShapedStaircase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LShapedStaircase_seed0/glb/LShapedStaircase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 38,
+  "size_kb": 55.7,
+  "latency_s": 0.14,
+  "error": null
+}

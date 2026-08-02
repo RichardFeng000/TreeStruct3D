@@ -1,0 +1,367 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.curves, bpy.data.meshes, bpy.data.materials):
+    for datablock in list(datablocks):
+        datablocks.remove(datablock)
+
+# Materials.
+def create_shell_material(name, base_color, roughness=0.28, bump_strength=0.09):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*base_color, 1.0)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*base_color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Specular IOR Level"].default_value = 0.42
+
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 8.0
+    noise.inputs["Detail"].default_value = 3.0
+    noise.inputs["Roughness"].default_value = 0.55
+
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = bump_strength
+    bump.inputs["Distance"].default_value = 0.035
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def create_plain_material(name, color, roughness):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+shell = create_shell_material("Warm orange-red exoskeleton", (0.78, 0.105, 0.025), 0.25, 0.07)
+shell_light = create_shell_material("Orange-red highlights", (0.96, 0.235, 0.045), 0.23, 0.055)
+shell_dark = create_shell_material("Dark red joints", (0.31, 0.025, 0.009), 0.34, 0.045)
+underside = create_shell_material("Orange underside", (0.67, 0.16, 0.035), 0.37, 0.06)
+eye_mat = create_plain_material("Black glossy eyes", (0.004, 0.003, 0.002), 0.09)
+
+def smooth(obj):
+    if obj.type == 'MESH':
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+
+def ellipsoid(name, location, scale, material, segments=28, rings=18):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    smooth(obj)
+    return obj
+
+def tapered_segment(name, start, end, radius_start, radius_end, material, vertices=14):
+    a = Vector(start)
+    b = Vector(end)
+    direction = b - a
+    length = direction.length
+    if length <= 0.0001:
+        return None
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius_start,
+        radius2=radius_end,
+        depth=length,
+        location=(a + b) * 0.5
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized())
+    obj.data.materials.append(material)
+    smooth(obj)
+    return obj
+
+def connected_chain(name, points, radii, material, vertices=14, joint_spheres=True):
+    for i in range(len(points) - 1):
+        tapered_segment(
+            name + " segment %02d" % i,
+            points[i],
+            points[i + 1],
+            radii[i],
+            radii[i + 1],
+            material,
+            vertices
+        )
+    if joint_spheres:
+        for i in range(1, len(points) - 1):
+            r = radii[i] * 1.04
+            ellipsoid(
+                name + " joint %02d" % i,
+                points[i],
+                (r, r, r),
+                material,
+                18,
+                10
+            )
+
+# Wide, smoothly segmented abdomen.
+abdomen_segments = [
+    (0.18, 1.00, 0.54, 0.72),
+    (-0.27, 1.05, 0.53, 0.71),
+    (-0.70, 1.01, 0.50, 0.69),
+    (-1.10, 0.94, 0.47, 0.66),
+    (-1.47, 0.85, 0.43, 0.62),
+    (-1.81, 0.73, 0.37, 0.57),
+]
+for i, (x, width, height, z) in enumerate(abdomen_segments):
+    ellipsoid(
+        "Rounded abdomen segment %02d" % (i + 1),
+        (x, 0.0, z),
+        (0.31, width, height),
+        shell_light if i % 2 == 0 else shell,
+        32,
+        20
+    )
+    for side in (-1, 1):
+        ellipsoid(
+            "Abdominal side plate %02d %s" % (i + 1, "L" if side > 0 else "R"),
+            (x - 0.02, side * width * 0.76, z - 0.12),
+            (0.25, width * 0.29, height * 0.34),
+            shell,
+            22,
+            14
+        )
+
+# Visible, attached joint lines between abdominal plates.
+for i in range(len(abdomen_segments) - 1):
+    x = (abdomen_segments[i][0] + abdomen_segments[i + 1][0]) * 0.5
+    w = min(abdomen_segments[i][1], abdomen_segments[i + 1][1]) * 0.93
+    z = (abdomen_segments[i][3] + abdomen_segments[i + 1][3]) * 0.5
+    ellipsoid(
+        "Abdominal joint %02d" % (i + 1),
+        (x, 0.0, z - 0.06),
+        (0.095, w, 0.32),
+        shell_dark,
+        24,
+        14
+    )
+
+# Compact cephalothorax and head, overlapping the abdomen.
+ellipsoid("Compact cephalothorax", (0.78, 0.0, 0.77), (0.78, 0.92, 0.58), shell, 36, 22)
+ellipsoid("Head shield", (1.35, 0.0, 0.83), (0.53, 0.72, 0.48), shell_light, 32, 20)
+ellipsoid("Ventral thorax", (0.68, 0.0, 0.39), (0.72, 0.70, 0.29), underside, 30, 18)
+
+# Short central rostrum and small side points, not claws.
+tapered_segment("Central rostrum", (1.61, 0.0, 0.99), (2.03, 0.0, 1.09), 0.14, 0.012, shell, 18)
+for side in (-1, 1):
+    tapered_segment(
+        "Side rostrum",
+        (1.52, side * 0.27, 1.02),
+        (1.87, side * 0.36, 1.13),
+        0.075,
+        0.008,
+        shell_dark,
+        14
+    )
+
+# Eyes on attached stalks.
+for side in (-1, 1):
+    tapered_segment(
+        "Eye stalk",
+        (1.38, side * 0.36, 1.01),
+        (1.65, side * 0.48, 1.14),
+        0.095,
+        0.075,
+        shell_dark,
+        16
+    )
+    ellipsoid(
+        "Black eye",
+        (1.69, side * 0.50, 1.16),
+        (0.115, 0.105, 0.105),
+        eye_mat,
+        22,
+        14
+    )
+
+# Small attached carapace spines.
+spines = [
+    ((0.45, -0.48, 1.20), (0.38, -0.57, 1.48)),
+    ((0.45, 0.48, 1.20), (0.38, 0.57, 1.48)),
+    ((0.86, -0.42, 1.26), (0.84, -0.49, 1.53)),
+    ((0.86, 0.42, 1.26), (0.84, 0.49, 1.53)),
+    ((1.20, -0.34, 1.19), (1.24, -0.40, 1.42)),
+    ((1.20, 0.34, 1.19), (1.24, 0.40, 1.42)),
+]
+for i, (a, b) in enumerate(spines):
+    tapered_segment("Carapace spine %02d" % i, a, b, 0.065, 0.005, shell_dark, 12)
+
+# Five pairs of jointed walking legs, firmly anchored beneath the thorax.
+leg_x_positions = [1.20, 0.91, 0.61, 0.30, -0.02]
+for pair_index, x in enumerate(leg_x_positions):
+    for side in (-1, 1):
+        s = float(side)
+        rear = 0.06 * pair_index
+        points = [
+            (x, s * 0.48, 0.48),
+            (x - 0.04, s * 0.78, 0.31),
+            (x - 0.12 - rear, s * (1.12 + 0.035 * pair_index), 0.12),
+            (x - 0.34 - rear, s * (1.40 + 0.04 * pair_index), -0.01),
+        ]
+        radii = [0.105, 0.09, 0.055, 0.009]
+        connected_chain(
+            "Walking leg %02d %s" % (pair_index + 1, "L" if side > 0 else "R"),
+            points,
+            radii,
+            underside,
+            12,
+            True
+        )
+
+# Small swimmerets attached beneath the abdomen.
+for i, x in enumerate((-0.42, -0.79, -1.14, -1.46)):
+    for side in (-1, 1):
+        s = float(side)
+        points = [
+            (x, s * 0.38, 0.40),
+            (x - 0.08, s * 0.59, 0.23),
+            (x - 0.18, s * 0.72, 0.12),
+        ]
+        connected_chain(
+            "Swimmeret %02d" % (i * 2 + (1 if side < 0 else 2)),
+            points,
+            [0.055, 0.038, 0.006],
+            underside,
+            10,
+            False
+        )
+
+# Extremely long, stout, continuous, upward-curving antennae.
+for side in (-1, 1):
+    s = float(side)
+    points = [
+        (1.48, s * 0.47, 1.07),
+        (1.69, s * 0.52, 1.24),
+        (2.00, s * 0.60, 1.55),
+        (2.43, s * 0.70, 2.02),
+        (2.95, s * 0.79, 2.52),
+        (3.55, s * 0.84, 2.94),
+        (4.18, s * 0.82, 3.18),
+        (4.80, s * 0.73, 3.23),
+        (5.37, s * 0.60, 3.08),
+        (5.86, s * 0.44, 2.77),
+        (6.24, s * 0.29, 2.39),
+    ]
+    radii = [0.205, 0.205, 0.195, 0.181, 0.163, 0.143, 0.122, 0.100, 0.077, 0.052, 0.018]
+    connected_chain(
+        "Long upward-curving antenna %s" % ("L" if side > 0 else "R"),
+        points,
+        radii,
+        shell,
+        18,
+        True
+    )
+
+    # Attached basal thorns only.
+    for j in range(3):
+        base = Vector(points[1]).lerp(Vector(points[2]), 0.18 + j * 0.23)
+        tip = base + Vector((-0.02, s * (0.20 - j * 0.025), 0.12))
+        tapered_segment(
+            "Antenna basal thorn",
+            base,
+            tip,
+            0.038,
+            0.004,
+            shell_dark,
+            10
+        )
+
+# Solid, overlapping fan-shaped tail blades.
+def make_tail_blade(name, base, direction, half_width, length, material):
+    base = Vector(base)
+    forward = Vector(direction).normalized()
+    lateral = Vector((-forward.y, forward.x, 0.0)).normalized()
+    z_top = 0.055
+    z_bottom = -0.055
+
+    profile = [
+        (0.00, 0.00),
+        (0.16, 0.58),
+        (0.55, 1.00),
+        (0.90, 0.82),
+        (1.00, 0.30),
+        (1.00, -0.30),
+        (0.90, -0.82),
+        (0.55, -1.00),
+        (0.16, -0.58),
+    ]
+
+    verts = []
+    for z_offset in (z_bottom, z_top):
+        for u, v in profile:
+            point = base + forward * (u * length) + lateral * (v * half_width)
+            point.z += z_offset
+            verts.append(tuple(point))
+
+    count = len(profile)
+    faces = [
+        tuple(reversed(range(count))),
+        tuple(range(count, count * 2)),
+    ]
+    for i in range(count):
+        j = (i + 1) % count
+        faces.append((i, j, count + j, count + i))
+
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    bevel = obj.modifiers.new("Rounded blade edge", 'BEVEL')
+    bevel.width = 0.065
+    bevel.segments = 3
+    smooth(obj)
+    return obj
+
+tail_root = (-1.98, 0.0, 0.56)
+make_tail_blade("Central tail blade", tail_root, (-1.0, 0.0, 0.0), 0.30, 1.12, shell_light)
+make_tail_blade("Inner left tail blade", (-2.00, 0.11, 0.55), (-0.97, 0.24, 0.0), 0.34, 1.10, shell)
+make_tail_blade("Inner right tail blade", (-2.00, -0.11, 0.55), (-0.97, -0.24, 0.0), 0.34, 1.10, shell)
+make_tail_blade("Outer left tail blade", (-1.98, 0.25, 0.53), (-0.87, 0.49, 0.0), 0.31, 1.02, shell_light)
+make_tail_blade("Outer right tail blade", (-1.98, -0.25, 0.53), (-0.87, -0.49, 0.0), 0.31, 1.02, shell_light)
+
+# Raised attached ribs along the tail fan.
+tail_ribs = [
+    ((-2.02, 0.0, 0.63), (-2.91, 0.0, 0.64)),
+    ((-2.03, 0.13, 0.62), (-2.86, 0.35, 0.63)),
+    ((-2.03, -0.13, 0.62), (-2.86, -0.35, 0.63)),
+    ((-2.02, 0.27, 0.60), (-2.72, 0.68, 0.61)),
+    ((-2.02, -0.27, 0.60), (-2.72, -0.68, 0.61)),
+]
+for i, (start, end) in enumerate(tail_ribs):
+    tapered_segment("Tail fan rib %02d" % i, start, end, 0.035, 0.014, shell_dark, 10)
+
+# Subtle attached dorsal bumps for shell texture and segmentation.
+for i, (x, width, height, z) in enumerate(abdomen_segments[1:-1], 1):
+    for side in (-1, 1):
+        ellipsoid(
+            "Dorsal abdominal bump",
+            (x + 0.01, side * width * 0.31, z + height * 0.84),
+            (0.09, 0.075, 0.065),
+            shell_light,
+            16,
+            10
+        )
+
+# Leave the coherent assembly centered around the body origin.
+bpy.ops.object.select_all(action='DESELECT')

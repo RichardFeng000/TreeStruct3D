@@ -1,0 +1,3 @@
+- Priority 2 issue: Branch segments are disjointed with visible gaps and overlapping caps, making them look like separate pipes rather than organic wood.
+- The canopy is slightly sparse; it needs more density to be described as "broad."
+- The gnarled effect is too jittery, resulting in unnatural breaks in the trunk and main limbs.

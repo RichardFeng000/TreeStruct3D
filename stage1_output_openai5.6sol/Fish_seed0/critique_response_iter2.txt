@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The fish is complete and recognizable, with an oval compressed body, clouded blue-gray skin, prominent ribbed golden fins, eye, and pointed mouth.
+</assessment>

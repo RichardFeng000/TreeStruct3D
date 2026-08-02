@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/HoneycombCoral_seed0/HoneycombCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/HoneycombCoral_seed0/glb/HoneycombCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 6908.7,
+  "latency_s": 2.19,
+  "error": null
+}

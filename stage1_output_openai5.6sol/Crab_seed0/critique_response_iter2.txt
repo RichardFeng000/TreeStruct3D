@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The crab is complete and recognizable, with a broad glossy shell, eight attached legs, visible eye stalks, and prominent unequal red-and-white claws.
+</assessment>

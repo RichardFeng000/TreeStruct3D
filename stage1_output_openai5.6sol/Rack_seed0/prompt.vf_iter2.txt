@@ -1,0 +1,322 @@
+Original text-to-3D task:
+
+A tall industrial warehouse storage rack rendered as a 3D model, featuring a dark steel frame with vertical perforated uprights connected by horizontal beams at multiple levels.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.length_unit = 'METERS'
+scene.cursor.location = (0.0, 0.0, 0.0)
+
+def make_material(name, color, metallic, roughness):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    shader = material.node_tree.nodes.get("Principled BSDF")
+    shader.inputs["Base Color"].default_value = (*color, 1.0)
+    shader.inputs["Metallic"].default_value = metallic
+    shader.inputs["Roughness"].default_value = roughness
+    return material
+
+dark_steel = make_material("Dark Steel", (0.035, 0.045, 0.055), 0.88, 0.27)
+beam_steel = make_material("Horizontal Beam Steel", (0.075, 0.095, 0.115), 0.82, 0.29)
+detail_steel = make_material("Pressed Steel Details", (0.13, 0.15, 0.17), 0.76, 0.32)
+fastener_steel = make_material("Fasteners", (0.19, 0.20, 0.21), 0.9, 0.22)
+
+def add_bevel(obj, width=0.008, segments=2):
+    modifier = obj.modifiers.new("Edge Bevel", 'BEVEL')
+    modifier.width = width
+    modifier.segments = segments
+    modifier.limit_method = 'ANGLE'
+    modifier.angle_limit = math.radians(25.0)
+
+def box(name, location, dimensions, material, bevel=0.0):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    if bevel > 0.0:
+        add_bevel(obj, bevel)
+    return obj
+
+def bar_between(name, start, end, cross_x, cross_y, material, bevel=0.004):
+    p1 = Vector(start)
+    p2 = Vector(end)
+    direction = p2 - p1
+    length = direction.length
+    midpoint = (p1 + p2) * 0.5
+
+    bpy.ops.mesh.primitive_cube_add(location=midpoint)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = (cross_x, cross_y, length)
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = direction.to_track_quat('Z', 'Y')
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    add_bevel(obj, bevel)
+    return obj
+
+def cylinder(name, location, radius, depth, material, rotation=(0.0, 0.0, 0.0), vertices=16):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    add_bevel(obj, 0.002, 2)
+    return obj
+
+rack_width = 5.2
+rack_depth = 1.72
+rack_height = 6.15
+post_x = (-rack_width * 0.5, rack_width * 0.5)
+post_y = (-rack_depth * 0.5, rack_depth * 0.5)
+beam_levels = (1.05, 2.38, 3.71, 5.04)
+
+post_bottom = 0.14
+post_top = rack_height
+post_center = (post_bottom + post_top) * 0.5
+post_length = post_top - post_bottom
+
+for x in post_x:
+    for y in post_y:
+        side = "Left" if x < 0.0 else "Right"
+        face = "Front" if y < 0.0 else "Rear"
+        prefix = side + "_" + face
+
+        box(
+            prefix + "_BasePlate",
+            (x, y, 0.045),
+            (0.42, 0.40, 0.09),
+            dark_steel,
+            0.012
+        )
+
+        box(
+            prefix + "_LowerCollar",
+            (x, y, 0.20),
+            (0.25, 0.22, 0.24),
+            detail_steel,
+            0.008
+        )
+
+        for ox in (-0.145, 0.145):
+            for oy in (-0.125, 0.125):
+                cylinder(
+                    prefix + "_Anchor",
+                    (x + ox, y + oy, 0.105),
+                    0.032,
+                    0.055,
+                    fastener_steel,
+                    vertices=12
+                )
+                cylinder(
+                    prefix + "_Washer",
+                    (x + ox, y + oy, 0.084),
+                    0.052,
+                    0.012,
+                    detail_steel,
+                    vertices=16
+                )
+
+        rail_offset = 0.073
+        rail_width = 0.062
+        for rail_index, offset in enumerate((-rail_offset, rail_offset)):
+            box(
+                prefix + "_UprightRail_" + str(rail_index + 1),
+                (x + offset, y, post_center),
+                (rail_width, 0.17, post_length),
+                dark_steel,
+                0.006
+            )
+
+        bridge_pitch = 0.235
+        bridge_height = 0.075
+        bridge_z = 0.29
+        bridge_index = 1
+        while bridge_z < rack_height - 0.10:
+            box(
+                prefix + "_PerforationBridge_" + str(bridge_index),
+                (x, y, bridge_z),
+                (0.205, 0.17, bridge_height),
+                dark_steel,
+                0.004
+            )
+            bridge_z += bridge_pitch
+            bridge_index += 1
+
+        box(
+            prefix + "_TopCap",
+            (x, y, rack_height + 0.025),
+            (0.25, 0.22, 0.05),
+            detail_steel,
+            0.008
+        )
+
+for level_index, z in enumerate(beam_levels, 1):
+    for y in post_y:
+        face = "Front" if y < 0.0 else "Rear"
+        inward = 1.0 if y < 0.0 else -1.0
+
+        box(
+            "LoadBeam_" + face + "_" + str(level_index),
+            (0.0, y, z),
+            (rack_width - 0.18, 0.18, 0.25),
+            beam_steel,
+            0.012
+        )
+
+        box(
+            "LoadBeamUpperLip_" + face + "_" + str(level_index),
+            (0.0, y + inward * 0.095, z + 0.103),
+            (rack_width - 0.18, 0.075, 0.05),
+            detail_steel,
+            0.005
+        )
+
+        box(
+            "LoadBeamLowerLip_" + face + "_" + str(level_index),
+            (0.0, y + inward * 0.095, z - 0.103),
+            (rack_width - 0.18, 0.075, 0.05),
+            detail_steel,
+            0.005
+        )
+
+        for x in post_x:
+            connector_x = x + (0.07 if x < 0.0 else -0.07)
+            box(
+                "Connector_" + face + "_" + str(level_index) + "_" + ("L" if x < 0.0 else "R"),
+                (connector_x, y, z),
+                (0.14, 0.25, 0.43),
+                detail_steel,
+                0.008
+            )
+
+            outward_x = x - 0.115 if x < 0.0 else x + 0.115
+            for pin_z in (z - 0.115, z + 0.115):
+                cylinder(
+                    "BeamPin",
+                    (outward_x, y, pin_z),
+                    0.027,
+                    0.06,
+                    fastener_steel,
+                    rotation=(0.0, math.pi * 0.5, 0.0),
+                    vertices=12
+                )
+
+    for support_index, x in enumerate((-1.72, -0.57, 0.57, 1.72), 1):
+        box(
+            "PalletSupport_" + str(level_index) + "_" + str(support_index),
+            (x, 0.0, z + 0.16),
+            (0.12, rack_depth - 0.04, 0.09),
+            beam_steel,
+            0.007
+        )
+
+        for y in post_y:
+            box(
+                "SupportSeat_" + str(level_index) + "_" + str(support_index),
+                (x, y, z + 0.135),
+                (0.20, 0.22, 0.055),
+                detail_steel,
+                0.005
+            )
+
+for x in post_x:
+    side = "Left" if x < 0.0 else "Right"
+
+    tie_levels = (0.62, 1.72, 3.04, 4.37, 5.72)
+    for index, z in enumerate(tie_levels, 1):
+        bar_between(
+            "EndFrameTie_" + side + "_" + str(index),
+            (x, post_y[0], z),
+            (x, post_y[1], z),
+            0.075,
+            0.075,
+            detail_steel,
+            0.005
+        )
+
+    zigzag = [
+        (x, post_y[0], 0.38),
+        (x, post_y[1], 1.45),
+        (x, post_y[0], 2.52),
+        (x, post_y[1], 3.59),
+        (x, post_y[0], 4.66),
+        (x, post_y[1], 5.73)
+    ]
+
+    for index in range(len(zigzag) - 1):
+        bar_between(
+            "DiagonalBrace_" + side + "_" + str(index + 1),
+            zigzag[index],
+            zigzag[index + 1],
+            0.065,
+            0.075,
+            dark_steel,
+            0.005
+        )
+
+    for index, point in enumerate(zigzag, 1):
+        box(
+            "BraceGusset_" + side + "_" + str(index),
+            point,
+            (0.09, 0.22, 0.20),
+            detail_steel,
+            0.005
+        )
+
+for y in post_y:
+    face = "Front" if y < 0.0 else "Rear"
+    box(
+        "TopLongitudinalTie_" + face,
+        (0.0, y, 5.88),
+        (rack_width - 0.18, 0.12, 0.12),
+        dark_steel,
+        0.007
+    )
+
+for x in post_x:
+    side = "Left" if x < 0.0 else "Right"
+    box(
+        "TopDepthTie_" + side,
+        (x, 0.0, 5.88),
+        (0.12, rack_depth, 0.12),
+        dark_steel,
+        0.007
+    )
+
+for obj in scene.objects:
+    if obj.type == 'MESH':
+        obj.select_set(False)
+
+bpy.context.view_layer.update()
+</previous_code>
+
+You are reviewing iteration 2 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

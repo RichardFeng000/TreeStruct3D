@@ -1,0 +1,181 @@
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears default scene objects."""
+    if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a matte olive-green material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Base Color'].default_value = color
+    # Deep matte surface: high roughness, low specular
+    bsdf.inputs['Roughness'].default_value = 0.8
+    
+    output = nodes.new('ShaderNodeOutputMaterial')
+    mat.node_tree.links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+    return mat
+
+def get_snake_path(t):
+    """
+    S-curve pose: 
+    Head elevated at upper left (-x, +z)
+    Body sweeping downward to bottom right (+x, -z/0)
+    """
+    # t ranges from 0 (head) to 1 (tail)
+    # X: Left to Right
+    x = -5.0 + 10.0 * t
+    # Y: Sinuous curve
+    y = 3.0 * math.sin(math.pi * 1.5 * t)
+    # Z: Elevated head (t=0), descending body (t=1)
+    z = 4.0 * (1.0 - t)**1.2 
+    return Vector((x, y, z))
+
+def get_snake_tangent(t):
+    """Approximate tangent vector at point t."""
+    delta = 0.001
+    p1 = get_snake_path(t)
+    p2 = get_snake_path(t + delta)
+    return (p2 - p1).normalized()
+
+def generate_snake():
+    clear_scene()
+    
+    # Parameters
+    segments = 120
+    vertices_per_ring = 18
+    head_radius = 0.6
+    tail_radius = 0.05
+    flattening_factor = 0.7  # Width is smaller than height for bilateral flattening
+    
+    mesh = bpy.data.meshes.new("Snake")
+    obj = bpy.data.objects.new("Snake", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    
+    # To avoid the "outdated internal index table" error, we store references 
+    # in lists instead of accessing bm.verts by index.
+    prev_ring = []
+    all_rings = [] # Store rings to manipulate head later
+    
+    for i in range(segments + 1):
+        t = i / segments
+        pos = get_snake_path(t)
+        tangent = get_snake_tangent(t)
+        
+        # Calculate a coordinate frame (Frenet-Serret approximation)
+        up_ref = Vector((0, 0, 1))
+        if abs(tangent.dot(up_ref)) > 0.9:
+            up_ref = Vector((0, 1, 0))
+            
+        bitangent = tangent.cross(up_ref).normalized()
+        normal = bitangent.cross(tangent).normalized()
+        
+        # Taper from head to tail
+        radius = head_radius * (1.0 - 0.92 * (t**0.6))
+        if t > 0.8: # Sharper taper at the very end
+            radius *= (1.0 - (t-0.8)*5) if t < 1.0 else 0.05
+
+        # Bilateral flattening
+        width_rad = radius * flattening_factor
+        height_rad = radius
+        
+        current_ring = []
+        for v_idx in range(vertices_per_ring):
+            angle = (2 * math.pi / vertices_per_ring) * v_idx
+            # Elliptical cross section: width on bitangent, height on normal
+            offset = (bitangent * math.cos(angle) * width_rad + 
+                      normal * math.sin(angle) * height_rad)
+            
+            vert = bm.verts.new(pos + offset)
+            current_ring.append(vert)
+        
+        # Connect rings
+        if prev_ring:
+            for v_idx in range(vertices_per_ring):
+                v1 = prev_ring[v_idx]
+                v2 = prev_ring[(v_idx + 1) % vertices_per_ring]
+                v3 = current_ring[(v_idx + 1) % vertices_per_ring]
+                v4 = current_ring[v_idx]
+                bm.faces.new((v1, v2, v3, v4))
+        
+        prev_ring = current_ring
+        all_rings.append(current_ring)
+
+    # Close tail with a single vertex (taper to point)
+    tail_tip = bm.verts.new(get_snake_path(1.0))
+    last_ring = all_rings[-1]
+    for v_idx in range(vertices_per_ring):
+        v1 = last_ring[v_idx]
+        v2 = last_ring[(v_idx + 1) % vertices_per_ring]
+        bm.faces.new((v1, v2, tail_tip))
+
+    # Head Construction: Blunt rounded snout
+    # The first ring (all_rings[0]) is the "back" of the head region
+    head_base = all_rings[0]
+    
+    # We create a slightly extruded blunt face for the nose
+    # To make it look natural, we'll add another ring and then cap it
+    t_nose = -0.1
+    pos_nose = get_snake_path(t_nose)
+    tangent_nose = get_snake_tangent(t_nose)
+    up_ref_n = Vector((0, 0, 1))
+    if abs(tangent_nose.dot(up_ref_n)) > 0.9:
+        up_ref_n = Vector((0, 1, 0))
+    bitangent_n = tangent_nose.cross(up_ref_n).normalized()
+    normal_n = bitangent_n.cross(tangent_nose).normalized()
+
+    # Create the nose tip ring (flattened)
+    nose_ring = []
+    for v_idx in range(vertices_per_ring):
+        angle = (2 * math.pi / vertices_per_ring) * v_idx
+        # Make the snout slightly wider/flatter than the body start
+        offset = (bitangent_n * math.cos(angle) * head_radius * 0.8 + 
+                  normal_n * math.sin(angle) * head_radius * 0.6)
+        nose_ring.append(bm.verts.new(pos_nose + offset))
+
+    # Bridge base of head to snout ring
+    for v_idx in range(vertices_per_ring):
+        v1 = head_base[v_idx]
+        v2 = head_base[(v_idx + 1) % vertices_per_ring]
+        v3 = nose_ring[(v_idx + 1) % vertices_per_ring]
+        v4 = nose_ring[v_idx]
+        bm.faces.new((v1, v2, v3, v4))
+
+    # Cap the snout with a center vertex for a rounded look
+    snout_center = bm.verts.new(pos_nose)
+    for v_idx in range(vertices_per_ring):
+        v1 = nose_ring[v_idx]
+        v2 = nose_ring[(v_idx + 1) % vertices_per_ring]
+        bm.faces.new((v1, v2, snout_center))
+
+    # Finalize mesh
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Smoothing and Modifiers
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+    
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    # Material: Deep Olive Green (Dark, muted green)
+    olive_green_color = (0.12, 0.22, 0.06, 1.0)
+    mat = create_material("OliveGreen", olive_green_color)
+    obj.data.materials.append(mat)
+
+if __name__ == "__main__":
+    generate_snake()

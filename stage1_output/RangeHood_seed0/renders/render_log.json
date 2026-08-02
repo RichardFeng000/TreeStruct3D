@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/RangeHood_seed0/RangeHood_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 1.5,
+  "n_views_rendered": 4,
+  "latency_s": 2.31,
+  "error": null
+}

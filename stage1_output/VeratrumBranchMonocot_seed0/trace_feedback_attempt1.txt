@@ -1,0 +1,246 @@
+Original text-to-3D task:
+
+A 3D model of a veratrum branch rendered from a slightly elevated perspective, featuring a tall, upright central stalk densely covered with overlapping, pointed, leaf-like bracts arranged in a spiral pattern, with a few lower leaves spreading outward at the base, displaying green and yellowish-green coloring.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector, Matrix
+
+def clear_scene():
+    """Clears the default scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple diffuse material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_principled.inputs['Base Color'].default_value = color
+    mat.node_tree.links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def create_leaf_mesh(length, width, curve_factor=1.0, twist_factor=0.0):
+    """
+    Procedurally creates a pointed leaf geometry using BMesh.
+    length: total length along the spine
+    width: maximum width of the leaf
+    curve_factor: how much the leaf bends
+    twist_factor: rotation around its own axis
+    """
+    bm = bmesh.new()
+    segments = 12
+    rings = 6
+    
+    # Create the spine and edges
+    verts = []
+    for i in range(segments + 1):
+        t = i / segments
+        # Spine curve (quadratic)
+        z = t * length
+        x = math.sin(t * math.pi * 0.5) * curve_factor * (t**2)
+        y = 0
+        
+        # Width taper: starts at 0, peaks in middle, ends at 0
+        w = width * math.sin(t * math.pi)
+        
+        # Create a cross section for each segment of the spine
+        # We create a small strip to give it some thickness or just a plane
+        v_left = bm.verts.new(Vector((x - w, y, z)))
+        v_right = bm.verts.new(Vector((x + w, y, z)))
+        verts.append((v_left, v_right))
+
+    # Create faces between segments
+    for i in range(segments):
+        bm.faces.new((verts[i][0], verts[i+1][0], verts[i+1][1], verts[i][1]))
+
+    # Apply a bit of twist/bend by moving vertices slightly in Z or Y
+    # and refine the tip to be pointed
+    last_pair = verts[-1]
+    bm.verts.remove(last_pair[0])
+    bm.verts.remove(last_pair[1])
+    # We need a single vertex at the tip for it to be truly pointed
+    tip = bm.verts.new(Vector((verts[-1][0].co.x, 0, length)))
+    
+    # Re-stitch the last faces to the tip
+    # Since we removed the vertices, we have to be careful. 
+    # Better approach: redefine geometry slightly.
+    
+    bm.free()
+    return None # See revised logic below
+
+def create_organic_leaf(name, length, width, curve=1.0, twist=0.0):
+    """Revised leaf generation using a BMesh grid and deformation."""
+    bm = bmesh.new()
+    res_l = 15
+    res_w = 4
+    
+    # Create a flat plane first
+    for i in range(res_l + 1):
+        t = i / res_l
+        # Width taper: 0 -> width -> 0
+        current_w = width * math.sin(t * math.pi)
+        for j in range(res_w + 1):
+            u = (j / res_w) - 0.5
+            x = t * length
+            y = u * current_w
+            z = 0
+            bm.verts.new(Vector((x, y, z)))
+
+    # Indexing for faces
+    for i in range(res_l):
+        for j in range(res_w):
+            v1 = i * (res_w + 1) + j
+            v2 = i * (res_w + 1) + j + 1
+            v3 = (i + 1) * (res_w + 1) + j + 1
+            v4 = (i + 1) * (res_w + 1) + j
+            bm.faces.new((bm.verts[v1], bm.verts[v2], bm.verts[v3], bm.verts[v4]))
+
+    # Deform the leaf: Curve it and Twist it
+    for v in bm.verts:
+        t = v.co.x / length
+        # Spine curve (Y-axis)
+        bend = math.sin(t * math.pi * 0.5) * curve
+        v.co.y += bend
+        # Twist the leaf along X axis
+        angle = t * twist
+        rot_mat = Matrix.Rotation(angle, 4, 'X')
+        # Only rotate relative to the spine (the current x position)
+        offset = Vector((0, v.co.y - (math.sin(t * math.pi * 0.5) * curve), v.co.z))
+        v.co.y = (rot_mat @ offset).y + (math.sin(t * math.pi * 0.5) * curve)
+        v.co.z = (rot_mat @ offset).z
+
+    obj = bpy.data.objects.new(name, bm)
+    bpy.context.collection.objects.link(obj)
+    bm.to_mesh(obj.data)
+    bm.free()
+    
+    # Add subdivision for smoothness
+    mod = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    mod.levels = 1
+    mod.render_levels = 2
+    
+    return obj
+
+def create_stalk(height, radius):
+    """Creates the main central stem."""
+    bm = bmesh.new()
+    # Use a cylinder with slightly tapered top
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=12, diameter1=radius*2, diameter2=radius*1.2, depth=height)
+    
+    # Move center to origin (base at 0)
+    for v in bm.verts:
+        v.co.z += height / 2
+        
+    obj = bpy.data.objects.new("Stalk", bm)
+    bpy.context.collection.objects.link(obj)
+    bm.to_mesh(obj.data)
+    bm.free()
+    return obj
+
+def main():
+    clear_scene()
+    
+    # Materials
+    mat_green = create_material("Green", (0.1, 0.3, 0.05, 1.0))
+    mat_yellow_green = create_material("YellowGreen", (0.4, 0.5, 0.1, 1.0))
+    
+    # Parameters
+    stalk_height = 6.0
+    stalk_radius = 0.08
+    num_bracts = 45
+    
+    # Create central stalk
+    stalk = create_stalk(stalk_height, stalk_radius)
+    stalk.data.materials.append(mat_green)
+    
+    # Distribute Bracts (Spiral pattern)
+    phi = (1 + 5**0.5) / 2  # Golden ratio
+    angle_step = 2 * math.pi / phi
+    
+    for i in range(num_bracts):
+        z_pos = (i / num_bracts) * stalk_height * 0.8 + 0.5 # Start slightly above base, end before top
+        angle = i * angle_step
+        
+        # Randomly vary length and width for organic feel
+        b_len = 0.4 + random.random() * 0.3
+        b_wid = 0.1 + random.random() * 0.1
+        
+        leaf = create_organic_leaf(f"Bract_{i}", b_len, b_wid, curve=0.2 + random.random()*0.3)
+        
+        # Position and Rotate
+        # The leaf is created along the X axis by default in create_organic_leaf logic
+        # We want it to extend radially from the stalk and point upwards
+        
+        # Move to position on stalk
+        leaf.location = (math.cos(angle) * stalk_radius, math.sin(angle) * stalk_radius, z_pos)
+        
+        # Rotate to face away from center and angle up
+        rot_z = angle
+        rot_y = -math.pi / 4 + random.uniform(-0.2, 0.2) # Angle upwards
+        
+        leaf.rotation_euler = (0, rot_y, rot_z)
+        
+        # Material assignment
+        leaf.data.materials.append(random.choice([mat_green, mat_yellow_green]))
+
+    # Create lower spreading leaves
+    num_base_leaves = 7
+    for i in range(num_base_leaves):
+        angle = (i / num_base_leaves) * 2 * math.pi
+        b_len = 1.5 + random.random() * 0.8
+        b_wid = 0.3 + random.random() * 0.2
+        
+        # Base leaves curve more strongly outwards
+        leaf = create_organic_leaf(f"BaseLeaf_{i}", b_len, b_wid, curve=1.5 + random.random(), twist=random.uniform(-0.5, 0.5))
+        
+        leaf.location = (math.cos(angle) * stalk_radius, math.sin(angle) * stalk_radius, 0.1)
+        
+        # Rotate to spread outwards
+        rot_y = -math.pi / 8 + random.uniform(-0.2, 0.2) # Flatter angle than bracts
+        leaf.rotation_euler = (0, rot_y, angle)
+        
+        leaf.data.materials.append(mat_green)
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: create_cone: keyword "diameter1" is invalid for this operator
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/VeratrumBranchMonocot_seed0/VeratrumBranchMonocot_seed0.py", line 207, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/VeratrumBranchMonocot_seed0/VeratrumBranchMonocot_seed0.py", line 155, in main
+    stalk = create_stalk(stalk_height, stalk_radius)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/VeratrumBranchMonocot_seed0/VeratrumBranchMonocot_seed0.py", line 130, in create_stalk
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=12, diameter1=radius*2, diameter2=radius*1.2, depth=height)
+TypeError: create_cone: keyword "diameter1" is invalid for this operator
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

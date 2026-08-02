@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a single elongated banana leaf with dense parallel venation, a prominent midrib, and an attached slender petiole.
+</assessment>

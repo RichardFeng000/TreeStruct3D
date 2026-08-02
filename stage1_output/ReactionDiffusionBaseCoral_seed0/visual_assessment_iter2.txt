@@ -1,0 +1,3 @@
+- The surface is too smooth and "lumpy"; it lacks the "deeply pitted cells" and distinct "interconnecting ridges" described.
+- The texture is uniform in scale; it needs "varying scales" of cellular detail to look organic.
+- The cellular structure should be more defined, with sharper transitions between pits and ridges rather than soft waves.

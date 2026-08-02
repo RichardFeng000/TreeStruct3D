@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CoffeeTable_seed0/CoffeeTable_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/CoffeeTable_seed0/glb/CoffeeTable_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 108.1,
+  "latency_s": 0.1,
+  "error": null
+}

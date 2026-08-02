@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Oven_seed0/Oven_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 41,
+  "extent": 1.039999975822866,
+  "n_views_rendered": 4,
+  "latency_s": 3.1,
+  "error": null
+}

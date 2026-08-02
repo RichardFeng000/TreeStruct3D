@@ -1,0 +1,88 @@
+{
+  "parts": [
+    {
+      "id": "frame",
+      "level": "major"
+    },
+    {
+      "id": "seat_cushion",
+      "level": "part"
+    },
+    {
+      "id": "backrest",
+      "level": "part"
+    },
+    {
+      "id": "arm_left",
+      "level": "part"
+    },
+    {
+      "id": "arm_right",
+      "level": "part"
+    },
+    {
+      "id": "support_left",
+      "level": "part"
+    },
+    {
+      "id": "support_right",
+      "level": "part"
+    }
+  ],
+  "relations": [
+    {
+      "source": "seat_cushion",
+      "type": "ATTACHED_TO",
+      "target": "frame",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "backrest",
+      "type": "ATTACHED_TO",
+      "target": "frame",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "arm_left",
+      "type": "ATTACHED_TO",
+      "target": "frame",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "arm_right",
+      "type": "ATTACHED_TO",
+      "target": "frame",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    }
+  ],
+  "asset_id": "ArmChair_seed0",
+  "metadata": {
+    "prediction_status": "provisional_code_and_four_view_audit",
+    "source": "stage1_output/ArmChair_seed0",
+    "not_automatic_geometry_measurement": true,
+    "missing_relations": [
+      [
+        "support_left",
+        "ATTACHED_TO",
+        "frame"
+      ],
+      [
+        "support_right",
+        "ATTACHED_TO",
+        "frame"
+      ]
+    ]
+  }
+}

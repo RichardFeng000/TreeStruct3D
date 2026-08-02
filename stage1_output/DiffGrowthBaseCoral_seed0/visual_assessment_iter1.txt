@@ -1,0 +1,3 @@
+- The current render is jagged and spiky (like shards of glass) rather than smooth and organic. This is caused by calling `random.uniform` inside the vertex loop, which creates random noise instead of coherent sine waves.
+- The shapes lack "curling" and "folding," as displacement only happens on the Z axis.
+- Need to move phase offsets outside the loops and add radial/lateral displacements to achieve a lettuce-like structure.

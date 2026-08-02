@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Bird_seed0/Bird_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 40,
+  "extent": 2.5199999809265137,
+  "n_views_rendered": 4,
+  "latency_s": 5.74,
+  "error": null
+}

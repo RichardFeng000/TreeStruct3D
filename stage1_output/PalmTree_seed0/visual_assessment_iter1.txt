@@ -1,0 +1,3 @@
+- Missing parts: The crown of fronds is completely missing from the renders because they were constructed using edges only, which are invisible in standard renders.
+- Missing geometric detail: The fibrous stubs on the mid-section bulge are virtually invisible; they need to be larger and more distinct.
+- Need to replace edge-based leaflets with face-based geometry for visibility.

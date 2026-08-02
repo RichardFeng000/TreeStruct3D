@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LargePlantContainer_seed0/LargePlantContainer_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 14,
+  "extent": 6.349372386932373,
+  "n_views_rendered": 4,
+  "latency_s": 2.63,
+  "error": null
+}

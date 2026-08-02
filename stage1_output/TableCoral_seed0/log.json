@@ -1,0 +1,56 @@
+{
+  "instance": "TableCoral_seed0",
+  "timestamp": "2026-07-09T16:08:20+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 147.34,
+  "code_chars": 8298,
+  "input_tokens": 9168,
+  "output_tokens": 5183,
+  "thoughts_tokens": null,
+  "total_tokens": 14351,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 2,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 2,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Missing granular polyp texture: displacement modifiers are present but not visibly creating fine roughness on surfaces.\n- Color is flat olive-gray; lacks sandy beige/tan base with olive-green variation as described.\n- Upright projections are too sparse and stubby; should be more numerous and varied in height.\n- Plate thickness is too uniform; should taper and show organic warping.\n- Shadow is absent; object appears to float on white with no grounding shadow.",
+      "raw_chars": 8821
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Missing granular polyp texture: displacement modifiers are too weak or misconfigured, surface looks smooth.\n- Upright projections are too sparse and uniform; need more density and height variation.\n- Color is monotonous beige; lacks sandy-to-tan gradient and olive-green variation.\n- Shadow plane is visible in renders; should be hidden from camera.\n- Plate thickness is too uniform; should taper more naturally toward edges.",
+      "raw_chars": 8791
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

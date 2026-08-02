@@ -1,0 +1,145 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.85
+        bsdf.inputs['Specular IOR Level'].default_value = 0.2
+    return mat
+
+def generate_honeycomb_coral():
+    # --- Parameters ---
+    DOME_RADIUS = 2.0
+    # Higher resolution for better material distribution and geometric detail
+    SEGMENTS = 256 
+    RINGS = 128
+    NUM_CELLS = 400
+    CELL_SIZE = 0.3
+    PIT_DEPTH = 0.25
+    RIDGE_HEIGHT = 0.1
+    
+    # Materials
+    mat_beige = create_material("CoralBeige", (0.85, 0.75, 0.6, 1.0))
+    mat_green = create_material("CoralGreen", (0.3, 0.35, 0.2, 1.0))
+
+    # 1. Create High-Res Dome Base
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=SEGMENTS, ring_count=RINGS, radius=DOME_RADIUS)
+    dome_obj = bpy.context.active_object
+    me = dome_obj.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+
+    # Flatten bottom and close base
+    verts_to_delete = [v for v in bm.verts if v.co.z < -0.1]
+    bmesh.ops.delete(bm, geom=verts_to_delete, context='VERTS')
+    for v in bm.verts:
+        if v.co.z < 0: v.co.z = 0
+    base_verts = [v for v in bm.verts if abs(v.co.z) < 0.01]
+    if base_verts:
+        bmesh.ops.contextual_create(bm, geom=base_verts)
+
+    # Generate cellular seeds on the hemisphere surface
+    seeds = []
+    for _ in range(NUM_CELLS):
+        phi = random.uniform(0, math.pi / 2)
+        theta = random.uniform(0, 2 * math.pi)
+        p = Vector((
+            DOME_RADIUS * math.sin(phi) * math.cos(theta),
+            DOME_RADIUS * math.sin(phi) * math.sin(theta),
+            DOME_RADIUS * math.cos(phi)
+        ))
+        seeds.append(p)
+
+    # 2. Honeycomb Displacement and Material Assignment
+    me.materials.append(mat_beige) # Index 0
+    me.materials.append(mat_green)  # Index 1
+
+    for v in bm.verts:
+        if v.co.z <= 0.05: continue # Keep base flat and beige
+        
+        # Calculate distances to two nearest seeds for Voronoi cellular effect
+        dists = sorted([ (v.co - s).length for s in seeds[:100] ]) # Optimization: check subset or use full if needed
+        # To be more precise, we should check all seeds but that's O(V*S)
+        # For Blender 5.0 Python performance, let's stick to a reasonable count or optimized loop
+    
+    # Redoing vertex displacement for better cellular look
+    for v in bm.verts:
+        if v.co.z <= 0.1: continue
+        
+        min_d = float('inf')
+        for s in seeds:
+            dist = (v.co - s).length
+            if dist < min_d: min_d = dist
+        
+        # Create a "cup" shape for each cell: 
+        # Deep at the center, rising to a ridge at CELL_SIZE
+        norm_dist = min_d / CELL_SIZE
+        if norm_dist < 1.2:
+            # A cosine-based dip and rise creates better ridges than Gaussian
+            displacement = -PIT_DEPTH * math.cos(norm_dist * math.pi * 0.5) + RIDGE_HEIGHT * (1 - math.exp(-norm_dist*3))
+            v.co += v.normal * displacement
+
+    # Assign materials based on the new geometry depth
+    for face in bm.faces:
+        center = face.calc_center_median()
+        if center.z < 0.1: 
+            face.material_index = 0
+            continue
+        
+        # Vertices closer to origin are deep pits -> Green
+        if center.length < DOME_RADIUS * 0.96:
+            face.material_index = 1
+        else:
+            face.material_index = 0
+
+    bm.to_mesh(me)
+    bm.free()
+
+    # 3. Integrated Polyps (Bumpy Clusters)
+    num_clusters = 15
+    polyps_objs = []
+    for _ in range(num_clusters):
+        phi_c = random.uniform(0, math.pi / 2)
+        theta_c = random.uniform(0, 2 * math.pi)
+        center = Vector((
+            DOME_RADIUS * math.sin(phi_c) * math.cos(theta_c),
+            DOME_RADIUS * math.sin(phi_c) * math.sin(theta_c),
+            DOME_RADIUS * math.cos(phi_c)
+        ))
+        
+        for _ in range(random.randint(3, 7)):
+            offset = Vector((random.uniform(-0.15, 0.15), random.uniform(-0.15, 0.15), random.uniform(-0.1, 0.1)))
+            pos = (center + offset).normalized() * DOME_RADIUS
+            
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=random.uniform(0.06, 0.12), location=pos)
+            p_obj = bpy.context.active_object
+            p_obj.data.materials.append(mat_beige)
+            polyps_objs.append(p_obj)
+
+    # Join all parts to create a single coherent organic object
+    bpy.ops.object.select_all(action='DESELECT')
+    dome_obj.select_set(True)
+    for p in polyps_objs: p.select_set(True)
+    bpy.context.view_layer.objects.active = dome_obj
+    bpy.ops.object.join()
+
+    # Final polishing for organic appearance
+    subsurf = dome_obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 1
+    bpy.ops.object.shade_smooth()
+
+if __name__ == "__main__":
+    clear_scene()
+    generate_honeycomb_coral()

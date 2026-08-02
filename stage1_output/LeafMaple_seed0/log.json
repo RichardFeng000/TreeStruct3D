@@ -1,0 +1,56 @@
+{
+  "instance": "LeafMaple_seed0",
+  "timestamp": "2026-07-10T02:49:37+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 149.23,
+  "code_chars": 8218,
+  "input_tokens": 9560,
+  "output_tokens": 5367,
+  "thoughts_tokens": null,
+  "total_tokens": 14927,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Leaf blade is too thin and flat; lacks 3D undulation and vein relief.\n- Serrations are barely visible; teeth are too shallow and irregular.\n- Petiole is disconnected or poorly merged with blade; visible seam or gap.\n- Overall scale is tiny; object appears as a thin sliver in viewport.\n- Missing vein detail \u2014 no raised main or secondary veins as described.",
+      "raw_chars": 8645
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Leaf blade is overly flat; undulation and vein relief are too subtle to be visible.\n- Serrations are present but lack sharpness and definition, appearing as low-amplitude noise.\n- Petiole is too thin and lacks natural taper and curvature.\n- Overall scale is too small; leaf looks like a tiny artifact against the white background.\n- Vein geometry is not clearly defined; no prominent central or secondary veins visible.",
+      "raw_chars": 8705
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

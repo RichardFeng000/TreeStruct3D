@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Bed_seed0/Bed_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 21,
+  "extent": 2.1999998092651367,
+  "n_views_rendered": 4,
+  "latency_s": 3.9,
+  "error": null
+}

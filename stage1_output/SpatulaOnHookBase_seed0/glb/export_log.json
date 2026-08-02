@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SpatulaOnHookBase_seed0/SpatulaOnHookBase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/SpatulaOnHookBase_seed0/glb/SpatulaOnHookBase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 17,
+  "size_kb": 461.4,
+  "latency_s": 0.17,
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/Rack_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/glb/Rack_seed0.glb",
+  "status": "OK",
+  "n_meshes": 20,
+  "size_kb": 46.3,
+  "latency_s": 0.59,
+  "error": null
+}

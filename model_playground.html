@@ -1,0 +1,3393 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blender 模型参数编辑器</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --panel: #11161f;
+      --panel-2: #171e29;
+      --line: #283344;
+      --text: #edf3fb;
+      --muted: #94a3b8;
+      --accent: #63a6ff;
+      --accent-soft: rgba(99, 166, 255, 0.16);
+      --danger: #ff8d8d;
+      --success: #63d69a;
+      --edge-confirmed: #55d98b;
+      --edge-code: #63a6ff;
+      --edge-anchor: #45c9c0;
+      --edge-coupled: #ad8cff;
+      --edge-contact: #e7b45d;
+      --edge-broken: #ff7474;
+      --edge-unknown: #77869b;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+
+    button, select, input[type="number"], input[type="text"] {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    button {
+      min-height: 36px;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: #465976; }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #07101d;
+      font-weight: 600;
+    }
+
+    button.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: #cfe4ff;
+    }
+
+    #app {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+    }
+
+    .topbar {
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 58px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 22, 31, 0.95);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      min-width: max-content;
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: 0.01em;
+    }
+
+    .model-picker,
+    .source-picker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .source-picker {
+      flex: 0 1 310px;
+      min-width: 220px;
+    }
+
+    .model-picker {
+      min-width: 240px;
+      flex: 1;
+    }
+
+    .model-picker label,
+    .source-picker label {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    #model-select,
+    #source-select {
+      width: min(440px, 100%);
+      height: 36px;
+      padding: 0 10px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 280px minmax(520px, 1.35fr) minmax(380px, 0.9fr);
+      min-height: 0;
+    }
+
+    .sidebar {
+      min-height: 0;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .sidebar-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 22, 31, 0.96);
+      backdrop-filter: blur(10px);
+    }
+
+    .sidebar-head h1 {
+      margin: 0 0 5px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .sidebar-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    #controls { padding: 6px 16px 24px; }
+
+    .control-group {
+      padding: 14px 0 4px;
+      border-bottom: 1px solid rgba(40, 51, 68, 0.7);
+    }
+
+    .control-group:last-child { border-bottom: 0; }
+
+    .control-group h2 {
+      margin: 0 0 13px;
+      color: #c8d4e3;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .field { margin-bottom: 15px; }
+
+    .field:last-child { margin-bottom: 10px; }
+
+    .field-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+
+    .field-head-meta {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .field-label {
+      color: #dce6f2;
+      font-size: 12px;
+    }
+
+    .field-value {
+      min-width: 54px;
+      color: var(--accent);
+      font-size: 12px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .visibility-toggle {
+      min-width: 66px;
+      height: 27px;
+      padding: 0 8px;
+      border-color: #35506b;
+      color: #9fd2ff;
+      font-size: 11px;
+    }
+
+    .visibility-toggle.is-hidden {
+      border-color: #70434a;
+      background: rgba(150, 57, 68, 0.14);
+      color: #ff9ea8;
+    }
+
+    .field.part-hidden .field-label,
+    .field.part-hidden .field-value {
+      color: #778394;
+    }
+
+    .field.part-hidden .range-row { opacity: 0.42; }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 70px;
+      align-items: center;
+      gap: 9px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="number"], input[type="text"], .field select {
+      width: 100%;
+      height: 34px;
+      padding: 0 8px;
+    }
+
+    .field select { padding: 0 9px; }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 32px;
+    }
+
+    input[type="checkbox"] { accent-color: var(--accent); }
+
+    .graph-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-width: 0;
+      min-height: 0;
+      border-right: 1px solid var(--line);
+      background: #0d121a;
+    }
+
+    .graph-panel.graph-expanded {
+      position: fixed;
+      inset: 58px 0 0;
+      z-index: 20;
+      border: 0;
+      box-shadow: 0 0 0 1px var(--line), 0 20px 60px rgba(0, 0, 0, 0.55);
+    }
+
+    .graph-toolbar {
+      display: grid;
+      gap: 9px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 22, 31, 0.96);
+    }
+
+    .graph-tabs,
+    .graph-actions,
+    .anchor-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .graph-tabs { flex-wrap: wrap; }
+
+    .graph-tabs button,
+    .graph-actions button,
+    .anchor-controls button {
+      min-height: 31px;
+      padding: 5px 9px;
+      font-size: 11px;
+    }
+
+    .anchor-controls {
+      flex-wrap: wrap;
+      padding: 8px;
+      border: 1px solid #26364a;
+      border-radius: 8px;
+      background: #0c131d;
+    }
+
+    .anchor-controls[hidden] { display: none; }
+
+    .anchor-controls .anchor-mode.active {
+      border-color: var(--accent);
+      background: rgba(99, 166, 255, 0.15);
+      color: #d8eaff;
+    }
+
+    .anchor-controls .anchor-mode[data-anchor-mode="confirmed"].active {
+      border-color: var(--edge-confirmed);
+      color: #9ef0bd;
+    }
+
+    .anchor-controls .anchor-mode[data-anchor-mode="issues"].active {
+      border-color: var(--edge-broken);
+      color: #ffabb4;
+    }
+
+    .anchor-controls-spacer { flex: 1; }
+
+    #graph-search {
+      min-width: 80px;
+      height: 31px;
+      padding: 0 8px;
+      flex: 1;
+      font-size: 11px;
+    }
+
+    #graph-stage {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      touch-action: none;
+      background:
+        linear-gradient(rgba(40, 51, 68, 0.13) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(40, 51, 68, 0.13) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    #graph-svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+    }
+
+    .graph-edge {
+      fill: none;
+      stroke: #45566f;
+      stroke-width: 1.5;
+    }
+
+    .graph-edge.anchor-selected {
+      stroke-width: 4.2;
+      stroke-opacity: 1;
+      filter: drop-shadow(0 0 4px currentColor);
+    }
+
+    .graph-edge.anchor-subdued { stroke-opacity: 0.1; }
+
+    .graph-edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 16;
+      cursor: pointer;
+      pointer-events: stroke;
+    }
+
+    .graph-edge.edge-confirmed {
+      stroke: var(--edge-confirmed);
+      stroke-width: 2.4;
+    }
+
+    .graph-edge.edge-directed-code {
+      stroke: var(--edge-code);
+      stroke-width: 2.4;
+    }
+
+    .graph-edge.edge-anchor {
+      stroke: var(--edge-anchor);
+      stroke-width: 2;
+    }
+
+    .graph-edge.edge-coupled {
+      stroke: var(--edge-coupled);
+      stroke-width: 2;
+    }
+
+    .graph-edge.edge-contact {
+      stroke: var(--edge-contact);
+      stroke-dasharray: 8 6;
+    }
+
+    .graph-edge.edge-broken {
+      stroke: var(--edge-broken);
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+    }
+
+    .graph-edge.edge-unknown {
+      stroke: var(--edge-unknown);
+      stroke-dasharray: 2 6;
+      stroke-opacity: 0.72;
+    }
+
+    .graph-edge.edge-static-directed {
+      stroke: var(--edge-code);
+      stroke-dasharray: 8 6;
+    }
+
+    .graph-edge.edge-static-construction {
+      stroke: var(--edge-coupled);
+      stroke-dasharray: 3 6;
+    }
+
+    .graph-edge.call-edge { stroke-opacity: 0.34; }
+    .graph-edge.subdued { stroke-opacity: 0.08; }
+    .graph-edge.related {
+      stroke: var(--accent);
+      stroke-width: 2.2;
+      stroke-opacity: 1;
+    }
+
+    .graph-group-band {
+      stroke: none;
+      pointer-events: none;
+    }
+
+    .graph-group-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+    }
+
+    .graph-edge-label {
+      fill: #7f91a9;
+      font-size: 9px;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+
+    .graph-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 13px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .graph-legend[hidden] { display: none; }
+
+    .graph-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .graph-legend-line {
+      display: inline-block;
+      width: 25px;
+      height: 0;
+      border-top: 2px solid var(--edge-unknown);
+    }
+
+    .graph-legend-line.confirmed { border-color: var(--edge-confirmed); }
+    .graph-legend-line.code { border-color: var(--edge-code); }
+    .graph-legend-line.anchor { border-color: var(--edge-anchor); }
+    .graph-legend-line.coupled { border-color: var(--edge-coupled); }
+    .graph-legend-line.contact {
+      border-color: var(--edge-contact);
+      border-top-style: dashed;
+    }
+    .graph-legend-line.broken {
+      border-color: var(--edge-broken);
+      border-top-style: dashed;
+    }
+    .graph-legend-line.unknown { border-top-style: dotted; }
+    .graph-legend-line.static-code {
+      border-color: var(--edge-code);
+      border-top-style: dashed;
+    }
+    .graph-legend-line.static-construction {
+      border-color: var(--edge-coupled);
+      border-top-style: dotted;
+    }
+
+    .graph-node { cursor: pointer; }
+
+    .graph-node rect {
+      fill: #151d29;
+      stroke: #34445a;
+      stroke-width: 1.4;
+    }
+
+    .graph-node text {
+      fill: #e3ecf7;
+      pointer-events: none;
+    }
+
+    .graph-node .graph-node-label {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .graph-node .graph-node-meta {
+      fill: #8ea0b8;
+      font-size: 9px;
+    }
+
+    .graph-group-accent {
+      stroke: none;
+      pointer-events: none;
+    }
+
+    .graph-node.selected rect {
+      fill: rgba(99, 166, 255, 0.2);
+      stroke: var(--accent);
+      stroke-width: 2;
+    }
+
+    .graph-node.edge-endpoint rect {
+      stroke: #f5c86c;
+      stroke-width: 2.6;
+      filter: drop-shadow(0 0 5px rgba(245, 200, 108, 0.35));
+    }
+
+    .graph-node.match rect {
+      stroke: #f2bd64;
+      stroke-width: 2.5;
+    }
+
+    .graph-node.hidden-part { opacity: 0.38; }
+    .graph-node.hidden-part .graph-node-label { text-decoration: line-through; }
+    .graph-edge.hidden-part { stroke-opacity: 0.12; }
+
+    .graph-collapse {
+      fill: #26364a;
+      stroke: #55708f;
+      cursor: pointer;
+    }
+
+    .graph-collapse-mark {
+      fill: #d9e7f7;
+      font-size: 11px;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .graph-empty {
+      fill: #8ea0b8;
+      font-size: 13px;
+      text-anchor: middle;
+    }
+
+    .graph-footer {
+      display: grid;
+      gap: 5px;
+      min-height: 78px;
+      max-height: 126px;
+      padding: 9px 12px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      background: #101720;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .graph-panel.anchor-view .graph-footer {
+      max-height: 235px;
+    }
+
+    #graph-status { color: var(--muted); }
+
+    #graph-detail {
+      color: #cfdaea;
+      white-space: pre-wrap;
+    }
+
+    .anchor-relations {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 6px;
+      max-height: 108px;
+      padding-top: 5px;
+      overflow: auto;
+      border-top: 1px solid rgba(40, 51, 68, 0.72);
+    }
+
+    .anchor-relations[hidden] { display: none; }
+
+    .anchor-relation-card {
+      display: grid;
+      grid-template-columns: 9px minmax(0, 1fr);
+      gap: 7px;
+      min-height: 47px;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    .anchor-relation-card.active {
+      border-color: #f5c86c;
+      background: rgba(245, 200, 108, 0.1);
+    }
+
+    .anchor-relation-swatch {
+      width: 4px;
+      height: 100%;
+      border-radius: 4px;
+      background: var(--edge-unknown);
+    }
+
+    .anchor-relation-swatch.edge-confirmed { background: var(--edge-confirmed); }
+    .anchor-relation-swatch.edge-directed-code { background: var(--edge-code); }
+    .anchor-relation-swatch.edge-anchor { background: var(--edge-anchor); }
+    .anchor-relation-swatch.edge-coupled { background: var(--edge-coupled); }
+    .anchor-relation-swatch.edge-contact { background: var(--edge-contact); }
+    .anchor-relation-swatch.edge-broken { background: var(--edge-broken); }
+
+    .anchor-relation-main {
+      display: block;
+      overflow: hidden;
+      color: #dfe9f6;
+      font-size: 11px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .anchor-relation-meta {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: #8fa2ba;
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .anchor-relation-card > span:last-child { min-width: 0; }
+
+    .anchor-lane-bg {
+      fill: #0d1520;
+      stroke: #26364a;
+      stroke-width: 1;
+    }
+
+    .anchor-lane-bg.selected {
+      fill: rgba(245, 200, 108, 0.06);
+      stroke: #8d7440;
+      stroke-width: 1.5;
+    }
+
+    .anchor-lane-number {
+      fill: #73849a;
+      font-size: 11px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .anchor-lane-node { cursor: pointer; }
+
+    .anchor-lane-node rect {
+      fill: #151d29;
+      stroke-width: 2;
+    }
+
+    .anchor-lane-node.endpoint-a rect { stroke: #63a6ff; }
+    .anchor-lane-node.endpoint-b rect { stroke: #ad8cff; }
+
+    .anchor-lane-node.selected rect,
+    .anchor-lane-node:hover rect {
+      fill: #1a2738;
+      filter: drop-shadow(0 0 5px rgba(99, 166, 255, 0.24));
+    }
+
+    .anchor-lane-role {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .anchor-lane-node.endpoint-a .anchor-lane-role { fill: #83baff; }
+    .anchor-lane-node.endpoint-b .anchor-lane-role { fill: #c0a9ff; }
+
+    .anchor-lane-label {
+      fill: #e3ecf7;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .anchor-lane-meta {
+      fill: #8ea0b8;
+      font-size: 9px;
+    }
+
+    .anchor-lane-center { cursor: pointer; }
+
+    .anchor-lane-center rect {
+      fill: rgba(69, 201, 192, 0.08);
+      stroke: #45c9c0;
+      stroke-width: 1.8;
+    }
+
+    .anchor-lane-center:hover rect,
+    .anchor-lane-center.selected rect {
+      fill: rgba(69, 201, 192, 0.16);
+      filter: drop-shadow(0 0 6px rgba(69, 201, 192, 0.28));
+    }
+
+    .anchor-lane-center.confirmed rect {
+      fill: rgba(85, 217, 139, 0.08);
+      stroke: var(--edge-confirmed);
+    }
+
+    .anchor-lane-center.confirmed .anchor-lane-center-title { fill: #91edb5; }
+
+    .anchor-lane-center-title {
+      fill: #78e1d9;
+      font-size: 10px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+
+    .anchor-lane-center-coordinate {
+      fill: #e0f7f4;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+    }
+
+    .anchor-lane-center-meta {
+      fill: #8eb9b5;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+    }
+
+    .anchor-lane-connector {
+      fill: none;
+      stroke: #45c9c0;
+      stroke-width: 2.2;
+    }
+
+    .anchor-lane-connector.confirmed { stroke: var(--edge-confirmed); }
+
+    .anchor-lane-connector-halo {
+      fill: none;
+      stroke: #081019;
+      stroke-width: 6;
+    }
+
+    .issue-lane-node { cursor: pointer; }
+
+    .issue-lane-node rect {
+      fill: #1b171b;
+      stroke-width: 2;
+    }
+
+    .issue-lane-node.endpoint-a rect { stroke: #e7a654; }
+    .issue-lane-node.endpoint-b rect { stroke: #e8798b; }
+    .issue-lane-node.selected rect,
+    .issue-lane-node:hover rect { fill: #271e22; }
+
+    .issue-lane-node.endpoint-a .anchor-lane-role { fill: #f2be78; }
+    .issue-lane-node.endpoint-b .anchor-lane-role { fill: #f39aaa; }
+
+    .issue-lane-center { cursor: pointer; }
+
+    .issue-lane-center rect {
+      fill: rgba(255, 116, 116, 0.08);
+      stroke: var(--edge-broken);
+      stroke-width: 1.8;
+    }
+
+    .issue-lane-center.contact-only rect {
+      fill: rgba(231, 180, 93, 0.08);
+      stroke: var(--edge-contact);
+    }
+
+    .issue-lane-center:hover rect,
+    .issue-lane-center.selected rect {
+      fill: rgba(255, 116, 116, 0.15);
+      filter: drop-shadow(0 0 6px rgba(255, 116, 116, 0.25));
+    }
+
+    .issue-lane-center-title {
+      fill: #ff9ca5;
+      font-size: 10px;
+      font-weight: 750;
+      text-anchor: middle;
+    }
+
+    .issue-lane-center.contact-only .issue-lane-center-title { fill: #efc57f; }
+
+    .issue-lane-coordinate {
+      fill: #e8dfe3;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+    }
+
+    .issue-lane-meta {
+      fill: #b9a0a7;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+    }
+
+    .issue-lane-connector {
+      fill: none;
+      stroke: var(--edge-broken);
+      stroke-width: 2;
+      stroke-dasharray: 6 5;
+    }
+
+    .issue-lane-connector.contact-only { stroke: var(--edge-contact); }
+
+    .viewer {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(52, 80, 120, 0.18), transparent 45%),
+        #090d14;
+    }
+
+    #viewport {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .viewer-status {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 2;
+      max-width: min(560px, calc(100% - 28px));
+      padding: 9px 11px;
+      border: 1px solid rgba(40, 51, 68, 0.9);
+      border-radius: 9px;
+      background: rgba(12, 17, 25, 0.82);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      backdrop-filter: blur(9px);
+      white-space: pre-wrap;
+    }
+
+    .viewer-status.error {
+      border-color: rgba(255, 141, 141, 0.45);
+      color: var(--danger);
+    }
+
+    .viewer-status.success { color: var(--success); }
+
+    .viewer-tools {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      z-index: 2;
+      display: flex;
+      gap: 7px;
+    }
+
+    .preview-selection {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      max-width: calc(100% - 28px);
+      padding: 7px 8px 7px 11px;
+      border: 1px solid rgba(245, 200, 108, 0.62);
+      border-radius: 9px;
+      background: rgba(31, 26, 16, 0.9);
+      color: #f9d98f;
+      font-size: 11px;
+      backdrop-filter: blur(9px);
+    }
+
+    .preview-selection[hidden] { display: none; }
+
+    .preview-selection.missing {
+      border-color: rgba(255, 141, 141, 0.5);
+      background: rgba(38, 19, 22, 0.9);
+      color: #ffabb4;
+    }
+
+    .preview-selection span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-selection button {
+      min-height: 26px;
+      padding: 3px 7px;
+      flex: 0 0 auto;
+      font-size: 10px;
+    }
+
+    .viewer-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      z-index: 2;
+      color: rgba(211, 223, 239, 0.68);
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .loading-ring {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+      background: rgba(8, 11, 16, 0.16);
+    }
+
+    .loading-ring.visible { display: grid; }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid rgba(99, 166, 255, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 800px) {
+      body { overflow: auto; }
+      #app { min-height: 100%; height: auto; }
+      .topbar { flex-wrap: wrap; }
+      .model-picker { order: 3; flex-basis: 100%; }
+      #model-select { width: 100%; max-width: none; }
+      .workspace { grid-template-columns: 1fr; }
+      .sidebar { max-height: 48vh; border-right: 0; border-bottom: 1px solid var(--line); }
+      .graph-panel { height: 58vh; min-height: 460px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .viewer { height: 52vh; min-height: 420px; }
+    }
+
+    @media (min-width: 801px) and (max-width: 1150px) {
+      .workspace { grid-template-columns: 250px minmax(300px, 0.9fr) minmax(360px, 1.1fr); }
+      .sidebar-head, #controls { padding-left: 12px; padding-right: 12px; }
+    }
+
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three.module.min.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">Blender 模型参数编辑器</div>
+      <div class="source-picker">
+        <label for="source-select">代码源</label>
+        <select id="source-select" aria-label="选择模型代码源"></select>
+      </div>
+      <div class="model-picker">
+        <label for="model-select">模型</label>
+        <select id="model-select" aria-label="选择模型"></select>
+      </div>
+      <div class="top-actions">
+        <label class="switch" for="auto-update">
+          <input id="auto-update" type="checkbox" checked>
+          自动更新
+        </label>
+        <button id="reset-button" type="button">重置参数</button>
+        <button id="render-button" class="primary" type="button">生成模型</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <h1 id="panel-title">参数</h1>
+          <p>停止拖动约 0.6 秒后，用 Blender 5.0 从空场景完整执行一次模型 Python。原始文件不会被修改。</p>
+        </div>
+        <div id="controls" aria-live="polite"></div>
+      </aside>
+
+      <section id="graph-panel" class="graph-panel" aria-label="代码结构与零件父子树">
+        <div class="graph-toolbar">
+          <div id="graph-tabs" class="graph-tabs" role="group" aria-label="节点图视图">
+            <button type="button" data-graph-view="parts">零件父子树</button>
+            <button type="button" data-graph-view="anchors" disabled>锚点关系图</button>
+            <button type="button" data-graph-view="definitions">定义树</button>
+            <button type="button" data-graph-view="calls">调用节点图</button>
+          </div>
+          <div class="graph-actions">
+            <input id="graph-search" type="text" placeholder="搜索节点" aria-label="搜索节点">
+            <button id="graph-expand" type="button">展开全部</button>
+            <button id="graph-fit" type="button">居中</button>
+          </div>
+          <div id="anchor-controls" class="anchor-controls" hidden aria-label="锚点关系筛选">
+            <button class="anchor-mode active" type="button" data-anchor-mode="confirmed">确认父子</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="shared">共享锚点</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="issues">问题关系</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="all">全部关系</button>
+            <span class="anchor-controls-spacer"></span>
+            <button id="anchor-clear-focus" type="button" hidden>返回总览</button>
+            <button id="graph-fullscreen" type="button" aria-pressed="false">放大图</button>
+          </div>
+          <div id="graph-legend" class="graph-legend" hidden aria-label="关系颜色与线型图例"></div>
+        </div>
+        <div id="graph-stage">
+          <svg id="graph-svg" role="img" aria-label="从父节点到全部子节点的交互树">
+            <defs>
+              <marker id="graph-arrow-confirmed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#55d98b"></path>
+              </marker>
+              <marker id="graph-arrow-code" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#63a6ff"></path>
+              </marker>
+            </defs>
+            <g id="graph-viewport">
+              <g id="graph-edges"></g>
+              <g id="graph-nodes"></g>
+            </g>
+          </svg>
+        </div>
+        <div class="graph-footer">
+          <div id="graph-status">正在分析节点关系…</div>
+          <div id="graph-detail">点击节点可查看父节点、全部直接子节点和源码行号。</div>
+          <div id="anchor-relations" class="anchor-relations" hidden aria-label="当前可见锚点关系列表"></div>
+        </div>
+      </section>
+
+      <section class="viewer" aria-label="可旋转的三维模型预览">
+        <canvas id="viewport"></canvas>
+        <div id="viewer-status" class="viewer-status">正在读取模型列表…</div>
+        <div class="viewer-tools">
+          <button id="fit-button" type="button">居中</button>
+          <button id="rotate-button" type="button" aria-pressed="false">自动旋转</button>
+        </div>
+        <div id="preview-selection" class="preview-selection" hidden>
+          <span id="preview-selection-label"></span>
+          <button id="preview-selection-clear" type="button">取消高亮</button>
+        </div>
+        <div id="loading" class="loading-ring" aria-hidden="true"><div class="spinner"></div></div>
+        <div class="viewer-hint">左键旋转 · 右键平移 · 滚轮缩放</div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from '/vendor/OrbitControls.js';
+    import { GLTFLoader } from '/vendor/GLTFLoader.js';
+
+    const sourceSelect = document.getElementById('source-select');
+    const modelSelect = document.getElementById('model-select');
+    const controlsHost = document.getElementById('controls');
+    const panelTitle = document.getElementById('panel-title');
+    const statusEl = document.getElementById('viewer-status');
+    const loadingEl = document.getElementById('loading');
+    const autoUpdateEl = document.getElementById('auto-update');
+    const resetButton = document.getElementById('reset-button');
+    const renderButton = document.getElementById('render-button');
+    const fitButton = document.getElementById('fit-button');
+    const rotateButton = document.getElementById('rotate-button');
+    const previewSelection = document.getElementById('preview-selection');
+    const previewSelectionLabel = document.getElementById('preview-selection-label');
+    const previewSelectionClear = document.getElementById('preview-selection-clear');
+    const canvas = document.getElementById('viewport');
+    const graphStage = document.getElementById('graph-stage');
+    const graphPanel = document.getElementById('graph-panel');
+    const graphSvg = document.getElementById('graph-svg');
+    const graphViewport = document.getElementById('graph-viewport');
+    const graphEdges = document.getElementById('graph-edges');
+    const graphNodes = document.getElementById('graph-nodes');
+    const graphTabs = document.getElementById('graph-tabs');
+    const graphSearch = document.getElementById('graph-search');
+    const graphStatus = document.getElementById('graph-status');
+    const graphDetail = document.getElementById('graph-detail');
+    const graphLegend = document.getElementById('graph-legend');
+    const anchorControls = document.getElementById('anchor-controls');
+    const anchorRelations = document.getElementById('anchor-relations');
+    const anchorClearFocusButton = document.getElementById('anchor-clear-focus');
+    const graphFullscreenButton = document.getElementById('graph-fullscreen');
+    const graphExpandButton = document.getElementById('graph-expand');
+    const graphFitButton = document.getElementById('graph-fit');
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x090d14);
+    scene.fog = new THREE.Fog(0x090d14, 16, 45);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 1000);
+    camera.up.set(0, 1, 0);
+    camera.position.set(4.5, 3.3, 6.5);
+
+    const orbit = new OrbitControls(camera, canvas);
+    orbit.enableDamping = true;
+    orbit.dampingFactor = 0.065;
+    orbit.zoomSpeed = 0.35;
+    orbit.autoRotateSpeed = 1.6;
+    orbit.target.set(0, 0, 1);
+
+    scene.add(new THREE.HemisphereLight(0xd9e8ff, 0x253040, 2.2));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
+    keyLight.position.set(5, 7, 5);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0x8eb9ff, 1.7);
+    fillLight.position.set(-5, 4, 3);
+    scene.add(fillLight);
+    const rimLight = new THREE.DirectionalLight(0xffd7a0, 1.2);
+    rimLight.position.set(1, 5, 7);
+    scene.add(rimLight);
+
+    const grid = new THREE.GridHelper(20, 40, 0x40516a, 0x253042);
+    grid.material.opacity = 0.35;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const loader = new GLTFLoader();
+    let schema = null;
+    let values = {};
+    let currentModel = null;
+    let previewHighlightRequest = null;
+    let renderTimer = null;
+    let generationRunning = false;
+    let generationQueued = false;
+    let generationVersion = 0;
+    let runtimeGraphVersion = 0;
+    let selectionVersion = 0;
+    let structureData = null;
+    let partVisibilityByNode = new Map();
+    let partVisibilityByRole = new Map();
+    const graphState = {
+      view: 'parts',
+      collapsed: new Set(),
+      selected: null,
+      selectedEdge: null,
+      anchorMode: 'confirmed',
+      anchorFocusNode: null,
+      query: '',
+      scale: 1,
+      tx: 20,
+      ty: 20,
+      dragging: false,
+      dragX: 0,
+      dragY: 0,
+      startTx: 0,
+      startTy: 0,
+      positions: new Map(),
+      content: { minX: 0, minY: 0, width: 1, height: 1 },
+    };
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const graphNodeWidth = 172;
+    const graphNodeHeight = 56;
+    const graphLeafGap = 214;
+    const graphLevelGap = 132;
+
+    function setStatus(message, kind = '') {
+      statusEl.textContent = message;
+      statusEl.className = `viewer-status ${kind}`.trim();
+    }
+
+    function setLoading(active) {
+      loadingEl.classList.toggle('visible', active);
+      loadingEl.setAttribute('aria-hidden', active ? 'false' : 'true');
+    }
+
+    function makeSvg(tag, attributes = {}) {
+      const element = document.createElementNS(svgNS, tag);
+      for (const [name, value] of Object.entries(attributes)) {
+        element.setAttribute(name, String(value));
+      }
+      return element;
+    }
+
+    function graphView() {
+      return structureData?.views?.[graphState.view] || null;
+    }
+
+    function truncateNodeLabel(value, length = 24) {
+      const text = String(value);
+      return text.length <= length ? text : `${text.slice(0, length - 1)}…`;
+    }
+
+    function graphGroupColor(group) {
+      const palette = ['#63a6ff', '#8f86ff', '#49c5ad', '#f0aa5d', '#dc7da1', '#7cbd69', '#d3bd59', '#58a9cb'];
+      let hash = 0;
+      for (const character of String(group || 'Other')) {
+        hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
+      }
+      return palette[Math.abs(hash) % palette.length];
+    }
+
+    function computeLayeredGraphLayout(view) {
+      const nodeById = new Map(view.nodes.map((node) => [node.id, node]));
+      const children = new Map(view.nodes.map((node) => [node.id, []]));
+      const incoming = new Map(view.nodes.map((node) => [node.id, []]));
+      for (const edge of view.edges) {
+        if (!children.has(edge.parent)) children.set(edge.parent, []);
+        if (!incoming.has(edge.child)) incoming.set(edge.child, []);
+        children.get(edge.parent).push(edge);
+        incoming.get(edge.child).push(edge);
+      }
+      for (const edges of children.values()) {
+        edges.sort((a, b) => (a.line || 0) - (b.line || 0) || a.child.localeCompare(b.child));
+      }
+
+      const roots = (view.roots || []).filter((id) => nodeById.has(id));
+      const inferred = view.nodes
+        .filter((node) => !(incoming.get(node.id) || []).length)
+        .sort((a, b) => (a.line || 0) - (b.line || 0))
+        .map((node) => node.id);
+      if (!roots.length) roots.push(...inferred);
+
+      const structurallyReachable = new Set();
+      function markReachable(id, path) {
+        if (!nodeById.has(id) || path.has(id)) return;
+        structurallyReachable.add(id);
+        const nextPath = new Set(path);
+        nextPath.add(id);
+        for (const edge of children.get(id) || []) markReachable(edge.child, nextPath);
+      }
+      for (const root of roots) markReachable(root, new Set());
+      for (const id of inferred) {
+        if (!structurallyReachable.has(id)) {
+          roots.push(id);
+          markReachable(id, new Set());
+        }
+      }
+      for (const node of [...view.nodes].sort((a, b) => (a.line || 0) - (b.line || 0))) {
+        if (!structurallyReachable.has(node.id)) {
+          roots.push(node.id);
+          markReachable(node.id, new Set());
+        }
+      }
+
+      const depthById = new Map();
+      const queue = [];
+      for (const root of roots) {
+        if (!depthById.has(root)) {
+          depthById.set(root, 0);
+          queue.push(root);
+        }
+      }
+      while (queue.length) {
+        const id = queue.shift();
+        if (graphState.collapsed.has(id)) continue;
+        const depth = depthById.get(id) || 0;
+        for (const edge of children.get(id) || []) {
+          if (depthById.has(edge.child)) continue;
+          depthById.set(edge.child, depth + 1);
+          queue.push(edge.child);
+        }
+      }
+
+      const columns = new Map();
+      for (const [id, depth] of depthById) {
+        if (!columns.has(depth)) columns.set(depth, []);
+        columns.get(depth).push(id);
+      }
+      for (const ids of columns.values()) {
+        ids.sort((left, right) => {
+          const a = nodeById.get(left);
+          const b = nodeById.get(right);
+          return (a?.line || 0) - (b?.line || 0) || String(a?.label).localeCompare(String(b?.label));
+        });
+      }
+
+      const positions = new Map();
+      const columnGap = 224;
+      const rowGap = 68;
+      const groupInfo = new Map();
+      for (const [id, depth] of depthById) {
+        const node = nodeById.get(id);
+        const group = String(node?.group || 'Other');
+        if (!groupInfo.has(group)) {
+          groupInfo.set(group, { label: group, minLine: node?.line || 0, byDepth: new Map() });
+        }
+        const info = groupInfo.get(group);
+        info.minLine = Math.min(info.minLine, node?.line || 0);
+        if (!info.byDepth.has(depth)) info.byDepth.set(depth, []);
+        info.byDepth.get(depth).push(id);
+      }
+      const orderedGroups = [...groupInfo.values()].sort((a, b) => {
+        if (a.label === 'Module') return -1;
+        if (b.label === 'Module') return 1;
+        return a.minLine - b.minLine || a.label.localeCompare(b.label);
+      });
+      const groupHeaders = [];
+      let groupCursor = 0;
+      for (const info of orderedGroups) {
+        for (const ids of info.byDepth.values()) {
+          ids.sort((left, right) => {
+            const a = nodeById.get(left);
+            const b = nodeById.get(right);
+            return (a?.line || 0) - (b?.line || 0) || String(a?.label).localeCompare(String(b?.label));
+          });
+        }
+        const rowCount = Math.max(1, ...[...info.byDepth.values()].map((ids) => ids.length));
+        const nodeStartY = groupCursor + 25;
+        for (const [depth, ids] of info.byDepth) {
+          ids.forEach((id, index) => positions.set(id, { x: depth * columnGap, y: nodeStartY + index * rowGap }));
+        }
+        const groupHeight = 25 + rowCount * rowGap + 13;
+        groupHeaders.push({ label: info.label, y: groupCursor, height: groupHeight });
+        groupCursor += groupHeight + 10;
+      }
+      const visibleEdges = view.edges.filter(
+        (edge) => positions.has(edge.parent) && positions.has(edge.child)
+      );
+      const points = [...positions.values()];
+      const maxX = points.length ? Math.max(...points.map((point) => point.x)) : 0;
+      const maxY = points.length ? Math.max(...points.map((point) => point.y)) : 0;
+      return {
+        orientation: 'lr',
+        nodeById,
+        children,
+        incoming,
+        positions,
+        groupHeaders,
+        visibleEdges,
+        content: {
+          minX: 0,
+          minY: 0,
+          width: Math.max(graphNodeWidth, maxX + graphNodeWidth),
+          height: Math.max(graphNodeHeight, maxY + graphNodeHeight + 13),
+        },
+      };
+    }
+
+    function computeGraphLayout(view) {
+      if (
+        graphState.view === 'definitions'
+        || graphState.view === 'calls'
+        || graphState.view === 'parts'
+        || graphState.view === 'anchors'
+      ) {
+        return computeLayeredGraphLayout(view);
+      }
+      const nodeById = new Map(view.nodes.map((node) => [node.id, node]));
+      const children = new Map(view.nodes.map((node) => [node.id, []]));
+      const incoming = new Map(view.nodes.map((node) => [node.id, []]));
+      for (const edge of view.edges) {
+        if (!children.has(edge.parent)) children.set(edge.parent, []);
+        if (!incoming.has(edge.child)) incoming.set(edge.child, []);
+        children.get(edge.parent).push(edge);
+        incoming.get(edge.child).push(edge);
+      }
+      for (const edges of children.values()) {
+        edges.sort((a, b) => (a.line || 0) - (b.line || 0) || a.child.localeCompare(b.child));
+      }
+
+      const declaredRoots = (view.roots || []).filter((id) => nodeById.has(id));
+      const inferredRoots = view.nodes
+        .filter((node) => !(incoming.get(node.id) || []).length)
+        .map((node) => node.id);
+      const roots = declaredRoots.length ? declaredRoots : inferredRoots;
+      const positions = new Map();
+      const visible = new Set();
+      const structurallyReachable = new Set();
+      let leafCursor = 0;
+
+      function markReachable(id, path) {
+        if (!nodeById.has(id) || path.has(id)) return;
+        structurallyReachable.add(id);
+        const nextPath = new Set(path);
+        nextPath.add(id);
+        for (const edge of children.get(id) || []) markReachable(edge.child, nextPath);
+      }
+
+      for (const root of roots) markReachable(root, new Set());
+
+      function place(id, depth, path) {
+        if (!nodeById.has(id) || path.has(id)) return null;
+        if (positions.has(id)) return positions.get(id).x;
+        visible.add(id);
+        const nextPath = new Set(path);
+        nextPath.add(id);
+        const outgoing = graphState.collapsed.has(id) ? [] : (children.get(id) || []);
+        const childXs = [];
+        for (const edge of outgoing) {
+          const childX = place(edge.child, depth + 1, nextPath);
+          if (childX !== null) childXs.push(childX);
+        }
+        const x = childXs.length
+          ? (Math.min(...childXs) + Math.max(...childXs)) / 2
+          : leafCursor++ * graphLeafGap;
+        positions.set(id, { x, y: depth * graphLevelGap });
+        return x;
+      }
+
+      for (const root of roots) place(root, 0, new Set());
+      for (const node of view.nodes) {
+        if (!positions.has(node.id) && !structurallyReachable.has(node.id)) {
+          place(node.id, 0, new Set());
+        }
+      }
+
+      const visibleEdges = view.edges.filter(
+        (edge) => positions.has(edge.parent) && positions.has(edge.child)
+      );
+      const points = [...positions.values()];
+      const minX = points.length ? Math.min(...points.map((point) => point.x)) : 0;
+      const maxX = points.length ? Math.max(...points.map((point) => point.x)) : 0;
+      const maxY = points.length ? Math.max(...points.map((point) => point.y)) : 0;
+      return {
+        orientation: 'tb',
+        nodeById,
+        children,
+        incoming,
+        positions,
+        visible,
+        visibleEdges,
+        content: {
+          minX,
+          minY: 0,
+          width: Math.max(graphNodeWidth, maxX - minX + graphNodeWidth),
+          height: Math.max(graphNodeHeight, maxY + graphNodeHeight),
+        },
+      };
+    }
+
+    function updateGraphTransform() {
+      graphViewport.setAttribute(
+        'transform',
+        `translate(${graphState.tx} ${graphState.ty}) scale(${graphState.scale})`
+      );
+    }
+
+    function formatGraphNumber(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return '未知';
+      if (Math.abs(number) >= 0.01) return number.toFixed(4);
+      return number.toExponential(2);
+    }
+
+    function partNodeIsVisible(nodeOrId) {
+      const node = typeof nodeOrId === 'string'
+        ? structureData?.views?.parts?.nodes?.find((item) => item.id === nodeOrId)
+        : nodeOrId;
+      if (!node) return true;
+      const nodeVisibilityId = partVisibilityByNode.get(node.id);
+      if (nodeVisibilityId) return values[nodeVisibilityId] !== false;
+      const partName = String(node.part_name || node.id || '');
+      const role = partName.split('_', 1)[0];
+      const roleVisibilityId = partVisibilityByRole.get(role);
+      return roleVisibilityId ? values[roleVisibilityId] !== false : true;
+    }
+
+    function runtimeRelationLabel(edge) {
+      const labels = {
+        DIRECTED: '运行时确认父→子',
+        DIRECTED_CODE: '代码确认父→子',
+        COUPLED: '双向联动',
+        DECLARED_CONSTRUCTION: '声明连接',
+        UNDIRECTED_CONTACT: '仅接触',
+        BROKEN_ATTACHMENT: '断裂或锚点错位',
+        UNOBSERVABLE: edge.shared_anchor ? '共享锚点·方向未知' : '证据不足',
+      };
+      return labels[edge.relation] || edge.relation;
+    }
+
+    function isStrictAnchorEdge(edge) {
+      return Boolean(
+        edge.directed_verified
+        && edge.contact
+        && edge.shared_anchor
+        && (edge.relation === 'DIRECTED' || edge.relation === 'DIRECTED_CODE')
+      );
+    }
+
+    function anchorEdgeKey(edge) {
+      return [
+        edge.parent,
+        edge.child,
+        edge.relation,
+        Number(edge.anchor_gap ?? -1).toPrecision(9),
+      ].join('|');
+    }
+
+    function anchorModeLabel(mode) {
+      return {
+        confirmed: '确认父子',
+        shared: '共享锚点',
+        issues: '问题关系',
+        all: '全部关系',
+      }[mode] || mode;
+    }
+
+    function anchorEdgeMatches(edge, mode = graphState.anchorMode) {
+      if (mode === 'confirmed') return isStrictAnchorEdge(edge);
+      if (mode === 'shared') return Boolean(edge.shared_anchor);
+      if (mode === 'issues') {
+        return edge.relation === 'BROKEN_ATTACHMENT' || !edge.shared_anchor;
+      }
+      return true;
+    }
+
+    function anchorRelationListView(view) {
+      if (graphState.view !== 'anchors') return view;
+      let edges = view.edges.filter((edge) => anchorEdgeMatches(edge));
+      if (graphState.anchorFocusNode) {
+        edges = edges.filter(
+          (edge) => edge.parent === graphState.anchorFocusNode || edge.child === graphState.anchorFocusNode
+        );
+      }
+      const nodeIds = new Set(edges.flatMap((edge) => [edge.parent, edge.child]));
+      if (graphState.anchorFocusNode) nodeIds.add(graphState.anchorFocusNode);
+      if (!edges.length && view.nodes.length === 1) nodeIds.add(view.nodes[0].id);
+      return {
+        ...view,
+        nodes: view.nodes.filter((node) => nodeIds.has(node.id)),
+        edges,
+        roots: (view.roots || []).filter((id) => nodeIds.has(id)),
+      };
+    }
+
+    function anchorDisplayView(view) {
+      return anchorRelationListView(view);
+    }
+
+    function edgeVisual(edge) {
+      if (graphState.view === 'anchors') {
+        const strictDirected = isStrictAnchorEdge(edge);
+        if (strictDirected) {
+          return {
+            className: edge.relation === 'DIRECTED' ? 'edge-confirmed' : 'edge-directed-code',
+            markerEnd: edge.relation === 'DIRECTED'
+              ? 'url(#graph-arrow-confirmed)'
+              : 'url(#graph-arrow-code)',
+            label: runtimeRelationLabel(edge),
+          };
+        }
+        if (edge.relation === 'BROKEN_ATTACHMENT') {
+          return { className: 'edge-broken', markerEnd: '', label: runtimeRelationLabel(edge) };
+        }
+        if (edge.relation === 'COUPLED') {
+          return { className: 'edge-coupled', markerEnd: '', label: runtimeRelationLabel(edge) };
+        }
+        if (edge.shared_anchor) {
+          return { className: 'edge-anchor', markerEnd: '', label: runtimeRelationLabel(edge) };
+        }
+        if (edge.contact || edge.relation === 'UNDIRECTED_CONTACT' || edge.relation === 'DECLARED_CONSTRUCTION') {
+          return { className: 'edge-contact', markerEnd: '', label: runtimeRelationLabel(edge) };
+        }
+        return { className: 'edge-unknown', markerEnd: '', label: runtimeRelationLabel(edge) };
+      }
+      if (graphState.view === 'parts') {
+        const directedRelations = new Set([
+          'DIRECTED_CODE',
+          'PARENT_ASSIGNMENT',
+          'METHOD_DATAFLOW',
+          'ATTACHMENT_CALL',
+        ]);
+        if (directedRelations.has(edge.relation)) {
+          return {
+            className: 'edge-static-directed',
+            markerEnd: 'url(#graph-arrow-code)',
+            label: `${edge.relation} · 待锚点验证`,
+          };
+        }
+        return {
+          className: 'edge-static-construction',
+          markerEnd: 'url(#graph-arrow-code)',
+          label: `${edge.relation} · 构建关系`,
+        };
+      }
+      return { className: '', markerEnd: 'url(#graph-arrow-code)', label: edge.relation || '' };
+    }
+
+    function updateGraphLegend() {
+      const anchorView = graphState.view === 'anchors';
+      anchorControls.hidden = !anchorView;
+      anchorRelations.hidden = !anchorView;
+      anchorClearFocusButton.hidden = !graphState.anchorFocusNode;
+      graphPanel.classList.toggle('anchor-view', anchorView);
+      for (const button of anchorControls.querySelectorAll('[data-anchor-mode]')) {
+        const active = button.dataset.anchorMode === graphState.anchorMode;
+        const anchorViewData = structureData?.views?.anchors;
+        const count = anchorViewData?.edges?.filter(
+          (edge) => anchorEdgeMatches(edge, button.dataset.anchorMode)
+        ).length || 0;
+        button.textContent = `${anchorModeLabel(button.dataset.anchorMode)} ${count}`;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      }
+      if (graphState.view === 'anchors') {
+        graphLegend.hidden = false;
+        graphLegend.innerHTML = `
+          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>实线箭头：运行时单向 + 接触 + 共享锚点</span>
+          <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色箭头：代码单向 + 接触 + 共享锚点</span>
+          <span class="graph-legend-item"><i class="graph-legend-line anchor"></i>共享锚点已有代码/运行证据，方向未知</span>
+          <span class="graph-legend-item"><i class="graph-legend-line contact"></i>仅接触</span>
+          <span class="graph-legend-item"><i class="graph-legend-line broken"></i>断裂/锚点错位</span>
+          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>仅几何接近，共享锚点未证明</span>`;
+        return;
+      }
+      if (graphState.view === 'parts') {
+        graphLegend.hidden = false;
+        graphLegend.innerHTML = `
+          <span class="graph-legend-item"><i class="graph-legend-line static-code"></i>静态父子候选：尚未通过共享锚点验证</span>
+          <span class="graph-legend-item"><i class="graph-legend-line static-construction"></i>函数构建关系：不是几何实线边</span>`;
+        return;
+      }
+      graphLegend.hidden = true;
+      graphLegend.replaceChildren();
+    }
+
+    function showAnchorEdgeDetail(edge) {
+      const connector = isStrictAnchorEdge(edge) ? ' → ' : ' — ';
+      const lines = [
+        `${edge.parent}${connector}${edge.child}`,
+        `关系：${runtimeRelationLabel(edge)}`,
+        `方向确认：${edge.directed_verified ? '是' : '否'}；接触：${edge.contact ? '是' : '否'}；几何点对齐：${edge.geometric_anchor_aligned ? '是' : '否'}；共享锚点已证明：${edge.shared_anchor ? '是' : '否'}`,
+        `共享证据：${sharedAnchorEvidenceLabel(edge)}`,
+        `锚点间距：${formatGraphNumber(edge.anchor_gap)}；容差：${formatGraphNumber(edge.anchor_tolerance)}`,
+      ];
+      if (edge.anchor_a?.length === 3 && edge.anchor_b?.length === 3) {
+        lines.push(
+          `A 世界坐标：(${edge.anchor_a.map((value) => formatGraphNumber(value)).join(', ')})`,
+          `B 世界坐标：(${edge.anchor_b.map((value) => formatGraphNumber(value)).join(', ')})`
+        );
+      }
+      graphDetail.textContent = lines.join('\n');
+    }
+
+    function sharedAnchorCoordinate(edge) {
+      if (edge.anchor_a?.length !== 3 || edge.anchor_b?.length !== 3) return '坐标不可用';
+      const midpoint = edge.anchor_a.map((value, index) => (value + edge.anchor_b[index]) / 2);
+      return `(${midpoint.map((value) => formatGraphNumber(value)).join(', ')})`;
+    }
+
+    function anchorPointCoordinate(values) {
+      if (values?.length !== 3) return '坐标不可用';
+      return `(${values.map((value) => formatGraphNumber(value)).join(', ')})`;
+    }
+
+    function anchorIssueLabel(edge) {
+      if (edge.relation === 'BROKEN_ATTACHMENT') return '断裂：连接锚点未对齐';
+      if (edge.geometric_anchor_aligned && !edge.shared_anchor) {
+        return '几何接近，但共享锚点未被代码或运行证明';
+      }
+      if (edge.contact && !edge.shared_anchor) return '对象接触，但世界锚点不共享';
+      if (!edge.contact && !edge.shared_anchor) return '对象未接触，世界锚点不共享';
+      return runtimeRelationLabel(edge);
+    }
+
+    function sharedAnchorEvidenceLabel(edge) {
+      return ({
+        runtime_direction: '运行时单向联动',
+        code_direction: '代码单向数据流',
+        runtime_or_code_coupling: '运行时双向联动或代码双向连接',
+        code_construction: '代码连接/构建记录',
+      })[edge.shared_anchor_evidence] || (edge.shared_anchor ? '已证明（未标注来源）' : '无');
+    }
+
+    function renderSharedAnchorLanes(rawView, view) {
+      anchorRelations.hidden = true;
+      if (!view.edges.length) {
+        const message = makeSvg('text', { class: 'graph-empty', x: 410, y: 120 });
+        message.textContent = graphState.anchorFocusNode
+          ? `${graphState.anchorFocusNode} 没有共享锚点关系`
+          : '当前模型没有共享锚点关系';
+        graphNodes.append(message);
+        graphStatus.textContent = `共享锚点 · 0/${rawView.edges.length} 条关系`;
+        graphState.positions = new Map();
+        graphState.content = { minX: 0, minY: 0, width: 820, height: 240 };
+        updateGraphTransform();
+        return;
+      }
+
+      if (
+        graphState.selectedEdge
+        && !view.edges.some((edge) => anchorEdgeKey(edge) === graphState.selectedEdge)
+      ) graphState.selectedEdge = null;
+
+      const nodeById = new Map(rawView.nodes.map((node) => [node.id, node]));
+      const positions = new Map();
+      const laneWidth = 890;
+      const laneHeight = 102;
+      const laneGap = 10;
+      const laneX = 8;
+      const endpointWidth = 220;
+      const endpointHeight = 64;
+      const leftX = 42;
+      const centerX = 326;
+      const centerWidth = 248;
+      const rightX = 638;
+      const query = graphState.query.trim().toLowerCase();
+
+      function endpointGroup(node, x, y, role, side) {
+        const group = makeSvg('g', {
+          class: `anchor-lane-node endpoint-${side}`,
+          transform: `translate(${x} ${y})`,
+          'data-graph-node': node.id,
+          role: 'button',
+          tabindex: '0',
+          'aria-label': `${role} ${node.label}`,
+        });
+        if (graphState.selected === node.id) group.classList.add('selected');
+        if (
+          query
+          && (
+            String(node.label).toLowerCase().includes(query)
+            || String(node.id).toLowerCase().includes(query)
+            || String(node.part_name || '').toLowerCase().includes(query)
+          )
+        ) group.classList.add('selected');
+        group.append(makeSvg('rect', {
+          x: 0,
+          y: 0,
+          width: endpointWidth,
+          height: endpointHeight,
+          rx: 9,
+        }));
+        const roleText = makeSvg('text', { class: 'anchor-lane-role', x: 12, y: 16 });
+        roleText.textContent = role;
+        group.append(roleText);
+        const label = makeSvg('text', { class: 'anchor-lane-label', x: 12, y: 36 });
+        label.textContent = truncateNodeLabel(node.label, 30);
+        group.append(label);
+        const meta = makeSvg('text', { class: 'anchor-lane-meta', x: 12, y: 53 });
+        meta.textContent = truncateNodeLabel(node.part_name || node.group || node.id, 34);
+        group.append(meta);
+        const title = makeSvg('title');
+        title.textContent = `${role}：${node.label}`;
+        group.append(title);
+        return group;
+      }
+
+      view.edges.forEach((edge, index) => {
+        const key = anchorEdgeKey(edge);
+        const selected = graphState.selectedEdge === key;
+        const confirmed = isStrictAnchorEdge(edge);
+        const rowY = index * (laneHeight + laneGap) + 8;
+        const endpointY = rowY + 19;
+        const lineY = endpointY + endpointHeight / 2;
+        const parentNode = nodeById.get(edge.parent) || { id: edge.parent, label: edge.parent };
+        const childNode = nodeById.get(edge.child) || { id: edge.child, label: edge.child };
+
+        const background = makeSvg('rect', {
+          class: `anchor-lane-bg${selected ? ' selected' : ''}`,
+          x: laneX,
+          y: rowY,
+          width: laneWidth,
+          height: laneHeight,
+          rx: 10,
+        });
+        graphEdges.append(background);
+        const number = makeSvg('text', {
+          class: 'anchor-lane-number',
+          x: 25,
+          y: rowY + laneHeight / 2,
+        });
+        number.textContent = String(index + 1);
+        graphEdges.append(number);
+
+        for (const [x1, x2] of [
+          [leftX + endpointWidth, centerX],
+          [centerX + centerWidth, rightX],
+        ]) {
+          graphEdges.append(makeSvg('path', {
+            class: 'anchor-lane-connector-halo',
+            d: `M ${x1} ${lineY} L ${x2} ${lineY}`,
+          }));
+          const connector = makeSvg('path', {
+            class: `anchor-lane-connector${confirmed ? ' confirmed' : ''}`,
+            d: `M ${x1} ${lineY} L ${x2} ${lineY}`,
+          });
+          if (confirmed && x2 === rightX) connector.setAttribute('marker-end', 'url(#graph-arrow-confirmed)');
+          graphEdges.append(connector);
+        }
+
+        const center = makeSvg('g', {
+          class: `anchor-lane-center${confirmed ? ' confirmed' : ''}${selected ? ' selected' : ''}`,
+          transform: `translate(${centerX} ${endpointY})`,
+          'data-anchor-edge': key,
+          role: 'button',
+          tabindex: '0',
+          'aria-label': `查看 ${edge.parent} 与 ${edge.child} 的共享锚点`,
+        });
+        center.append(makeSvg('rect', {
+          x: 0,
+          y: 0,
+          width: centerWidth,
+          height: endpointHeight,
+          rx: 9,
+        }));
+        const centerTitle = makeSvg('text', {
+          class: 'anchor-lane-center-title',
+          x: centerWidth / 2,
+          y: 16,
+        });
+        centerTitle.textContent = confirmed ? '共享锚点 · 确认父 → 子' : '共享锚点已证明 · 方向未知';
+        center.append(centerTitle);
+        const coordinate = makeSvg('text', {
+          class: 'anchor-lane-center-coordinate',
+          x: centerWidth / 2,
+          y: 36,
+        });
+        coordinate.textContent = sharedAnchorCoordinate(edge);
+        center.append(coordinate);
+        const centerMeta = makeSvg('text', {
+          class: 'anchor-lane-center-meta',
+          x: centerWidth / 2,
+          y: 53,
+        });
+        centerMeta.textContent = `间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)}`;
+        center.append(centerMeta);
+        const centerTooltip = makeSvg('title');
+        centerTooltip.textContent = `${edge.parent} — ${edge.child}\n${runtimeRelationLabel(edge)}`;
+        center.append(centerTooltip);
+
+        graphNodes.append(
+          endpointGroup(parentNode, leftX, endpointY, confirmed ? '父节点' : '端点 A', 'a'),
+          center,
+          endpointGroup(childNode, rightX, endpointY, confirmed ? '子节点' : '端点 B', 'b')
+        );
+        if (!positions.has(parentNode.id)) positions.set(parentNode.id, { x: leftX, y: endpointY });
+        if (!positions.has(childNode.id)) positions.set(childNode.id, { x: rightX, y: endpointY });
+      });
+
+      graphState.positions = positions;
+      graphState.content = {
+        minX: 0,
+        minY: 0,
+        width: laneWidth + 16,
+        height: view.edges.length * (laneHeight + laneGap) + 6,
+      };
+      const focus = graphState.anchorFocusNode ? ` · 只看 ${graphState.anchorFocusNode}` : '';
+      graphStatus.textContent = `共享锚点 · ${view.edges.length} 条关系${focus} · 只保留有代码或运行证据的关系 · 无箭头的 A/B 表示方向未知`;
+      updateGraphTransform();
+    }
+
+    function renderIssueAnchorLanes(rawView, view) {
+      anchorRelations.hidden = true;
+      if (!view.edges.length) {
+        const message = makeSvg('text', { class: 'graph-empty', x: 470, y: 120 });
+        message.textContent = graphState.anchorFocusNode
+          ? `${graphState.anchorFocusNode} 没有问题关系`
+          : '当前模型没有问题关系';
+        graphNodes.append(message);
+        graphStatus.textContent = `问题关系 · 0/${rawView.edges.length} 条关系`;
+        graphState.positions = new Map();
+        graphState.content = { minX: 0, minY: 0, width: 960, height: 240 };
+        updateGraphTransform();
+        return;
+      }
+
+      if (
+        graphState.selectedEdge
+        && !view.edges.some((edge) => anchorEdgeKey(edge) === graphState.selectedEdge)
+      ) graphState.selectedEdge = null;
+
+      const nodeById = new Map(rawView.nodes.map((node) => [node.id, node]));
+      const positions = new Map();
+      const laneWidth = 980;
+      const laneHeight = 114;
+      const laneGap = 10;
+      const endpointWidth = 204;
+      const endpointHeight = 68;
+      const leftX = 42;
+      const centerX = 286;
+      const centerWidth = 450;
+      const rightX = 776;
+      const query = graphState.query.trim().toLowerCase();
+
+      function issueEndpointGroup(node, x, y, role, side) {
+        const group = makeSvg('g', {
+          class: `issue-lane-node endpoint-${side}`,
+          transform: `translate(${x} ${y})`,
+          'data-graph-node': node.id,
+          role: 'button',
+          tabindex: '0',
+          'aria-label': `${role} ${node.label}`,
+        });
+        if (graphState.selected === node.id) group.classList.add('selected');
+        if (
+          query
+          && (
+            String(node.label).toLowerCase().includes(query)
+            || String(node.id).toLowerCase().includes(query)
+            || String(node.part_name || '').toLowerCase().includes(query)
+          )
+        ) group.classList.add('selected');
+        group.append(makeSvg('rect', {
+          x: 0,
+          y: 0,
+          width: endpointWidth,
+          height: endpointHeight,
+          rx: 9,
+        }));
+        const roleText = makeSvg('text', { class: 'anchor-lane-role', x: 12, y: 17 });
+        roleText.textContent = role;
+        group.append(roleText);
+        const label = makeSvg('text', { class: 'anchor-lane-label', x: 12, y: 39 });
+        label.textContent = truncateNodeLabel(node.label, 27);
+        group.append(label);
+        const meta = makeSvg('text', { class: 'anchor-lane-meta', x: 12, y: 57 });
+        meta.textContent = truncateNodeLabel(node.part_name || node.group || node.id, 30);
+        group.append(meta);
+        const title = makeSvg('title');
+        title.textContent = `${role}：${node.label}`;
+        group.append(title);
+        return group;
+      }
+
+      view.edges.forEach((edge, index) => {
+        const key = anchorEdgeKey(edge);
+        const selected = graphState.selectedEdge === key;
+        const contactOnly = edge.relation !== 'BROKEN_ATTACHMENT' && edge.contact && !edge.shared_anchor;
+        const rowY = index * (laneHeight + laneGap) + 8;
+        const endpointY = rowY + 23;
+        const lineY = endpointY + endpointHeight / 2;
+        const leftNode = nodeById.get(edge.parent) || { id: edge.parent, label: edge.parent };
+        const rightNode = nodeById.get(edge.child) || { id: edge.child, label: edge.child };
+
+        graphEdges.append(makeSvg('rect', {
+          class: `anchor-lane-bg${selected ? ' selected' : ''}`,
+          x: 8,
+          y: rowY,
+          width: laneWidth,
+          height: laneHeight,
+          rx: 10,
+        }));
+        const number = makeSvg('text', {
+          class: 'anchor-lane-number',
+          x: 25,
+          y: rowY + laneHeight / 2,
+        });
+        number.textContent = String(index + 1);
+        graphEdges.append(number);
+
+        for (const [x1, x2] of [
+          [leftX + endpointWidth, centerX],
+          [centerX + centerWidth, rightX],
+        ]) {
+          graphEdges.append(makeSvg('path', {
+            class: 'anchor-lane-connector-halo',
+            d: `M ${x1} ${lineY} L ${x2} ${lineY}`,
+          }));
+          graphEdges.append(makeSvg('path', {
+            class: `issue-lane-connector${contactOnly ? ' contact-only' : ''}`,
+            d: `M ${x1} ${lineY} L ${x2} ${lineY}`,
+          }));
+        }
+
+        const center = makeSvg('g', {
+          class: `issue-lane-center${contactOnly ? ' contact-only' : ''}${selected ? ' selected' : ''}`,
+          transform: `translate(${centerX} ${endpointY - 5})`,
+          'data-anchor-edge': key,
+          role: 'button',
+          tabindex: '0',
+          'aria-label': `查看 ${edge.parent} 与 ${edge.child} 的锚点问题`,
+        });
+        center.append(makeSvg('rect', {
+          x: 0,
+          y: 0,
+          width: centerWidth,
+          height: endpointHeight + 10,
+          rx: 9,
+        }));
+        const title = makeSvg('text', {
+          class: 'issue-lane-center-title',
+          x: centerWidth / 2,
+          y: 16,
+        });
+        title.textContent = anchorIssueLabel(edge);
+        center.append(title);
+        const coordinateA = makeSvg('text', {
+          class: 'issue-lane-coordinate',
+          x: centerWidth / 2,
+          y: 34,
+        });
+        coordinateA.textContent = `A 锚点 ${anchorPointCoordinate(edge.anchor_a)}`;
+        center.append(coordinateA);
+        const coordinateB = makeSvg('text', {
+          class: 'issue-lane-coordinate',
+          x: centerWidth / 2,
+          y: 49,
+        });
+        coordinateB.textContent = `B 锚点 ${anchorPointCoordinate(edge.anchor_b)}`;
+        center.append(coordinateB);
+        const meta = makeSvg('text', {
+          class: 'issue-lane-meta',
+          x: centerWidth / 2,
+          y: 66,
+        });
+        meta.textContent = `间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)} · 接触 ${edge.contact ? '是' : '否'}`;
+        center.append(meta);
+        const tooltip = makeSvg('title');
+        tooltip.textContent = `${edge.parent} — ${edge.child}\n${anchorIssueLabel(edge)}`;
+        center.append(tooltip);
+
+        graphNodes.append(
+          issueEndpointGroup(leftNode, leftX, endpointY, '对象 A', 'a'),
+          center,
+          issueEndpointGroup(rightNode, rightX, endpointY, '对象 B', 'b')
+        );
+        if (!positions.has(leftNode.id)) positions.set(leftNode.id, { x: leftX, y: endpointY });
+        if (!positions.has(rightNode.id)) positions.set(rightNode.id, { x: rightX, y: endpointY });
+      });
+
+      graphState.positions = positions;
+      graphState.content = {
+        minX: 0,
+        minY: 0,
+        width: laneWidth + 16,
+        height: view.edges.length * (laneHeight + laneGap) + 6,
+      };
+      const focus = graphState.anchorFocusNode ? ` · 只看 ${graphState.anchorFocusNode}` : '';
+      graphStatus.textContent = `问题关系 · ${view.edges.length} 条${focus} · 点击中间问题卡同时高亮对象 A/B；仅几何接近但无连接证据的关系也归入此处`;
+      updateGraphTransform();
+    }
+
+    function renderAnchorRelations(view) {
+      anchorRelations.replaceChildren();
+      if (graphState.view !== 'anchors') return;
+      if (graphState.anchorMode === 'shared' || graphState.anchorMode === 'issues') {
+        anchorRelations.hidden = true;
+        return;
+      }
+      anchorRelations.hidden = false;
+      if (!view.edges.length) {
+        const empty = document.createElement('div');
+        empty.className = 'anchor-relation-meta';
+        empty.textContent = `“${anchorModeLabel(graphState.anchorMode)}”模式下没有关系，请切换上方筛选。`;
+        anchorRelations.append(empty);
+        return;
+      }
+      view.edges.forEach((edge, index) => {
+        const visual = edgeVisual(edge);
+        const key = anchorEdgeKey(edge);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'anchor-relation-card';
+        button.dataset.anchorEdge = key;
+        button.classList.toggle('active', graphState.selectedEdge === key);
+        button.setAttribute('aria-label', `查看第 ${index + 1} 条关系：${edge.parent} 到 ${edge.child}`);
+
+        const swatch = document.createElement('span');
+        swatch.className = `anchor-relation-swatch ${visual.className}`;
+        const content = document.createElement('span');
+        const main = document.createElement('span');
+        main.className = 'anchor-relation-main';
+        main.textContent = `${index + 1}. ${edge.parent}${isStrictAnchorEdge(edge) ? ' → ' : ' — '}${edge.child}`;
+        const meta = document.createElement('span');
+        meta.className = 'anchor-relation-meta';
+        meta.textContent = `${runtimeRelationLabel(edge)} · 间距 ${formatGraphNumber(edge.anchor_gap)}`;
+        content.append(main, meta);
+        button.append(swatch, content);
+        anchorRelations.append(button);
+      });
+    }
+
+    function selectAnchorEdge(key) {
+      const view = graphView();
+      const edge = view?.edges.find((candidate) => anchorEdgeKey(candidate) === key);
+      if (!edge) return;
+      graphState.selectedEdge = key;
+      graphState.selected = null;
+      const issuePair = graphState.view === 'anchors' && graphState.anchorMode === 'issues';
+      if (edge.shared_anchor || issuePair) {
+        const nodeById = new Map(view.nodes.map((node) => [node.id, node]));
+        const endpoints = [nodeById.get(edge.parent), nodeById.get(edge.child)].filter(Boolean);
+        const pairLabel = issuePair
+          ? `问题对象 A：${edge.parent} + 问题对象 B：${edge.child}`
+          : (isStrictAnchorEdge(edge)
+            ? `父节点：${edge.parent} + 子节点：${edge.child}`
+            : `端点 A：${edge.parent} + 端点 B：${edge.child}`);
+        highlightPreviewGraphNodes(
+          endpoints,
+          view,
+          pairLabel
+        );
+      } else {
+        clearPreviewPartHighlight();
+      }
+      showAnchorEdgeDetail(edge);
+      renderGraph();
+    }
+
+    function renderGraph() {
+      const rawView = graphView();
+      const relationView = rawView ? anchorRelationListView(rawView) : null;
+      const view = rawView ? anchorDisplayView(rawView) : null;
+      updateGraphLegend();
+      graphEdges.replaceChildren();
+      graphNodes.replaceChildren();
+      if (relationView) renderAnchorRelations(relationView);
+      if (rawView && relationView && graphState.view === 'anchors' && graphState.anchorMode === 'shared') {
+        renderSharedAnchorLanes(rawView, relationView);
+        return;
+      }
+      if (rawView && relationView && graphState.view === 'anchors' && graphState.anchorMode === 'issues') {
+        renderIssueAnchorLanes(rawView, relationView);
+        return;
+      }
+      if (!view || !view.nodes.length) {
+        const message = makeSvg('text', { class: 'graph-empty', x: 210, y: 120 });
+        message.textContent = graphState.view === 'anchors' && rawView?.nodes?.length
+          ? `“${anchorModeLabel(graphState.anchorMode)}”模式没有关系，请切换上方筛选`
+          : '当前代码没有识别到该类节点关系';
+        graphNodes.append(message);
+        graphStatus.textContent = graphState.view === 'anchors' && rawView
+          ? `${anchorModeLabel(graphState.anchorMode)} · 0/${rawView.nodes.length} 个节点 · 0/${rawView.edges.length} 条关系`
+          : '0 个节点 · 0 条父子关系';
+        graphState.content = { minX: 0, minY: 0, width: 420, height: 240 };
+        updateGraphTransform();
+        return;
+      }
+
+      if (
+        graphState.view === 'anchors'
+        && graphState.selectedEdge
+        && !view.edges.some((edge) => anchorEdgeKey(edge) === graphState.selectedEdge)
+      ) {
+        graphState.selectedEdge = null;
+      }
+
+      const layout = computeGraphLayout(view);
+      graphState.content = layout.content;
+      graphState.positions = layout.positions;
+      const query = graphState.query.trim().toLowerCase();
+
+      for (const header of graphState.view === 'anchors' ? [] : (layout.groupHeaders || [])) {
+        const color = graphGroupColor(header.label);
+        graphEdges.append(makeSvg('rect', {
+          class: 'graph-group-band',
+          x: -8,
+          y: header.y,
+          width: layout.content.width + 16,
+          height: header.height,
+          rx: 8,
+          fill: color,
+          'fill-opacity': 0.055,
+        }));
+        const title = makeSvg('text', {
+          class: 'graph-group-title',
+          x: 2,
+          y: header.y + 15,
+          fill: color,
+        });
+        title.textContent = truncateNodeLabel(header.label, 42);
+        graphEdges.append(title);
+      }
+
+      for (const edge of layout.visibleEdges) {
+        const from = layout.positions.get(edge.parent);
+        const to = layout.positions.get(edge.child);
+        const horizontal = layout.orientation === 'lr';
+        const x1 = horizontal ? from.x + graphNodeWidth : from.x + graphNodeWidth / 2;
+        const y1 = horizontal ? from.y + graphNodeHeight / 2 : from.y + graphNodeHeight;
+        const x2 = horizontal ? to.x : to.x + graphNodeWidth / 2;
+        const y2 = horizontal ? to.y + graphNodeHeight / 2 : to.y;
+        const middleX = (x1 + x2) / 2;
+        const middleY = (y1 + y2) / 2;
+        let edgeClass = 'graph-edge';
+        const visual = edgeVisual(edge);
+        const edgeKey = graphState.view === 'anchors' ? anchorEdgeKey(edge) : '';
+        if (visual.className) edgeClass += ` ${visual.className}`;
+        if (graphState.view === 'anchors' && graphState.selectedEdge) {
+          edgeClass += edgeKey === graphState.selectedEdge
+            ? ' anchor-selected'
+            : ' anchor-subdued';
+        }
+        if (
+          graphState.view === 'parts'
+          && (!partNodeIsVisible(edge.parent) || !partNodeIsVisible(edge.child))
+        ) {
+          edgeClass += ' hidden-part';
+        }
+        if (graphState.view === 'calls') {
+          if (!graphState.selected) edgeClass += ' call-edge';
+          else if (edge.parent === graphState.selected || edge.child === graphState.selected) edgeClass += ' related';
+          else edgeClass += ' subdued';
+        }
+        const pathData = horizontal
+          ? `M ${x1} ${y1} C ${middleX} ${y1}, ${middleX} ${y2}, ${x2} ${y2}`
+          : `M ${x1} ${y1} C ${x1} ${middleY}, ${x2} ${middleY}, ${x2} ${y2}`;
+        const edgePath = makeSvg('path', {
+          class: edgeClass,
+          d: pathData,
+        });
+        if (visual.markerEnd) edgePath.setAttribute('marker-end', visual.markerEnd);
+        const edgeTitle = makeSvg('title');
+        const anchorDetail = graphState.view === 'anchors'
+          ? `\n锚点间距：${formatGraphNumber(edge.anchor_gap)}\n容差：${formatGraphNumber(edge.anchor_tolerance)}`
+          : '';
+        const titleConnector = graphState.view === 'anchors' && !isStrictAnchorEdge(edge)
+          ? ' — '
+          : ' → ';
+        edgeTitle.textContent = `${edge.parent}${titleConnector}${edge.child}\n${visual.label}${anchorDetail}`;
+        edgePath.append(edgeTitle);
+        graphEdges.append(edgePath);
+        if (graphState.view === 'anchors') {
+          graphEdges.append(makeSvg('path', {
+            class: 'graph-edge-hit',
+            d: pathData,
+            'data-anchor-edge': edgeKey,
+          }));
+        }
+        if (graphState.view === 'parts') {
+          const label = makeSvg('text', {
+            class: 'graph-edge-label',
+            x: (x1 + x2) / 2,
+            y: middleY - 4,
+          });
+          label.textContent = `${visual.label} · L${edge.line || 0}`;
+          graphEdges.append(label);
+        }
+      }
+
+      for (const node of view.nodes) {
+        const position = layout.positions.get(node.id);
+        if (!position) continue;
+        const outgoing = layout.children.get(node.id) || [];
+        const group = makeSvg('g', {
+          class: 'graph-node',
+          transform: `translate(${position.x} ${position.y})`,
+          'data-graph-node': node.id,
+          role: 'button',
+          'aria-label': node.label,
+        });
+        if (graphState.view === 'parts' && !partNodeIsVisible(node)) {
+          group.classList.add('hidden-part');
+        }
+        if (node.id === graphState.selected) group.classList.add('selected');
+        if (graphState.view === 'anchors' && graphState.selectedEdge) {
+          const selectedEdge = view.edges.find(
+            (edge) => anchorEdgeKey(edge) === graphState.selectedEdge
+          );
+          if (selectedEdge && (selectedEdge.parent === node.id || selectedEdge.child === node.id)) {
+            group.classList.add('edge-endpoint');
+          }
+        }
+        if (query && String(node.label).toLowerCase().includes(query)) group.classList.add('match');
+        group.append(makeSvg('rect', {
+          x: 0,
+          y: 0,
+          width: graphNodeWidth,
+          height: graphNodeHeight,
+          rx: 8,
+        }));
+        group.append(makeSvg('rect', {
+          class: 'graph-group-accent',
+          x: 0,
+          y: 7,
+          width: 4,
+          height: graphNodeHeight - 14,
+          rx: 2,
+          fill: graphGroupColor(node.group),
+        }));
+        const label = makeSvg('text', { class: 'graph-node-label', x: 11, y: 20 });
+        label.textContent = truncateNodeLabel(node.label);
+        group.append(label);
+        const meta = makeSvg('text', { class: 'graph-node-meta', x: 11, y: 39 });
+        const line = node.line ? ` · L${node.line}` : '';
+        const instance = node.part_name ? `${node.part_name} · ` : '';
+        const category = node.group && !node.part_name ? `${truncateNodeLabel(node.group, 16)} · ` : '';
+        const relationCount = graphState.view === 'anchors'
+          ? view.edges.filter((edge) => edge.parent === node.id || edge.child === node.id).length
+          : outgoing.length;
+        meta.textContent = graphState.view === 'anchors'
+          ? `${relationCount} 条可见关系`
+          : `${instance}${category}${outgoing.length} 子节点${line}`;
+        group.append(meta);
+        const title = makeSvg('title');
+        title.textContent = node.label;
+        group.append(title);
+        if (outgoing.length && graphState.view !== 'anchors') {
+          group.append(makeSvg('circle', {
+            class: 'graph-collapse',
+            cx: graphNodeWidth - 12,
+            cy: 12,
+            r: 8,
+            'data-graph-collapse': node.id,
+          }));
+          const mark = makeSvg('text', {
+            class: 'graph-collapse-mark',
+            x: graphNodeWidth - 12,
+            y: 12,
+          });
+          mark.textContent = graphState.collapsed.has(node.id) ? '+' : '−';
+          group.append(mark);
+        }
+        graphNodes.append(group);
+      }
+
+      const navigationHint = graphState.view === 'parts' || graphState.view === 'anchors'
+        ? '滚轮缩放'
+        : '滚轮上下浏览 · Ctrl/⌘+滚轮缩放';
+      if (graphState.view === 'anchors') {
+        const focus = graphState.anchorFocusNode ? ` · 聚焦 ${graphState.anchorFocusNode}` : '';
+        graphStatus.textContent = `${anchorModeLabel(graphState.anchorMode)} · 显示 ${layout.positions.size}/${rawView.nodes.length} 个节点 · ${layout.visibleEdges.length}/${relationView.edges.length} 条关系${focus} · 点击节点只看一跳关系，点击下方关系卡看端点与坐标`;
+      } else {
+        graphStatus.textContent = `${view.label} · ${layout.positions.size}/${view.nodes.length} 个节点 · ${layout.visibleEdges.length} 条关系 · ${navigationHint}`;
+      }
+      updateGraphTransform();
+    }
+
+    function fitGraph() {
+      const rect = graphStage.getBoundingClientRect();
+      const content = graphState.content;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const scaleX = (rect.width - 36) / Math.max(content.width, 1);
+      const scaleY = (rect.height - 36) / Math.max(content.height, 1);
+      const laneView = graphState.view === 'anchors'
+        && (graphState.anchorMode === 'shared' || graphState.anchorMode === 'issues');
+      if (laneView) {
+        graphState.scale = Math.max(0.58, Math.min(1.0, scaleX));
+        graphState.tx = (rect.width - content.width * graphState.scale) / 2 - content.minX * graphState.scale;
+        graphState.ty = 18 - content.minY * graphState.scale;
+      } else if (graphState.view === 'definitions' || graphState.view === 'calls') {
+        graphState.scale = Math.max(0.9, Math.min(1.0, scaleX));
+        graphState.tx = 18 - content.minX * graphState.scale;
+        graphState.ty = 18 - content.minY * graphState.scale;
+      } else {
+        graphState.scale = Math.max(0.18, Math.min(1.25, scaleX, scaleY));
+        graphState.tx = (rect.width - content.width * graphState.scale) / 2 - content.minX * graphState.scale;
+        graphState.ty = 18 - content.minY * graphState.scale;
+      }
+      updateGraphTransform();
+    }
+
+    function focusGraphNode(id) {
+      const position = graphState.positions.get(id);
+      if (!position) return;
+      const rect = graphStage.getBoundingClientRect();
+      graphState.tx = rect.width / 2 - (position.x + graphNodeWidth / 2) * graphState.scale;
+      graphState.ty = rect.height / 2 - (position.y + graphNodeHeight / 2) * graphState.scale;
+      updateGraphTransform();
+    }
+
+    function resetGraphPosition() {
+      fitGraph();
+      if (graphState.view === 'calls') {
+        const root = graphView()?.roots?.[0];
+        if (root) focusGraphNode(root);
+      }
+    }
+
+    function selectGraphNode(id) {
+      const view = graphView();
+      if (!view) return;
+      const node = view.nodes.find((item) => item.id === id);
+      if (!node) return;
+      const nodeById = new Map(view.nodes.map((item) => [item.id, item]));
+      const relationLabel = (nodeId) => {
+        const relatedNode = nodeById.get(nodeId);
+        if (!relatedNode) return nodeId;
+        return relatedNode.part_name
+          ? `${relatedNode.label} [${relatedNode.part_name}]`
+          : relatedNode.label;
+      };
+      graphState.selected = id;
+      if (graphState.view === 'anchors') {
+        graphState.anchorFocusNode = id;
+        graphState.selectedEdge = null;
+      }
+      const parents = view.edges.filter((edge) => edge.child === id);
+      const children = view.edges.filter((edge) => edge.parent === id);
+      const lines = [
+        `${node.label}${node.line ? ` · 源码 L${node.line}-${node.end_line || node.line}` : ''}`,
+        ...(node.part_name ? [`零件实例：${node.part_name}`] : []),
+        ...(node.group ? [`类别：${node.group}`] : []),
+        ...(graphState.view === 'parts'
+          ? [`渲染状态：${partNodeIsVisible(node) ? '显示' : '已隐藏'}（在左侧参数中切换）`]
+          : []),
+      ];
+      const relationLaneView = graphState.view === 'anchors'
+        && (graphState.anchorMode === 'shared' || graphState.anchorMode === 'issues');
+      if (relationLaneView) {
+        const relatedEdges = view.edges.filter(
+          (edge) => (edge.parent === id || edge.child === id) && anchorEdgeMatches(edge)
+        );
+        const partners = relatedEdges.map((edge) => relationLabel(
+          edge.parent === id ? edge.child : edge.parent
+        ));
+        const partnerTitle = graphState.anchorMode === 'issues' ? '问题关系对象' : '共享锚点对象';
+        lines.push(`${partnerTitle}（${partners.length}）：${partners.length ? partners.join('、') : '无'}`);
+      } else {
+        lines.push(
+          `父节点：${parents.length ? parents.map((edge) => relationLabel(edge.parent)).join('、') : '无（根节点）'}`,
+          `直接子节点（${children.length}）：${children.length ? children.map((edge) => relationLabel(edge.child)).join('、') : '无'}`
+        );
+      }
+      if (graphState.view === 'anchors') {
+        if (node.origin?.length === 3) {
+          lines.push(`世界原点：(${node.origin.map((value) => formatGraphNumber(value)).join(', ')})`);
+        }
+        const relatedEdges = view.edges.filter(
+          (edge) => (edge.parent === id || edge.child === id) && anchorEdgeMatches(edge)
+        );
+        lines.push(
+          `${anchorModeLabel(graphState.anchorMode)}：${relatedEdges.length} 条一跳关系`,
+          relationLaneView
+            ? `当前只显示涉及该对象的关系行；点击“返回总览”恢复全部${graphState.anchorMode === 'issues' ? '问题关系' : '共享锚点'}。`
+            : '图中已隐藏无关节点；点击下方任一关系卡查看两个端点和精确世界坐标。'
+        );
+      }
+      if (node.parameters?.length) lines.push(`参数：${node.parameters.join(', ')}`);
+      if (node.evidence?.length) lines.push(...node.evidence);
+      graphDetail.textContent = lines.join('\n');
+      if (graphState.view === 'parts' || graphState.view === 'anchors') {
+        highlightPreviewGraphNode(node, view);
+      } else {
+        clearPreviewPartHighlight();
+      }
+      renderGraph();
+      if (graphState.view === 'anchors') requestAnimationFrame(resetGraphPosition);
+    }
+
+    function updateGraphTabs() {
+      for (const button of graphTabs.querySelectorAll('[data-graph-view]')) {
+        const viewName = button.dataset.graphView;
+        const available = Boolean(structureData?.views?.[viewName]?.nodes?.length);
+        button.disabled = !available;
+        button.classList.toggle('active', viewName === graphState.view);
+        button.setAttribute('aria-pressed', String(viewName === graphState.view));
+      }
+    }
+
+    function setGraphView(viewName) {
+      if (!structureData?.views?.[viewName]?.nodes?.length) return;
+      clearPreviewPartHighlight();
+      graphState.view = viewName;
+      graphState.collapsed.clear();
+      graphState.selected = null;
+      graphState.selectedEdge = null;
+      graphState.anchorFocusNode = null;
+      if (viewName !== 'anchors' && graphPanel.classList.contains('graph-expanded')) {
+        graphPanel.classList.remove('graph-expanded');
+        graphFullscreenButton.textContent = '放大图';
+        graphFullscreenButton.setAttribute('aria-pressed', 'false');
+      }
+      graphDetail.textContent = viewName === 'anchors'
+        ? (graphState.anchorMode === 'shared'
+          ? '每一行都是一组共享锚点关系。绿色箭头表示确认父 → 子；无箭头的蓝色端点 A 和紫色端点 B 表示方向未知。'
+          : (graphState.anchorMode === 'issues'
+            ? '每一行对照一组问题关系的 A/B 锚点坐标、间距与容差；点击中间的问题卡片会在右侧同时高亮对象 A 和 B。红色表示断裂或错位，橙色表示接触但锚点不共享。'
+            : '默认只显示确认父子关系。点击节点聚焦一跳邻居；点击下方关系卡查看两个端点、锚点间距和世界坐标。'))
+        : '点击节点可查看父节点、全部直接子节点和源码行号。';
+      updateGraphTabs();
+      renderGraph();
+      requestAnimationFrame(resetGraphPosition);
+    }
+
+    function initializeGraph(data) {
+      clearPreviewPartHighlight();
+      structureData = data;
+      graphState.query = '';
+      graphSearch.value = '';
+      graphState.collapsed.clear();
+      graphState.selected = null;
+      graphState.selectedEdge = null;
+      graphState.anchorFocusNode = null;
+      graphState.view = data.views.parts.nodes.length
+        ? 'parts'
+        : (data.views.definitions.nodes.length ? 'definitions' : 'calls');
+      updateGraphTabs();
+      renderGraph();
+      requestAnimationFrame(resetGraphPosition);
+    }
+
+    function formatValue(value, step) {
+      if (typeof value !== 'number') return String(value ?? '');
+      const decimals = String(step ?? 0.01).includes('.')
+        ? String(step).split('.')[1].length
+        : 0;
+      return value.toFixed(Math.min(decimals, 4));
+    }
+
+    function coerce(control, raw) {
+      if (control.type === 'checkbox') return Boolean(raw);
+      if (control.type === 'range' || control.type === 'number') {
+        let value = Number(raw);
+        if (!Number.isFinite(value)) value = Number(control.value || 0);
+        if (control.min !== undefined) value = Math.max(value, Number(control.min));
+        if (control.max !== undefined) value = Math.min(value, Number(control.max));
+        if (Number.isInteger(control.value) && Number.isInteger(Number(control.step))) {
+          value = Math.round(value);
+        }
+        return value;
+      }
+      return raw;
+    }
+
+    function updateControlValue(control, raw, elements = {}) {
+      values[control.id] = coerce(control, raw);
+      if (elements.valueLabel) {
+        elements.valueLabel.textContent = formatValue(values[control.id], control.step);
+      }
+      if (elements.range) {
+        elements.range.value = String(values[control.id]);
+      }
+      if (elements.number) {
+        elements.number.value = String(values[control.id]);
+      }
+      scheduleRender();
+    }
+
+    function updatePartVisibility(control, visible, elements, render = true) {
+      values[control.visibility_id] = Boolean(visible);
+      const isVisible = values[control.visibility_id];
+      elements.field.classList.toggle('part-hidden', !isVisible);
+      elements.button.classList.toggle('is-hidden', !isVisible);
+      elements.button.textContent = isVisible
+        ? (control.is_leaf ? '隐藏叶子' : '隐藏节点')
+        : '恢复显示';
+      elements.button.setAttribute('aria-pressed', String(!isVisible));
+      elements.button.setAttribute(
+        'aria-label',
+        `${isVisible ? '隐藏' : '恢复显示'} ${control.label}`
+      );
+      elements.range.disabled = !isVisible;
+      elements.number.disabled = !isVisible;
+      if (render) {
+        if (graphState.view === 'parts') renderGraph();
+        scheduleRender();
+      }
+    }
+
+    function makeControl(control) {
+      const field = document.createElement('div');
+      field.className = 'field';
+      const id = `parameter-${CSS.escape(control.id).replaceAll(':', '-')}`;
+
+      if (control.type === 'range') {
+        const head = document.createElement('div');
+        head.className = 'field-head';
+        const label = document.createElement('label');
+        label.className = 'field-label';
+        label.htmlFor = `${id}-range`;
+        label.textContent = control.label;
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'field-value';
+        valueLabel.textContent = formatValue(values[control.id], control.step);
+        const headMeta = document.createElement('span');
+        headMeta.className = 'field-head-meta';
+        let visibilityButton = null;
+        if (control.visibility_id) {
+          visibilityButton = document.createElement('button');
+          visibilityButton.type = 'button';
+          visibilityButton.className = 'visibility-toggle';
+          headMeta.append(visibilityButton);
+        }
+        headMeta.append(valueLabel);
+        head.append(label, headMeta);
+
+        const row = document.createElement('div');
+        row.className = 'range-row';
+        const range = document.createElement('input');
+        range.id = `${id}-range`;
+        range.type = 'range';
+        range.min = control.min;
+        range.max = control.max;
+        range.step = control.step;
+        range.value = values[control.id];
+        const number = document.createElement('input');
+        number.type = 'number';
+        number.min = control.min;
+        number.max = control.max;
+        number.step = control.step;
+        number.value = values[control.id];
+        range.addEventListener('input', () => {
+          number.value = range.value;
+          updateControlValue(control, range.value, { valueLabel, range, number });
+        });
+        number.addEventListener('change', () => {
+          range.value = number.value;
+          updateControlValue(control, number.value, { valueLabel, range, number });
+        });
+        row.append(range, number);
+        field.append(head, row);
+        if (visibilityButton) {
+          const elements = { field, button: visibilityButton, range, number };
+          visibilityButton.addEventListener('click', () => {
+            updatePartVisibility(
+              control,
+              values[control.visibility_id] === false,
+              elements
+            );
+          });
+          updatePartVisibility(
+            control,
+            values[control.visibility_id] !== false,
+            elements,
+            false
+          );
+        }
+        return field;
+      }
+
+      const label = document.createElement('label');
+      label.className = 'field-label';
+      label.htmlFor = id;
+      label.textContent = control.label;
+
+      if (control.type === 'select') {
+        const select = document.createElement('select');
+        select.id = id;
+        for (const optionData of control.options || []) {
+          const option = document.createElement('option');
+          option.value = optionData.value;
+          option.textContent = optionData.label;
+          select.append(option);
+        }
+        select.value = values[control.id];
+        select.addEventListener('change', () => updateControlValue(control, select.value));
+        field.append(label, select);
+        return field;
+      }
+
+      if (control.type === 'checkbox') {
+        const row = document.createElement('label');
+        row.className = 'check-row';
+        row.htmlFor = id;
+        const checkbox = document.createElement('input');
+        checkbox.id = id;
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(values[control.id]);
+        checkbox.addEventListener('change', () => updateControlValue(control, checkbox.checked));
+        row.append(document.createTextNode(control.label), checkbox);
+        field.append(row);
+        return field;
+      }
+
+      const input = document.createElement('input');
+      input.id = id;
+      input.type = control.type === 'number' ? 'number' : 'text';
+      if (control.min !== undefined) input.min = control.min;
+      if (control.max !== undefined) input.max = control.max;
+      if (control.step !== undefined) input.step = control.step;
+      input.value = values[control.id] ?? '';
+      input.addEventListener('change', () => updateControlValue(
+        control,
+        input.value,
+        { number: input }
+      ));
+      field.append(label, input);
+      return field;
+    }
+
+    function buildControls() {
+      controlsHost.replaceChildren();
+      values = {};
+      partVisibilityByNode = new Map();
+      partVisibilityByRole = new Map();
+      const groups = new Map();
+      for (const control of schema.controls) {
+        values[control.id] = control.value;
+        if (control.visibility_id) {
+          values[control.visibility_id] = control.visibility_value !== false;
+          if (control.node_id) partVisibilityByNode.set(control.node_id, control.visibility_id);
+          if (control.part_role) partVisibilityByRole.set(control.part_role, control.visibility_id);
+        }
+        if (!groups.has(control.group)) groups.set(control.group, []);
+        groups.get(control.group).push(control);
+      }
+      for (const [name, groupControls] of groups) {
+        const section = document.createElement('section');
+        section.className = 'control-group';
+        const heading = document.createElement('h2');
+        heading.textContent = name;
+        section.append(heading);
+        for (const control of groupControls) section.append(makeControl(control));
+        controlsHost.append(section);
+      }
+      panelTitle.textContent = `${schema.label} 参数`;
+    }
+
+    function scheduleRender() {
+      if (!autoUpdateEl.checked) return;
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(() => requestRender(), 600);
+    }
+
+    function normalizedPreviewName(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/\.\d{3}$/u, '')
+        .replace(/[^a-z0-9]+/gu, '');
+    }
+
+    function previewNodeAliases(node) {
+      const rawValues = [
+        node.id,
+        node.label,
+        node.part_name,
+        node.runtime_variable,
+        node.creator_function,
+      ].filter(Boolean).map(String);
+      const aliases = new Set(rawValues);
+      for (const raw of rawValues) {
+        const tail = raw.split(/[.:]/u).at(-1) || raw;
+        aliases.add(tail);
+        aliases.add(tail.replace(/^(create|build|make|add|new)_?/iu, ''));
+        aliases.add(tail.replace(/(_part|_object|_obj|factory|_factory|_asset)$/iu, ''));
+      }
+      if (schema?.adapter === 'bird') {
+        const role = String(node.part_name || node.id || '').split('_', 1)[0];
+        if (['body', 'head', 'beak', 'eye', 'wing', 'tail', 'leg', 'foot'].includes(role)) {
+          aliases.add(role);
+        }
+      }
+      return [...aliases].filter((value) => normalizedPreviewName(value).length >= 2);
+    }
+
+    function previewMeshNames(mesh) {
+      const names = [mesh.name, mesh.geometry?.name].filter(Boolean).map(String);
+      let parent = mesh.parent;
+      while (parent && parent !== currentModel) {
+        if (parent.name) names.push(String(parent.name));
+        parent = parent.parent;
+      }
+      return names;
+    }
+
+    function previewMeshMatchScore(mesh, node) {
+      const aliases = previewNodeAliases(node);
+      const names = previewMeshNames(mesh);
+      let score = 0;
+      for (const alias of aliases) {
+        const aliasLower = alias.toLowerCase();
+        const aliasNormalized = normalizedPreviewName(alias);
+        const templateIndex = alias.indexOf('{');
+        const templatePrefix = templateIndex >= 0
+          ? normalizedPreviewName(alias.slice(0, templateIndex))
+          : '';
+        const templateSuffix = templateIndex >= 0
+          ? normalizedPreviewName(alias.slice(alias.indexOf('}', templateIndex) + 1))
+          : '';
+        for (const name of names) {
+          const nameLower = name.toLowerCase();
+          const nameNormalized = normalizedPreviewName(name);
+          const nameWithoutDuplicate = normalizedPreviewName(name.replace(/\.\d{3}$/u, ''));
+          if (nameLower === aliasLower) score = Math.max(score, 120);
+          else if (nameNormalized === aliasNormalized) score = Math.max(score, 112);
+          else if (
+            templatePrefix
+            && nameNormalized.startsWith(templatePrefix)
+            && (!templateSuffix || nameNormalized.endsWith(templateSuffix))
+          ) score = Math.max(score, 104);
+          else if (nameWithoutDuplicate === aliasNormalized) score = Math.max(score, 92);
+          else if (
+            aliasNormalized.length >= 3
+            && (nameNormalized.startsWith(aliasNormalized) || aliasNormalized.startsWith(nameNormalized))
+          ) score = Math.max(score, 72);
+        }
+      }
+      return score;
+    }
+
+    function descendantPartNodes(node, view) {
+      if (!view?.edges?.length) return [];
+      const nodeById = new Map(view.nodes.map((item) => [item.id, item]));
+      const children = new Map();
+      for (const edge of view.edges) {
+        if (!children.has(edge.parent)) children.set(edge.parent, []);
+        children.get(edge.parent).push(edge.child);
+      }
+      const descendants = [];
+      const visited = new Set([node.id]);
+      const queue = [...(children.get(node.id) || [])];
+      while (queue.length) {
+        const id = queue.shift();
+        if (visited.has(id)) continue;
+        visited.add(id);
+        const child = nodeById.get(id);
+        if (child) descendants.push(child);
+        queue.push(...(children.get(id) || []));
+      }
+      return descendants;
+    }
+
+    function matchingPreviewMeshes(node, view) {
+      if (!currentModel) return [];
+      const meshes = [];
+      currentModel.traverse((child) => {
+        if (child.isMesh) meshes.push(child);
+      });
+
+      const birdSide = schema?.adapter === 'bird' && node.kind !== 'runtime_part'
+        ? String(node.part_name || node.id || '').match(/^eye_(-?1)$/u)
+        : null;
+      if (birdSide) {
+        const eyes = meshes
+          .filter((mesh) => previewMeshNames(mesh).some((name) => /^eye(?:\.\d{3})?$/iu.test(name)))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        const index = birdSide[1] === '-1' ? 0 : 1;
+        if (eyes[index]) return [eyes[index]];
+      }
+      const birdRole = schema?.adapter === 'bird' && node.kind !== 'runtime_part'
+        ? String(node.part_name || node.id || '').match(/^(body|head|beak|eye|wing|tail|leg|foot)(?:_state)?$/u)
+        : null;
+      if (birdRole) {
+        const pattern = new RegExp(`^${birdRole[1]}(?:[_.-]|$)`, 'iu');
+        const roleMeshes = meshes.filter((mesh) =>
+          previewMeshNames(mesh).some((name) => pattern.test(name))
+        );
+        if (roleMeshes.length) return roleMeshes;
+      }
+
+      const scored = meshes.map((mesh) => ({ mesh, score: previewMeshMatchScore(mesh, node) }));
+      let best = Math.max(0, ...scored.map((item) => item.score));
+      if (best > 0) {
+        const threshold = best >= 110 ? best : best >= 100 ? 100 : best;
+        return scored.filter((item) => item.score >= threshold).map((item) => item.mesh);
+      }
+
+      const descendants = descendantPartNodes(node, view);
+      if (!descendants.length) return [];
+      const matches = new Set();
+      for (const descendant of descendants) {
+        const descendantScores = meshes.map((mesh) => ({
+          mesh,
+          score: previewMeshMatchScore(mesh, descendant),
+        }));
+        best = Math.max(0, ...descendantScores.map((item) => item.score));
+        if (!best) continue;
+        const threshold = best >= 110 ? best : best >= 100 ? 100 : best;
+        for (const item of descendantScores) {
+          if (item.score >= threshold) matches.add(item.mesh);
+        }
+      }
+      return [...matches];
+    }
+
+    function previewMaterialClone(material, highlighted) {
+      const clone = material.clone();
+      const highlightColor = new THREE.Color(0xffc857);
+      if (clone.color) {
+        if (highlighted) clone.color.lerp(highlightColor, 0.7);
+        else clone.color.multiplyScalar(0.24);
+      }
+      if (clone.emissive) {
+        clone.emissive.set(highlighted ? highlightColor : 0x000000);
+        clone.emissiveIntensity = highlighted ? 1.25 : 0;
+      }
+      if (highlighted) {
+        clone.transparent = false;
+        clone.opacity = 1;
+        clone.depthWrite = true;
+      } else {
+        clone.transparent = true;
+        clone.opacity = 0.18;
+        clone.depthWrite = false;
+      }
+      clone.needsUpdate = true;
+      return clone;
+    }
+
+    function clearPreviewPartHighlight(resetRequest = true) {
+      if (currentModel) {
+        currentModel.traverse((child) => {
+          if (!child.isMesh || !child.userData.playgroundOriginalMaterial) return;
+          const styled = Array.isArray(child.material) ? child.material : [child.material];
+          for (const material of styled) material.dispose();
+          child.material = child.userData.playgroundOriginalMaterial;
+          child.renderOrder = child.userData.playgroundOriginalRenderOrder || 0;
+          delete child.userData.playgroundOriginalMaterial;
+          delete child.userData.playgroundOriginalRenderOrder;
+        });
+      }
+      if (resetRequest) previewHighlightRequest = null;
+      previewSelection.hidden = true;
+      previewSelection.classList.remove('missing');
+      previewSelectionLabel.textContent = '';
+    }
+
+    function applyPreviewPartHighlight() {
+      clearPreviewPartHighlight(false);
+      if (!previewHighlightRequest || !currentModel) return;
+      const { nodes, view, label } = previewHighlightRequest;
+      const matched = new Set();
+      for (const node of nodes) {
+        for (const mesh of matchingPreviewMeshes(node, view)) matched.add(mesh);
+      }
+      if (!matched.size) {
+        previewSelection.hidden = false;
+        previewSelection.classList.add('missing');
+        previewSelectionLabel.textContent = `未找到“${label}”对应的独立 Mesh`;
+        return;
+      }
+      let meshCount = 0;
+      currentModel.traverse((child) => {
+        if (!child.isMesh) return;
+        const highlighted = matched.has(child);
+        const original = child.material;
+        child.userData.playgroundOriginalMaterial = original;
+        child.userData.playgroundOriginalRenderOrder = child.renderOrder;
+        child.material = Array.isArray(original)
+          ? original.map((material) => previewMaterialClone(material, highlighted))
+          : previewMaterialClone(original, highlighted);
+        child.renderOrder = highlighted ? 2 : 0;
+        if (highlighted) meshCount += 1;
+      });
+      previewSelection.hidden = false;
+      previewSelection.classList.remove('missing');
+      previewSelectionLabel.textContent = `高亮：${label} · ${meshCount} 个 Mesh`;
+    }
+
+    function highlightPreviewGraphNode(node, view) {
+      highlightPreviewGraphNodes([node], view, node.label);
+    }
+
+    function highlightPreviewGraphNodes(nodes, view, label = '') {
+      const uniqueNodes = [...new Map(nodes.map((node) => [node.id, node])).values()];
+      if (!uniqueNodes.length) {
+        clearPreviewPartHighlight();
+        return;
+      }
+      previewHighlightRequest = {
+        nodes: uniqueNodes,
+        view,
+        label: label || uniqueNodes.map((node) => node.label).join(' + '),
+      };
+      applyPreviewPartHighlight();
+    }
+
+    function disposeObject(object) {
+      object.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          for (const material of materials) {
+            for (const value of Object.values(material)) {
+              if (value && value.isTexture) value.dispose();
+            }
+            material.dispose();
+          }
+        }
+      });
+    }
+
+    function fitCamera(preserveDirection = false) {
+      if (!currentModel) return;
+      const box = new THREE.Box3().setFromObject(currentModel);
+      if (box.isEmpty()) return;
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      const radius = Math.max(sphere.radius, 0.1);
+      const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
+      const horizontalHalfFov = Math.atan(
+        Math.tan(verticalHalfFov) * Math.max(camera.aspect, 0.01)
+      );
+      const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+      const distance = radius / Math.sin(limitingHalfFov) * 1.18;
+      const currentDirection = camera.position.clone().sub(orbit.target);
+      const direction = preserveDirection && currentDirection.lengthSq() > 1e-8
+        ? currentDirection.normalize()
+        : new THREE.Vector3(1.25, 0.82, 1.55).normalize();
+      camera.position.copy(sphere.center).addScaledVector(direction, distance);
+      camera.near = Math.max(distance / 1000, 0.005);
+      camera.far = Math.max(distance * 50, 100);
+      camera.updateProjectionMatrix();
+      orbit.target.copy(sphere.center);
+      orbit.minDistance = radius * 0.3;
+      orbit.maxDistance = radius * 15;
+      orbit.update();
+    }
+
+    async function loadGLB(url, version) {
+      const gltf = await loader.loadAsync(`${url}?v=${Date.now()}`);
+      if (version !== generationVersion) {
+        disposeObject(gltf.scene);
+        return;
+      }
+      if (currentModel) {
+        clearPreviewPartHighlight(false);
+        scene.remove(currentModel);
+        disposeObject(currentModel);
+      }
+      currentModel = gltf.scene;
+      currentModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      scene.add(currentModel);
+      fitCamera(false);
+      applyPreviewPartHighlight();
+    }
+
+    async function requestRender() {
+      clearTimeout(renderTimer);
+      if (!schema) return;
+      if (generationRunning) {
+        generationQueued = true;
+        setStatus('参数已更新；当前生成结束后会立即生成最新版本。');
+        return;
+      }
+      generationRunning = true;
+      generationQueued = false;
+      const version = ++generationVersion;
+      setLoading(true);
+      setStatus('Blender 正在重新生成模型…第一次通常需要几秒到几十秒。');
+      renderButton.disabled = true;
+      try {
+        const response = await fetch('/api/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: schema.source, model: schema.model, params: values }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+        await loadGLB(result.url, version);
+        const size = (result.bytes / 1024 / 1024).toFixed(2);
+        setStatus(`预览已更新 · Blender 源代码完整重建 ${result.seconds} 秒 · ${size} MB`, 'success');
+      } catch (error) {
+        setStatus(String(error.message || error), 'error');
+      } finally {
+        generationRunning = false;
+        renderButton.disabled = false;
+        setLoading(false);
+        if (generationQueued) requestRender();
+      }
+    }
+
+    async function loadRuntimeGraph(sourceId, modelId) {
+      const version = ++runtimeGraphVersion;
+      const encoded = encodeURIComponent(modelId);
+      const encodedSource = encodeURIComponent(sourceId);
+      const autoOpen = graphState.view === 'parts';
+      if (autoOpen) {
+        graphStatus.textContent = '模型已显示；Blender 5.0 正在验证世界坐标共享锚点和单向关系…';
+      }
+      try {
+        const response = await fetch(`/api/runtime-graph?source=${encodedSource}&model=${encoded}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+        if (
+          version !== runtimeGraphVersion
+          || schema?.source !== sourceId
+          || schema?.model !== modelId
+        ) return;
+        structureData.views.anchors = result;
+        graphState.selectedEdge = null;
+        graphState.anchorFocusNode = null;
+        graphState.anchorMode = result.edges?.some(isStrictAnchorEdge)
+          ? 'confirmed'
+          : (result.edges?.some((edge) => anchorEdgeMatches(edge, 'shared')) ? 'shared' : 'all');
+        updateGraphTabs();
+        if (autoOpen && graphState.view === 'parts') {
+          setGraphView('anchors');
+        } else {
+          renderGraph();
+        }
+      } catch (error) {
+        if (
+          version !== runtimeGraphVersion
+          || schema?.source !== sourceId
+          || schema?.model !== modelId
+        ) return;
+        if (graphState.view === 'parts') {
+          graphStatus.textContent = `静态父子树可用；运行时锚点分析失败：${String(error.message || error)}`;
+        }
+      }
+    }
+
+    async function selectModel(modelId, sourceId = sourceSelect.value) {
+      const version = ++selectionVersion;
+      generationVersion += 1;
+      runtimeGraphVersion += 1;
+      clearTimeout(renderTimer);
+      setStatus('正在读取参数和节点关系…');
+      graphStatus.textContent = '正在分析完整父子树…';
+      const encoded = encodeURIComponent(modelId);
+      const encodedSource = encodeURIComponent(sourceId);
+      const [schemaResponse, structureResponse] = await Promise.all([
+        fetch(`/api/schema?source=${encodedSource}&model=${encoded}`),
+        fetch(`/api/structure?source=${encodedSource}&model=${encoded}`),
+      ]);
+      const [schemaResult, structureResult] = await Promise.all([
+        schemaResponse.json(),
+        structureResponse.json(),
+      ]);
+      if (!schemaResponse.ok) throw new Error(schemaResult.error || '读取参数失败');
+      if (!structureResponse.ok) throw new Error(structureResult.error || '读取节点关系失败');
+      if (version !== selectionVersion || sourceSelect.value !== sourceId) return;
+      schema = schemaResult;
+      buildControls();
+      initializeGraph(structureResult);
+      await requestRender();
+      if (version === selectionVersion) loadRuntimeGraph(sourceId, modelId);
+    }
+
+    async function loadModelsForSource(sourceId, preferredLabel = '') {
+      const version = ++selectionVersion;
+      sourceSelect.disabled = true;
+      modelSelect.disabled = true;
+      setStatus('正在切换代码源…');
+      try {
+        const response = await fetch(`/api/models?source=${encodeURIComponent(sourceId)}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '读取模型列表失败');
+        if (version !== selectionVersion || sourceSelect.value !== sourceId) return;
+        modelSelect.replaceChildren();
+        for (const model of result.models) {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = model.label;
+          modelSelect.append(option);
+        }
+        const preferred = result.models.find((model) => model.label === preferredLabel);
+        const bird = result.models.find((model) => model.label === 'Bird_seed0');
+        modelSelect.value = preferred?.id || bird?.id || result.models[0]?.id || '';
+        if (!modelSelect.value) throw new Error('当前代码源没有可用模型');
+        await selectModel(modelSelect.value, sourceId);
+      } finally {
+        sourceSelect.disabled = false;
+        modelSelect.disabled = false;
+      }
+    }
+
+    async function initialize() {
+      try {
+        const response = await fetch('/api/sources');
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '读取代码源失败');
+        for (const source of result.sources) {
+          const option = document.createElement('option');
+          option.value = source.id;
+          option.textContent = `${source.label}（${source.count}）`;
+          sourceSelect.append(option);
+        }
+        sourceSelect.value = result.default || result.sources[0]?.id || '';
+        if (!sourceSelect.value) throw new Error('没有可用代码源');
+        await loadModelsForSource(sourceSelect.value);
+      } catch (error) {
+        setStatus(String(error.message || error), 'error');
+      }
+    }
+
+    graphTabs.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-graph-view]');
+      if (button && !button.disabled) setGraphView(button.dataset.graphView);
+    });
+    anchorControls.addEventListener('click', (event) => {
+      const modeButton = event.target.closest('[data-anchor-mode]');
+      if (!modeButton) return;
+      graphState.anchorMode = modeButton.dataset.anchorMode;
+      clearPreviewPartHighlight();
+      graphState.selected = null;
+      graphState.anchorFocusNode = null;
+      graphState.selectedEdge = null;
+      graphDetail.textContent = graphState.anchorMode === 'shared'
+        ? '每一行都是一组共享锚点关系。绿色箭头表示确认父 → 子；无箭头的 A/B 表示方向未知。点端点可筛选涉及它的所有行。'
+        : (graphState.anchorMode === 'issues'
+          ? '每一行对照一组问题关系：对象 A — A 锚点坐标 — 错误原因 — B 锚点坐标 — 对象 B。点中间问题卡同时高亮 A/B；点端点只高亮并筛选该对象。'
+          : `${anchorModeLabel(graphState.anchorMode)}模式：点击节点聚焦一跳关系，或点击下方关系卡查看端点和锚点坐标。`);
+      renderGraph();
+      requestAnimationFrame(resetGraphPosition);
+    });
+    anchorClearFocusButton.addEventListener('click', () => {
+      clearPreviewPartHighlight();
+      graphState.anchorFocusNode = null;
+      graphState.selected = null;
+      graphState.selectedEdge = null;
+      graphDetail.textContent = graphState.anchorMode === 'shared'
+        ? '共享锚点总览：全部共享关系按独立横行排列，连线不会交叉。'
+        : (graphState.anchorMode === 'issues'
+          ? '问题关系总览：全部错误按独立横行排列，直接对照 A/B 锚点坐标。'
+          : `${anchorModeLabel(graphState.anchorMode)}总览：点击任一节点只看与它直接相连的关系。`);
+      renderGraph();
+      requestAnimationFrame(resetGraphPosition);
+    });
+    graphFullscreenButton.addEventListener('click', () => {
+      const expanded = graphPanel.classList.toggle('graph-expanded');
+      graphFullscreenButton.textContent = expanded ? '退出大图' : '放大图';
+      graphFullscreenButton.setAttribute('aria-pressed', String(expanded));
+      requestAnimationFrame(resetGraphPosition);
+    });
+    anchorRelations.addEventListener('click', (event) => {
+      const card = event.target.closest('[data-anchor-edge]');
+      if (card) selectAnchorEdge(card.dataset.anchorEdge);
+    });
+    graphSearch.addEventListener('input', () => {
+      graphState.query = graphSearch.value.trim().toLowerCase();
+      if (graphState.query) graphState.collapsed.clear();
+      renderGraph();
+      if (graphState.query) {
+        const match = graphView()?.nodes.find((node) =>
+          String(node.label).toLowerCase().includes(graphState.query)
+          || String(node.id).toLowerCase().includes(graphState.query)
+          || String(node.part_name || '').toLowerCase().includes(graphState.query)
+        );
+        if (match) focusGraphNode(match.id);
+      }
+    });
+    graphExpandButton.addEventListener('click', () => {
+      graphState.collapsed.clear();
+      renderGraph();
+      resetGraphPosition();
+    });
+    graphFitButton.addEventListener('click', resetGraphPosition);
+
+    graphSvg.addEventListener('click', (event) => {
+      const anchorEdge = event.target.closest('[data-anchor-edge]');
+      if (anchorEdge) {
+        selectAnchorEdge(anchorEdge.getAttribute('data-anchor-edge'));
+        return;
+      }
+      const collapse = event.target.closest('[data-graph-collapse]');
+      if (collapse) {
+        const id = collapse.getAttribute('data-graph-collapse');
+        if (graphState.collapsed.has(id)) graphState.collapsed.delete(id);
+        else graphState.collapsed.add(id);
+        renderGraph();
+        resetGraphPosition();
+        return;
+      }
+      const node = event.target.closest('[data-graph-node]');
+      if (node) selectGraphNode(node.getAttribute('data-graph-node'));
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !graphPanel.classList.contains('graph-expanded')) return;
+      graphPanel.classList.remove('graph-expanded');
+      graphFullscreenButton.textContent = '放大图';
+      graphFullscreenButton.setAttribute('aria-pressed', 'false');
+      requestAnimationFrame(resetGraphPosition);
+    });
+
+    graphSvg.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const readableView = graphState.view === 'definitions'
+        || graphState.view === 'calls'
+        || (
+          graphState.view === 'anchors'
+          && (graphState.anchorMode === 'shared' || graphState.anchorMode === 'issues')
+        );
+      if (readableView && !event.ctrlKey && !event.metaKey) {
+        graphState.tx -= event.deltaX * 0.7;
+        graphState.ty -= event.deltaY * 0.7;
+        updateGraphTransform();
+        return;
+      }
+      const rect = graphSvg.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const oldScale = graphState.scale;
+      const normalizedDelta = Math.max(-100, Math.min(100, event.deltaY));
+      const zoomFactor = Math.exp(-normalizedDelta * 0.00045);
+      const nextScale = Math.max(0.04, Math.min(4, oldScale * zoomFactor));
+      const worldX = (pointerX - graphState.tx) / oldScale;
+      const worldY = (pointerY - graphState.ty) / oldScale;
+      graphState.scale = nextScale;
+      graphState.tx = pointerX - worldX * nextScale;
+      graphState.ty = pointerY - worldY * nextScale;
+      updateGraphTransform();
+    }, { passive: false });
+
+    graphSvg.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('[data-graph-node], [data-anchor-edge]')) return;
+      graphState.dragging = true;
+      graphState.dragX = event.clientX;
+      graphState.dragY = event.clientY;
+      graphState.startTx = graphState.tx;
+      graphState.startTy = graphState.ty;
+      graphSvg.setPointerCapture(event.pointerId);
+    });
+    graphSvg.addEventListener('pointermove', (event) => {
+      if (!graphState.dragging) return;
+      graphState.tx = graphState.startTx + event.clientX - graphState.dragX;
+      graphState.ty = graphState.startTy + event.clientY - graphState.dragY;
+      updateGraphTransform();
+    });
+    graphSvg.addEventListener('pointerup', (event) => {
+      graphState.dragging = false;
+      if (graphSvg.hasPointerCapture(event.pointerId)) graphSvg.releasePointerCapture(event.pointerId);
+    });
+    graphSvg.addEventListener('pointercancel', () => {
+      graphState.dragging = false;
+    });
+
+    sourceSelect.addEventListener('change', () => {
+      const preferredLabel = modelSelect.selectedOptions[0]?.textContent || '';
+      loadModelsForSource(sourceSelect.value, preferredLabel).catch((error) => {
+        setStatus(String(error.message || error), 'error');
+      });
+    });
+    modelSelect.addEventListener('change', () => {
+      selectModel(modelSelect.value, sourceSelect.value).catch((error) => {
+        setStatus(String(error.message || error), 'error');
+      });
+    });
+    renderButton.addEventListener('click', requestRender);
+    resetButton.addEventListener('click', () => {
+      if (!schema) return;
+      buildControls();
+      if (graphState.view === 'parts') renderGraph();
+      requestRender();
+    });
+    fitButton.addEventListener('click', () => fitCamera(true));
+    rotateButton.addEventListener('click', () => {
+      orbit.autoRotate = !orbit.autoRotate;
+      rotateButton.classList.toggle('active', orbit.autoRotate);
+      rotateButton.setAttribute('aria-pressed', String(orbit.autoRotate));
+    });
+    previewSelectionClear.addEventListener('click', () => {
+      clearPreviewPartHighlight();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    });
+    resizeObserver.observe(canvas.parentElement);
+    const graphResizeObserver = new ResizeObserver(() => resetGraphPosition());
+    graphResizeObserver.observe(graphStage);
+
+    function animate() {
+      orbit.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+    initialize();
+  </script>
+</body>
+</html>

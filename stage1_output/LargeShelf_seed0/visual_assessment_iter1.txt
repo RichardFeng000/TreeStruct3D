@@ -1,0 +1,3 @@
+- Floating / disconnected pieces: The render shows parts of the bookshelf floating above and below the main structure, resembling an "exploded view" rather than a coherent object.
+- Misalignment: The shelves are not properly integrated into the side supports; some appear to be offset or shifted.
+- These issues stem from incorrect origin manipulation and bounding box logic at the end of the previous script.

@@ -1,0 +1,4 @@
+- Leaf shape is too rounded/blobby; it looks like petals rather than heart or arrow-shaped taro leaves.
+- Leaves lack organic curvature and central definition, appearing as flat rotated slabs.
+- The "droop" requested in the description is barely visible because the geometry doesn't bend organically.
+- Need to improve leaf proportions (longer, more pointed) and add a slight convex curve for realism.

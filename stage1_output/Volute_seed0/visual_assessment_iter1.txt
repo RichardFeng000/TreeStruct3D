@@ -1,0 +1,3 @@
+- Wrong overall shape: The model looks like a curved horn/tube rather than a coiled, globular volute shell. It lacks the characteristic multi-turn spiral structure.
+- Missing geometric detail: The "inflated body whorl" is barely present; the volume doesn't expand enough at the end to create the rounded globular form.
+- Wrong stripe patterns: The stripes are simple longitudinal bands along the length of the tube, whereas the description asks for wavy radiating (transverse/oblique) stripe patterns across the surface.

@@ -1,0 +1,239 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector, Matrix
+
+def clear_scene():
+    """Clears all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple principled BSDF material with a specific color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_principled.inputs['Base Color'].default_value = color
+    mat.node_tree.links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def create_spikelet_geometry(bm, position, orientation, scale):
+    """
+    Adds a spikelet (grain + glumes + awn) to the provided bmesh.
+    orientation: Vector representing the 'up' direction of the spikelet.
+    """
+    # Calculate local coordinate system for the spikelet
+    z_axis = orientation.normalized()
+    x_axis = Vector((1, 0, 0)) if abs(z_axis.dot(Vector((1, 0, 0)))) < 0.9 else Vector((0, 1, 0))
+    x_axis = z_axis.cross(x_axis).normalized()
+    y_axis = z_axis.cross(x_axis).normalized()
+    
+    rot_mat = Matrix((x_axis, y_axis, z_axis)).to_4x4()
+    trans_mat = Matrix.Translation(position)
+    full_mat = trans_mat @ rot_mat
+
+    # 1. The Grain (Seed) - Ellipsoid
+    grain_bm = bmesh.new()
+    bmesh.ops.create_uvsphere(grain_bm, u_segments=8, v_segments=8, radius=0.1 * scale)
+    for v in grain_bm.verts:
+        v.co.z *= 2.5 # Elongate
+        v.co.x *= 0.6
+        v.co.y *= 0.6
+        v.co = full_mat @ v.co
+    
+    # Transfer grain to main bm
+    for v in grain_bm.verts:
+        bm.verts.new(v.co)
+    # To keep it simple and efficient, we'll merge vertices later or just use a shared BMesh logic
+    # But since we need faces, we must handle them carefully. 
+    # Let's avoid separate bmeshes for every spikelet to prevent overhead.
+    # Instead, let's create the geometry directly in the main BM using indices.
+
+def add_grain(bm, position, orientation, scale):
+    z_axis = orientation.normalized()
+    x_axis = Vector((1, 0, 0)) if abs(z_axis.dot(Vector((1, 0, 0)))) < 0.9 else Vector((0, 1, 0))
+    x_axis = z_axis.cross(x_axis).normalized()
+    y_axis = z_axis.cross(x_axis).normalized()
+    full_mat = Matrix.Translation(position) @ Matrix((x_axis, y_axis, z_axis)).to_4x4()
+
+    # Create Grain Sphere
+    grain_bm = bmesh.new()
+    bmesh.ops.create_uvsphere(grain_bm, u_segments=8, v_segments=8, radius=0.1 * scale)
+    for v in grain_bm.verts:
+        v.co.z *= 2.5
+        v.co.x *= 0.6
+        v.co.y *= 0.6
+        v.co = full_mat @ v.co
+    
+    # Copy geometry to main bm
+    geom_data = [] # stores (verts, faces)
+    for v in grain_bm.verts:
+        geom_data.append(bm.verts.new(v.co))
+    
+    # Need to handle indices for faces
+    offset = len(bm.verts) - len(grain_bm.verts)
+    # Since we just added all verts, the offset is actually 0 if we track carefully
+    # Let's use a simpler approach: create BMesh then merge using bmesh.ops.join
+    return grain_bm
+
+def create_wheat_ear():
+    clear_scene()
+
+    # Parameters
+    num_nodes = 28
+    spikelets_per_node = 2 # Usually alternating on opposite sides
+    rachis_height = 10.0
+    curve_intensity = 1.2
+    
+    color_gold = (0.8, 0.7, 0.3, 1.0)
+    color_green = (0.4, 0.5, 0.2, 1.0)
+    mat_grain = create_material("GrainMat", color_gold)
+    mat_stem = create_material("StemMat", color_green)
+
+    # 1. Rachis (The stem)
+    rachis_bm = bmesh.new()
+    segments = 60
+    radius = 0.04
+    points = []
+    for i in range(segments + 1):
+        t = i / segments
+        z = t * rachis_height
+        x = math.sin(t * math.pi * 0.7) * curve_intensity * (t**1.5)
+        y = math.cos(t * math.pi * 0.4) * 0.3 * t
+        points.append(Vector((x, y, z)))
+
+    for i in range(segments):
+        p1, p2 = points[i], points[i+1]
+        v_dir = (p2 - p1).normalized()
+        ortho = Vector((0, 0, 1)) if abs(v_dir.dot(Vector((0,0,1)))) < 0.9 else Vector((0, 1, 0) )
+        right = v_dir.cross(ortho).normalized()
+        up = v_dir.cross(right).normalized()
+
+        ring_res = 6
+        r1 = [rachis_bm.verts.new(p1 + (right * math.cos(2*math.pi*j/ring_res) + up * math.sin(2*math.pi*j/ring_res)) * radius) for j in range(ring_res)]
+        r2 = [rachis_bm.verts.new(p2 + (right * math.cos(2*math.pi*j/ring_res) + up * math.sin(2*math.pi*j/ring_res)) * radius) for j in range(ring_res)]
+        for j in range(ring_res):
+            rachis_bm.faces.new((r1[j], r1[(j+1)%ring_res], r2[(j+1)%ring_res], r2[j]))
+
+    # Rachis Object
+    mesh_data = bpy.data.meshes.new("RachisMesh")
+    rachis_bm.to_mesh(mesh_data)
+    rachis_obj = bpy.data.objects.new("Rachis", mesh_data)
+    bpy.context.collection.objects.link(rachis_obj)
+    rachis_obj.data.materials.append(mat_stem)
+    rachis_bm.free()
+
+    # 2. Spikelets (Grains, Husks, Awns)
+    # To avoid the to_mesh error and overhead, we'll create spikelets as separate BMeshes, 
+    # then merge them into one final mesh object at the end.
+    all_spikelet_meshes = []
+
+    for n in range(num_nodes):
+        t = n / num_nodes
+        p = points[int(t * segments)]
+        v_dir = (points[min(int(t * segments)+1, segments)] - p).normalized()
+        
+        # Tapering scale for the top of the head
+        scale = 1.0 - (t**2) * 0.4
+        
+        ortho = Vector((0, 0, 1)) if abs(v_dir.dot(Vector((0,0,1)))) < 0.9 else Vector((0, 1, 0))
+        right = v_dir.cross(ortho).normalized()
+        up = v_dir.cross(right).normalized()
+
+        for s in range(spikelets_per_node):
+            angle = (math.pi * s / spikelets_per_node) + (n * 0.4)
+            pos = p + (right * math.cos(angle) + up * math.sin(angle)) * radius
+            # Orientation: angled slightly outwards and upwards
+            out_dir = (right * math.cos(angle) + up * math.sin(angle)).normalized()
+            up_dir = (v_dir * 0.7 + out_dir * 0.3).normalized()
+
+            sbm = bmesh.new()
+            # Grain part
+            bmesh.ops.create_uvsphere(sbm, u_segments=6, v_segments=6, radius=0.12 * scale)
+            for v in sbm.verts:
+                v.co.z *= 2.0
+                v.co.x *= 0.7
+                v.co.y *= 0.7
+
+            # Glumes (Husks/Chaff) - create two tapered leaves
+            for leaf_idx in range(2):
+                glume_bm = bmesh.new()
+                bmesh.ops.create_cube(glume_bm, size=1.0)
+                for v in glume_bm.verts:
+                    v.co.z = (v.co.z + 0.5) * 0.3 * scale # Length
+                    v.co.x *= 0.05 * scale # Width
+                    v.co.y *= 0.1 * scale  # Thickness
+                    # Taper top
+                    t_factor = (v.co.z + 0.15) / 0.3
+                    v.co.x *= (1.0 - t_factor * 0.5)
+                
+                # Move glume relative to grain
+                offset_y = 0.05 if leaf_idx == 0 else -0.05
+                for v in glume_bm.verts:
+                    v.co.y += offset_y
+                    v.co.z -= 0.1 # shift down slightly to overlap grain
+                
+                # Join glume into sbm
+                # Simple merge: we just add the vertices and faces of glume_bm to sbm
+                # but BMesh doesn't have a simple 'merge'. We use bmesh.ops.join if they are separate objects, 
+                # or simply copy verts/faces.
+                v_offset = len(sbm.verts)
+                for v in glume_bm.verts:
+                    sbm.verts.new(v.co)
+                for f in glume_bm.faces:
+                    f_idx = [v.index + v_offset for v in f.verts]
+                    sbm.faces.new(f_idx)
+                glume_bm.free()
+
+            # Awn (the long needle)
+            awn_len = (1.5 + random.random()) * scale
+            v1 = sbm.verts.new((0, 0, 0.2))
+            v2 = sbm.verts.new((0, 0, 0.2 + awn_len))
+            sbm.edges.new((v1, v2))
+
+            # Final transform for the whole spikelet
+            z_axis = Vector((0,0,1))
+            axis = z_axis.cross(up_dir)
+            angle_val = z_axis.angle(up_dir)
+            rot_mat = Matrix.Rotation(angle_val, 4, axis if axis.length > 0 else Vector((1,0,0)))
+            trans_mat = Matrix.Translation(pos)
+            full_mat = trans_mat @ rot_mat
+
+            for v in sbm.verts:
+                v.co = full_mat @ v.co
+            
+            # Convert to mesh and store
+            m_data = bpy.data.meshes.new("SpikeletMesh")
+            sbm.to_mesh(m_data)
+            all_spikelet_meshes.append(m_data)
+            sbm.free()
+
+    # Create objects for spikelets and join them
+    grain_objs = []
+    for m in all_spikelet_meshes:
+        obj = bpy.data.objects.new("Spikelet", m)
+        bpy.context.collection.objects.link(obj)
+        obj.data.materials.append(mat_grain)
+        grain_objs.append(obj)
+
+    # Join all spikelets into one object to reduce scene clutter
+    if grain_objs:
+        bpy.context.view_layer.objects.active = grain_objs[0]
+        for o in grain_objs[1:]:
+            o.select_set(True)
+        bpy.ops.object.join()
+        spikelets_obj = bpy.context.view_layer.objects.active
+    else:
+        spikelets_obj = None
+
+    # Final organic rotation for the whole assembly
+    rachis_obj.rotation_euler = (math.radians(10), 0, math.radians(-5))
+    if spikelets_obj:
+        spikelets_obj.rotation_euler = (math.radians(10), 0, math.radians(-5))
+
+if __name__ == "__main__":
+    create_wheat_ear()

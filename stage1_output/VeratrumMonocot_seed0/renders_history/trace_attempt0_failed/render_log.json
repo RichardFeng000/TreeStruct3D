@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumMonocot_seed0/VeratrumMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.01,
+  "error": "AttributeError: type object 'Object' has no attribute 'matrix_world'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/VeratrumMonocot_seed0/VeratrumMonocot_seed0.py\", line 170, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/VeratrumMonocot_seed0/VeratrumMonocot_seed0.py\", line 167, in main\n    create_floret(pos + offset, floret_color)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/VeratrumMonocot_seed0/VeratrumMonocot_seed0.py\", line 112, in create_floret\n    bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.08, matrix=bpy.types.Object.matrix_world) # dummy\n                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: type object 'Object' has no attribute 'matrix_world'\n"
+}

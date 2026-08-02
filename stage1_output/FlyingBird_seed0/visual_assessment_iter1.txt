@@ -1,0 +1,4 @@
+- Disconnected pieces: The wings consist of a string of spheres and floating flat planes rather than a cohesive wing surface.
+- Wrong overall shape: It lacks the airfoil silhouette of a soaring bird; it looks like a skeletal assembly of parts.
+- Missing geometric detail: There is no continuous "skin" for the wings, only individual trailing edge feathers.
+- Material issues: The white-to-brown transition on the underside/inner wing is not visible because there's no surface to apply it to.

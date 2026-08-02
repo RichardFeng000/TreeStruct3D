@@ -1,0 +1,35 @@
+{
+  "instance": "FoodBox_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 97,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 155,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Floating parts: Circles, dots, and blocks are hovering away from the box surface instead of appearing as printed patterns.\n- Colors: The background is a pale pink rather than \"vibrant magenta\".\n- Detail visibility: Green dotted clusters are too small to be clearly seen in the renders.\n- Proportions: The shape is very close to a cube; it needs to look more like a standard rectangular food box."
+    },
+    {
+      "iteration": 2,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

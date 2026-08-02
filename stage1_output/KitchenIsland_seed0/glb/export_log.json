@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/KitchenIsland_seed0/KitchenIsland_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/KitchenIsland_seed0/glb/KitchenIsland_seed0.glb",
+  "status": "OK",
+  "n_meshes": 17,
+  "size_kb": 88.5,
+  "latency_s": 0.1,
+  "error": null
+}

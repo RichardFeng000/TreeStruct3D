@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/MushroomGrowth_seed0/MushroomGrowth_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/MushroomGrowth_seed0/glb/MushroomGrowth_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 812.2,
+  "latency_s": 0.12,
+  "error": null
+}

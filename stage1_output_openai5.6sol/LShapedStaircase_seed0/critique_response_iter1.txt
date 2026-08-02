@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a complete L-shaped two-flight staircase, supported landing, navy framing, and brown-tinted glass railings on all exposed sides.
+</assessment>

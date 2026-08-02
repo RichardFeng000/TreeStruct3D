@@ -1,0 +1,4 @@
+- The overall shape is completely wrong; it looks like a distorted blob or cone rather than a fork.
+- Tines are either missing or merged into the body, not distinct and separated as required.
+- Proportions are nonsensical; there is no clear distinction between handle, neck, and head.
+- Mesh topology likely collapsed under the subdivision modifier due to poor vertex placement.

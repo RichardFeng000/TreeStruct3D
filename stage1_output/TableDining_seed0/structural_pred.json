@@ -1,0 +1,43 @@
+{
+  "parts": [
+    {
+      "id": "table_top",
+      "level": "major"
+    },
+    {
+      "id": "stand_1",
+      "level": "part"
+    },
+    {
+      "id": "stand_2",
+      "level": "part"
+    }
+  ],
+  "relations": [
+    {
+      "source": "stand_1",
+      "type": "ATTACHED_TO",
+      "target": "table_top",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "stand_2",
+      "type": "ATTACHED_TO",
+      "target": "table_top",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    }
+  ],
+  "asset_id": "TableDining_seed0",
+  "metadata": {
+    "prediction_status": "provisional_code_and_four_view_audit",
+    "source": "stage1_output/TableDining_seed0",
+    "not_automatic_geometry_measurement": true,
+    "missing_relations": []
+  }
+}

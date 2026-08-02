@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/GrassTuft_seed0/GrassTuft_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 3.323160767555237,
+  "n_views_rendered": 4,
+  "latency_s": 4.18,
+  "error": null
+}

@@ -1,0 +1,241 @@
+Original text-to-3D task:
+
+A sea fan coral (gorgonian) rendered as a textured 3D model. The coral features numerous thin, rod-like branches that grow upward in a roughly planar fan arrangement, branching and bifurcating repeatedly to form a dense lattice-like net structure. The base is a wide, solid root from which the branching network fans outward and upward. The coloring is warm sandy beige to tan with a subtle brown gradient toward the base. A strong shadow beneath the dense branch network creates a dramatic silhouette on the white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default scene of any objects."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple material with a base color (no textures)."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def rotate_vector(vec, axis, angle):
+    """Rotates a vector around a given axis by an angle in radians."""
+    import mathutils
+    rot = mathutils.Matrix.Rotation(angle, 4, axis)
+    return rot @ vec
+
+def generate_coral_structure():
+    """Generates the geometric structure of the sea fan coral."""
+    # Parameters
+    ROOT_HEIGHT = 1.2
+    ROOT_RADIUS_BASE = 0.15
+    ROOT_RADIUS_TOP = 0.1
+    
+    ITERATIONS = 6
+    INITIAL_LENGTH = 1.0
+    BIFURCATION_ANGLE = math.radians(45)
+    LENGTH_DECAY = 0.78
+    RADIUS_DECAY = 0.72
+    PLANAR_STRICTNESS = 0.1  # How much it deviates from the XZ plane (small value = more planar)
+
+    # To store all segments as (start, end, start_radius, end_radius)
+    segments = []
+    
+    # Root segment
+    root_start = Vector((0, 0, 0))
+    root_end = Vector((0, 0, ROOT_HEIGHT))
+    segments.append((root_start, root_end, ROOT_RADIUS_BASE, ROOT_RADIUS_TOP))
+
+    def grow(start, direction, length, radius, depth):
+        if depth <= 0:
+            return [start]
+        
+        # Calculate end point
+        end = start + direction * length
+        new_radius = radius * RADIUS_DECAY
+        segments.append((start, end, radius, new_radius))
+        
+        # Create two diverging directions
+        # We want the fan to be roughly in XZ plane (direction mostly Z and X)
+        # The growth is primarily "up" and "out"
+        
+        # Define a local coordinate system for branching
+        # Base direction is 'direction'. We need two orthogonal vectors.
+        ortho1 = Vector((0, 1, 0)) # Y axis as the "plane normal"
+        if abs(direction.dot(ortho1)) > 0.9:
+            ortho1 = Vector((1, 0, 0))
+        
+        right = direction.cross(ortho1).normalized()
+        up_local = right.cross(direction).normalized()
+        
+        # Randomize angles slightly for organic feel
+        angle1 = BIFURCATION_ANGLE + random.uniform(-0.2, 0.2)
+        angle2 = -BIFURCATION_ANGLE + random.uniform(-0.2, 0.2)
+        
+        # Add a small amount of "out-of-plane" jitter (Y axis)
+        jitter1 = Vector((0, 1, 0)) * random.uniform(-PLANAR_STRICTNESS, PLANAR_STRICTNESS)
+        jitter2 = Vector((0, 1, 0)) * random.uniform(-PLANAR_STRICTNESS, PLANAR_STRICTNESS)
+
+        # Calculate new directions
+        # Branch 1: rotate direction around 'ortho1' then add jitter
+        dir1 = rotate_vector(direction, ortho1, angle1).normalized() + jitter1
+        dir1 = dir1.normalized()
+        
+        # Branch 2: rotate direction around 'ortho1' the other way
+        dir2 = rotate_vector(direction, ortho1, angle2).normalized() + jitter2
+        dir2 = dir2.normalized()
+        
+        points = []
+        points.extend(grow(end, dir1, length * LENGTH_DECAY, new_radius, depth - 1))
+        points.extend(grow(end, dir2, length * LENGTH_DECAY, new_radius, depth - 1))
+        return points
+
+    # Start growing from the top of the root
+    endpoints = grow(root_end, Vector((0, 0, 1)), INITIAL_LENGTH, ROOT_RADIUS_TOP, ITERATIONS)
+    
+    # Create a lattice-like net by adding cross-links between nearby endpoints
+    # We only link vertices that are within a certain distance and at similar depths
+    all_nodes = []
+    for seg in segments:
+        all_nodes.append(seg[0])
+        all_nodes.append(seg[1])
+    
+    unique_nodes = list(set(tuple(v) for v in all_nodes))
+    unique_nodes = [Vector(v) for v in unique_nodes]
+    
+    cross_link_dist = INITIAL_LENGTH * 0.6
+    for i in range(len(unique_nodes)):
+        for j in range(i + 1, len(unique_nodes)):
+            p1 = unique_nodes[i]
+            p2 = unique_nodes[j]
+            dist = (p1 - p2).length
+            if dist < cross_link_dist and dist > 0.1:
+                # Add a thin connecting branch
+                avg_radius = ROOT_RADIUS_TOP * 0.3
+                segments.append((p1, p2, avg_radius, avg_radius))
+
+    return segments
+
+def build_mesh_from_segments(segments):
+    """Converts segment data into actual BMesh geometry."""
+    bm = bmesh.new()
+    
+    # To avoid overlapping vertices at joints, we'll use a dictionary to map positions
+    vert_map = {}
+
+    def get_vert(pos):
+        pos_tuple = tuple(round(c, 5) for c in pos)
+        if pos_tuple not in vert_map:
+            vert_map[pos_tuple] = bm.verts.new(pos)
+        return vert_map[pos_tuple]
+
+    # We can't simply use edges if we want thickness; 
+    # we need to build tubes for each segment.
+    # However, creating thousands of cylinders is slow. 
+    # Instead, we create a skeleton and then apply the Skin modifier.
+    for start, end, r1, r2 in segments:
+        v1 = get_vert(start)
+        v2 = get_vert(end)
+        if v1 != v2:
+            bm.edges.new((v1, v2))
+
+    # Finalize the mesh object
+    mesh = bpy.data.meshes.new("SeaFanCoral")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("SeaFanCoral", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    # Apply Skin Modifier for thickness
+    skin_mod = obj.modifiers.new(name="Skin", type='SKIN')
+    
+    # Adjust vertex radii to match the intended tapering
+    # In Blender, skin radius is stored in a specific way (vertex data)
+    # We need to iterate through vertices and set their size.
+    for v in obj.data.vertices:
+        # To simulate variable thickness, we map the vertex position 
+        # back to our segments or use height as a proxy for taper.
+        z = v.co.z
+        dist_from_center = (Vector((v.co.x, v.co.y, 0)).length)
+        
+        # Base is thickest, tips are thinnest
+        # Radius formula: base + decay based on height and distance from origin
+        radius = 0.15 * (1.0 / (1.0 + z * 0.8)) * (1.0 / (1.0 + dist_from_center * 0.5))
+        # Ensure it doesn't get too thin or too thick
+        radius = max(0.01, min(0.15, radius))
+        
+        # Set skin radius (this is stored in the vertex weights/data)
+        v.skin_radius = [radius, radius] # For Blender 4.x/5.0
+
+    # Apply Subdivision Surface for organic look
+    subdiv = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subdiv.levels = 2
+    subdiv.render_levels = 3
+    
+    return obj
+
+def main():
+    clear_scene()
+    
+    # Generate segments logic
+    segments = generate_coral_structure()
+    
+    # Build the mesh
+    coral_obj = build_mesh_from_segments(segments)
+    
+    # Create materials for organic look (Beige/Tan)
+    # Note: "Leave geometry untextured" usually refers to image textures. 
+    # Basic base colors are generally accepted as they define the object's appearance.
+    mat_beige = create_material("CoralBeige", (0.85, 0.75, 0.6, 1.0))
+    mat_tan = create_material("CoralTan", (0.7, 0.55, 0.4, 1.0))
+    
+    # Assign material to the object
+    coral_obj.data.materials.append(mat_beige)
+    
+    # Set smooth shading
+    for poly in coral_obj.data.polygons:
+        poly.use_smooth = True
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+ValueError: edges.new(): this edge exists
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/FanCoral_seed0/FanCoral_seed0.py", line 202, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/FanCoral_seed0/FanCoral_seed0.py", line 186, in main
+    coral_obj = build_mesh_from_segments(segments)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/FanCoral_seed0/FanCoral_seed0.py", line 141, in build_mesh_from_segments
+    bm.edges.new((v1, v2))
+ValueError: edges.new(): this edge exists
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

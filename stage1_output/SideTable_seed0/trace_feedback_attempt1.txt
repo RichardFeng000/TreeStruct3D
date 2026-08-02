@@ -1,0 +1,180 @@
+Original text-to-3D task:
+
+A 3D model of a compact side table rendered from an elevated three-quarter perspective, featuring a square flat top with slightly rounded corners supported by two thin cylindrical legs that each terminate in a small flared circular base.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Clears the default Blender scene objects."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+    # Ensure everything is gone
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_table_top():
+    """Creates the square flat top with rounded corners."""
+    # Dimensions
+    size = 0.4  # 40cm width/depth
+    thickness = 0.025 # 2.5cm thickness
+    corner_radius = 0.04 # 4cm rounding
+    
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+    top = bpy.context.active_object
+    top.name = "TableTop"
+    
+    # Scale to table top dimensions
+    top.scale[0] = size / 2
+    top.scale[1] = size / 2
+    top.scale[2] = thickness / 2
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    
+    # Create the rounded corners using a bevel modifier on the vertical edges
+    # To do this procedurally without manual edge selection in modifiers:
+    # We can use BMesh to bevel the 4 vertical edges specifically.
+    bm = bmesh.new()
+    bm.from_mesh(top.data)
+    
+    # Find the 4 vertical edges (those that are parallel to Z axis)
+    edges_to_bevel = []
+    for edge in bm.edges:
+        v1 = bm.verts[edge.verts[0].index].co
+        v2 = bm.verts[edge.verts[1].index].co
+        # If x and y are the same, it's a vertical edge
+        if abs(v1.x - v2.x) < 0.001 and abs(v1.y - v2.y) < 0.001:
+            edges_to_bevel.append(edge)
+    
+    # Apply bevel to these edges
+    bmesh.ops.bevel(bm, 
+                   geom=edges_to_bevel, 
+                   offset=corner_radius, 
+                   segments=12, 
+                   affect='EDGES')
+    
+    bm.to_mesh(top.data)
+    bm.free()
+    
+    return top
+
+def create_leg(name, position):
+    """Creates a thin cylindrical leg with a flared circular base."""
+    # Dimensions
+    shaft_radius = 0.012 # 1.2cm
+    base_bottom_radius = 0.035 # 3.5cm
+    base_top_radius = shaft_radius
+    base_height = 0.02 # 2cm flare height
+    shaft_height = 0.48 # 48cm height
+    
+    # Create the flared base (as a cone/cylinder hybrid)
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=32, 
+        radius1=base_bottom_radius, 
+        radius2=base_top_radius, 
+        depth=base_height, 
+        location=(position[0], position[1], base_height / 2)
+    )
+    base = bpy.context.active_object
+    base.name = f"{name}_Base"
+    
+    # Create the shaft
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=32, 
+        radius=shaft_radius, 
+        depth=shaft_height, 
+        location=(position[0], position[1], base_height + (shaft_height / 2))
+    )
+    shaft = bpy.context.active_object
+    shaft.name = f"{name}_Shaft"
+    
+    # Join the parts of the leg
+    bpy.ops.object.select_all(action='DESELECT')
+    base.select_set(True)
+    shaft.select_set(True)
+    bpy.context.view_layer.objects.active = shaft
+    bpy.ops.object.join()
+    
+    return shaft
+
+def main():
+    clear_scene()
+    
+    # 1. Create Table Top
+    top = create_table_top()
+    
+    # 2. Define Leg positions (Symmetrically placed under the top)
+    # Since there are "two thin legs", we place them offset from center along one axis
+    leg_offset = 0.12 # distance from center
+    positions = [
+        (leg_offset, 0, 0),
+        (-leg_offset, 0, 0)
+    ]
+    
+    # Total height of leg assembly is roughly 0.5m (0.48 + 0.02)
+    total_leg_height = 0.5
+    
+    legs = []
+    for i, pos in enumerate(positions):
+        leg = create_leg(f"Leg_{i+1}", pos)
+        legs.append(leg)
+        
+    # Position the top on top of the legs
+    top.location.z = total_leg_height + (0.025 / 2)
+    
+    # Optional: Smooth shading for a cleaner look
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            # Set shade smooth
+            for poly in obj.data.polygons:
+                poly.use_smooth = True
+            
+            # Add Auto-Smooth to maintain crispness of the flat top surface
+            # In Blender 4.1+, auto-smooth is a modifier or property.
+            # For compatibility across versions, we can use a bevel/weighted normal approach
+            # but for this script we will just set it on the mesh data if available.
+            if hasattr(obj.data, "use_auto_smooth"):
+                obj.data.use_auto_smooth = True
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/SideTable_seed0/SideTable_seed0.py", line 140, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/SideTable_seed0/SideTable_seed0.py", line 104, in main
+    top = create_table_top()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/SideTable_seed0/SideTable_seed0.py", line 43, in create_table_top
+    v1 = bm.verts[edge.verts[0].index].co
+         ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

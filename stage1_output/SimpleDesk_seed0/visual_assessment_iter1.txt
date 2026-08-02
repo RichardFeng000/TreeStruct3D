@@ -1,0 +1,3 @@
+- The colors are not faithfully represented: black legs appear light gray and the dark gray shelf appears nearly white.
+- Material properties lack definition; "black metal" should have metallic characteristics to distinguish it from plastic/paint.
+- The lower shelf is placed very low (18cm), which can look slightly unnatural for a desk; raising it slightly improves proportions.

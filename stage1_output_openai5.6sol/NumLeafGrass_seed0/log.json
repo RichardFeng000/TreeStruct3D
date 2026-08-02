@@ -1,0 +1,54 @@
+{
+  "instance": "NumLeafGrass_seed0",
+  "timestamp": "2026-07-20T04:50:38+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 86.33,
+  "code_chars": 6887,
+  "input_tokens": 8166,
+  "output_tokens": 4139,
+  "thoughts_tokens": 1902,
+  "total_tokens": 14207,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The leaflets read as long, flat wings rather than small rounded clover leaves; shorten and broaden their heart-shaped silhouettes.\n- All views show the cluster nearly edge-on, hiding the radial arrangement; give the leaflets stronger upward tilt and gentle doming.\n- The rendered color is too pale for dark green; use substantially deeper green materials.",
+      "raw_chars": 7317
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- The pale mint coloration does not match the requested dark green; use substantially darker leaf and stem materials.\n- Leaflets tilt nearly edge-on and overlap, making the four-part radial clover cluster unclear; flatten and spread them around the junction.\n- The long stem visually overwhelms the undersized crown; enlarge the leaflets slightly and shorten/thin the stem.",
+      "raw_chars": 7318
+    }
+  ],
+  "error": null
+}

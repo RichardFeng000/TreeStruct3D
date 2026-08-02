@@ -1,0 +1,35 @@
+{
+  "instance": "FlyingBird_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Disconnected pieces: The wings consist of a string of spheres and floating flat planes rather than a cohesive wing surface.\n- Wrong overall shape: It lacks the airfoil silhouette of a soaring bird; it looks like a skeletal assembly of parts.\n- Missing geometric detail: There is no continuous \"skin\" for the wings, only individual trailing edge feathers.\n- Material issues: The white-to-brown transition on the underside/inner wing is not visible because there's no surface to apply it to."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The model faithfully captures the soaring pose, wingspan silhouette, color gradients (white to black), and individual trailing edge feather geometry as described."
+    }
+  ]
+}

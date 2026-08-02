@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeatherCoral_seed0/LeatherCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LeatherCoral_seed0/glb/LeatherCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 3205.4,
+  "latency_s": 0.16,
+  "error": null
+}

@@ -1,0 +1,4 @@
+- The plate is lying flat instead of leaning upright as requested.
+- The rack geometry is incorrect; pegs are passing through the plate rather than supporting it.
+- The color of the plate is too light (lavender instead of dark purple).
+- The overall assembly does not resemble a functional plate rack.

@@ -1,0 +1,4 @@
+- Bark texture is too smooth; it needs more aggressive roughness and ridge-like detail to look "peeling" and "rough".
+- Branches end in flat caps instead of thin, pointed twigs.
+- The broken stump end is barely noticeable and lacks a distinct "squared-off/jagged" break appearance.
+- Overall proportions: branches are slightly too uniform in thickness.

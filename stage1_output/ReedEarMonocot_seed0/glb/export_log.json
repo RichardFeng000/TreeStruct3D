@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ReedEarMonocot_seed0/ReedEarMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/ReedEarMonocot_seed0/glb/ReedEarMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 92.6,
+  "latency_s": 0.1,
+  "error": null
+}

@@ -1,0 +1,977 @@
+#!/usr/bin/env python3
+"""Local parameter editor and Blender-to-GLB preview server.
+
+The browser UI never executes Blender Python directly.  It sends a bounded
+request to this localhost server, which runs the selected benchmark script in
+Blender, exports a fresh GLB, and returns that model to the Three.js viewer.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import hashlib
+import json
+import mimetypes
+import os
+import subprocess
+import threading
+import time
+import urllib.parse
+import webbrowser
+from dataclasses import dataclass
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
+
+from code_structure_tree import SourceStructure, _interactive_data
+
+
+APP_DIR = Path(__file__).resolve().parent
+DEFAULT_BENCHMARK = APP_DIR / "benchmark" / "categories"
+DEFAULT_STAGE1_OUTPUT = APP_DIR / "stage1_output"
+DEFAULT_STAGE1_GPT56_SOL = APP_DIR / "stage1_output_openai5.6sol"
+DEFAULT_BLENDER = Path(
+    "/Users/fengruiding/Downloads/3d_code/tools/"
+    "Blender-5.0.app/Contents/MacOS/Blender"
+)
+PINNED_BLENDER_VERSION = "5.0.0"
+RUNTIME_GRAPH_VERSION = "4-semantic-shared-anchor"
+RENDER_WORKER_VERSION = "8-guarded-full-source-execution"
+RUNTIME_GRAPH_PROBE = (
+    APP_DIR.parent
+    / "SR_F1_Structural_Metric"
+    / "part_causal_graph_v0"
+    / "part_causal_graph"
+    / "blender_probe.py"
+)
+DEFAULT_CACHE = APP_DIR / ".model_playground_cache"
+MAX_REQUEST_BYTES = 256 * 1024
+
+BIRD_PART_CREATORS = {
+    "body": "create_nurbs_body",
+    "head": "create_head",
+    "beak": "create_beak_part",
+    "eye": "create_eye",
+    "wing": "create_wing",
+    "tail": "create_tail",
+    "leg": "create_leg",
+    "foot": "create_foot_legacy",
+}
+
+
+@dataclass(frozen=True)
+class ModelEntry:
+    source_id: str
+    model_id: str
+    label: str
+    source: Path
+
+
+def _arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Serve a local parameter editor with live Blender previews."
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--benchmark", type=Path, default=DEFAULT_BENCHMARK)
+    parser.add_argument("--blender", type=Path, default=DEFAULT_BLENDER)
+    parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
+    parser.add_argument("--open", action="store_true", help="open the browser")
+    parser.add_argument("--render-timeout", type=int, default=60)
+    return parser.parse_args()
+
+
+def _model_catalog(root: Path, source_id: str) -> dict[str, ModelEntry]:
+    """Catalog only each model folder's canonical ``<folder>.py`` script."""
+    root = root.resolve()
+    entries: dict[str, ModelEntry] = {}
+    for model_dir in sorted(path for path in root.glob("*") if path.is_dir()):
+        source = model_dir / f"{model_dir.name}.py"
+        if not source.is_file():
+            continue
+        relative = source.relative_to(root).as_posix()
+        model_id = relative.removesuffix(".py")
+        entries[model_id] = ModelEntry(
+            source_id,
+            model_id,
+            source.stem,
+            source.resolve(),
+        )
+    return entries
+
+
+def _literal_value(node: ast.AST) -> Any:
+    try:
+        value = ast.literal_eval(node)
+    except (ValueError, TypeError, SyntaxError):
+        return None
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    return None
+
+
+def _numeric_bounds(value: int | float) -> tuple[float, float, float]:
+    number = float(value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        span = max(abs(value), 4)
+        return float(max(0, value - span)), float(value + span), 1.0
+    if abs(number) < 1e-10:
+        return -1.0, 1.0, 0.01
+    span = max(abs(number) * 1.5, 0.1)
+    step = max(abs(number) / 100.0, 0.001)
+    return number - span, number + span, step
+
+
+def _boolean_value(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "0", "false", "off", "no"}
+    return bool(value)
+
+
+def _source_controls(source: Path) -> list[dict[str, Any]]:
+    """Expose simple globals and ``main`` defaults without executing source."""
+    try:
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return []
+
+    found: dict[str, tuple[Any, str]] = {}
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            value_node = node.value
+            value = _literal_value(value_node)
+            if value is None and not isinstance(value_node, ast.Constant):
+                continue
+            for target in targets:
+                if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                    found[f"global:{target.id}"] = (value, target.id)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "main":
+            positional = [*node.args.posonlyargs, *node.args.args]
+            offset = len(positional) - len(node.args.defaults)
+            for argument, default in zip(positional[offset:], node.args.defaults):
+                value = _literal_value(default)
+                if value is None and not isinstance(default, ast.Constant):
+                    continue
+                found[f"main:{argument.arg}"] = (value, f"main.{argument.arg}")
+
+    controls: list[dict[str, Any]] = []
+    for key, (value, label) in list(found.items())[:80]:
+        control: dict[str, Any] = {
+            "id": f"source_override:{key}",
+            "label": label,
+            "group": "代码参数",
+            "value": value,
+        }
+        if isinstance(value, bool):
+            control["type"] = "checkbox"
+        elif isinstance(value, (int, float)):
+            low, high, step = _numeric_bounds(value)
+            control.update(type="number", min=low, max=high, step=step)
+        elif value is None:
+            control.update(type="text", value="")
+        else:
+            control["type"] = "text"
+        controls.append(control)
+    return controls
+
+
+def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
+    controls: list[dict[str, Any]] = [
+        {
+            "id": "scale_x",
+            "label": "整体长度 X",
+            "group": "整体模型",
+            "type": "range",
+            "min": 0.25,
+            "max": 3.0,
+            "step": 0.05,
+            "value": 1.0,
+        },
+        {
+            "id": "scale_y",
+            "label": "整体宽度 Y",
+            "group": "整体模型",
+            "type": "range",
+            "min": 0.25,
+            "max": 3.0,
+            "step": 0.05,
+            "value": 1.0,
+        },
+        {
+            "id": "scale_z",
+            "label": "整体高度 Z",
+            "group": "整体模型",
+            "type": "range",
+            "min": 0.25,
+            "max": 3.0,
+            "step": 0.05,
+            "value": 1.0,
+        },
+    ]
+    if not is_bird:
+        return controls
+
+    controls.append(
+        {
+            "id": "beak_select",
+            "label": "喙类型",
+            "group": "Bird 参数",
+            "type": "select",
+            "value": "",
+            "options": [
+                {"value": "", "label": "原始混合"},
+                {"value": "normal", "label": "普通"},
+                {"value": "duck", "label": "鸭嘴"},
+                {"value": "eagle", "label": "鹰嘴"},
+                {"value": "short", "label": "短喙"},
+            ],
+        }
+    )
+    role_labels = [
+        ("body", "create_nurbs_body() · body（最大父节点 Mesh）"),
+        ("head", "create_head() · head"),
+        ("beak", "create_beak_part() · beak"),
+        ("eye", "create_eye() · eye"),
+        ("wing", "create_wing() · wing"),
+        ("tail", "create_tail() · tail"),
+        ("leg", "create_leg() · leg"),
+        ("foot", "create_foot_legacy() · foot"),
+    ]
+    controls.extend(
+        {
+            "id": f"part_scale_{role}",
+            "label": label,
+            "group": "Bird 零件尺寸",
+            "type": "range",
+            "min": 0.25,
+            "max": 3.0,
+            "step": 0.05,
+            "value": 1.0,
+            "visibility_id": f"part_visible_{role}",
+            "visibility_value": True,
+            "part_role": role,
+            "is_leaf": role != "body",
+        }
+        for role, label in role_labels
+    )
+    return controls
+
+
+def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expose every analyzed parent/child node as a live uniform scale."""
+    view = structure_data.get("views", {}).get("parts", {})
+    nodes = view.get("nodes", [])
+    edges = view.get("edges", [])
+    roots = set(view.get("roots", []))
+    parents = {str(edge.get("parent")) for edge in edges}
+    children = {str(edge.get("child")) for edge in edges}
+    controls: list[dict[str, Any]] = []
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        if not node_id:
+            continue
+        label = str(node.get("label") or node_id)
+        creator = node.get("creator_function")
+        runtime_variable = str(node.get("runtime_variable") or node_id)
+        if node_id.startswith("model:"):
+            control_id = f"part_model_scale|{node_id}"
+        elif creator:
+            control_id = (
+                f"part_creator_scale|{creator}|{node_id}|{runtime_variable}"
+            )
+        else:
+            control_id = f"part_object_scale|{runtime_variable}|{node_id}"
+
+        is_parent = node_id in parents or node_id in roots
+        is_child = node_id in children
+        if is_parent and is_child:
+            relation_label = "父/子节点"
+        elif is_parent:
+            relation_label = "父节点"
+        else:
+            relation_label = "子节点"
+        controls.append(
+            {
+                "id": control_id,
+                "label": f"{relation_label} · {label}",
+                "group": "代码参数 · 父子节点",
+                "type": "range",
+                "min": 0.25,
+                "max": 3.0,
+                "step": 0.05,
+                "value": 1.0,
+                "node_id": node_id,
+                "creator_function": creator,
+                **(
+                    {
+                        "visibility_id": (
+                            f"part_creator_visible|{creator}|{node_id}|{runtime_variable}"
+                            if creator
+                            else f"part_object_visible|{runtime_variable}|{node_id}"
+                        ),
+                        "visibility_value": True,
+                        "is_leaf": not is_parent,
+                    }
+                    if not node_id.startswith("model:")
+                    else {}
+                ),
+            }
+        )
+    return controls
+
+
+class PlaygroundState:
+    def __init__(self, args: argparse.Namespace):
+        source_specs = (
+            ("benchmark", "Benchmark 验证集", args.benchmark),
+            ("stage1", "Stage 1 Output", DEFAULT_STAGE1_OUTPUT),
+            ("gpt5_6_sol", "Stage 1 · GPT-5.6-sol", DEFAULT_STAGE1_GPT56_SOL),
+        )
+        self.source_labels: dict[str, str] = {}
+        self.source_roots: dict[str, Path] = {}
+        self.models_by_source: dict[str, dict[str, ModelEntry]] = {}
+        for source_id, label, root in source_specs:
+            models = _model_catalog(root, source_id)
+            if not models:
+                continue
+            self.source_labels[source_id] = label
+            self.source_roots[source_id] = root.resolve()
+            self.models_by_source[source_id] = models
+        self.default_source = (
+            "benchmark" if "benchmark" in self.models_by_source else next(iter(self.models_by_source), "")
+        )
+        # Retain the original attribute for callers that mean the default source.
+        self.models = self.models_by_source.get(self.default_source, {})
+        # This workspace is Blender 5.0-only.  Keep the CLI flag for backward
+        # compatibility, but deliberately pin every render to the verified
+        # local 5.0 executable so environment/config drift cannot select 4.x.
+        self.blender = DEFAULT_BLENDER.resolve()
+        self.cache = args.cache_dir.expanduser().resolve()
+        self.timeout = args.render_timeout
+        self.cache.mkdir(parents=True, exist_ok=True)
+        self.render_lock = threading.Lock()
+        self.structure_lock = threading.Lock()
+        self.structure_cache: dict[str, tuple[int, dict[str, Any]]] = {}
+
+    def sources(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": source_id,
+                "label": self.source_labels[source_id],
+                "count": len(models),
+            }
+            for source_id, models in self.models_by_source.items()
+        ]
+
+    def source_models(self, source_id: str | None) -> dict[str, ModelEntry] | None:
+        return self.models_by_source.get(source_id or self.default_source)
+
+    def schema(self, entry: ModelEntry) -> dict[str, Any]:
+        is_bird = entry.source_id == "benchmark" and entry.label == "Bird_seed0"
+        controls = _runtime_controls(is_bird)
+        # Bird has a dedicated adapter with meaningful part controls.  Its two
+        # simple globals are implementation switches already covered by that
+        # adapter, so avoid showing duplicate/no-op fields in the UI.
+        if not is_bird:
+            controls.extend(_source_controls(entry.source))
+            controls.extend(_part_node_controls(self.structure(entry)))
+        return {
+            "source": entry.source_id,
+            "model": entry.model_id,
+            "label": entry.label,
+            "adapter": "bird" if is_bird else "generic",
+            "controls": controls,
+        }
+
+    def sanitize_params(
+        self,
+        entry: ModelEntry,
+        params: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Clamp browser values to the schema so one typo cannot explode geometry."""
+        controls = self.schema(entry).get("controls", [])
+        by_id = {str(control["id"]): control for control in controls}
+        for control in controls:
+            visibility_id = control.get("visibility_id")
+            if visibility_id:
+                by_id[str(visibility_id)] = {
+                    "id": visibility_id,
+                    "type": "checkbox",
+                    "value": control.get("visibility_value", True),
+                }
+
+        sanitized: dict[str, Any] = {}
+        adjusted: dict[str, Any] = {}
+        for key, raw_value in params.items():
+            control = by_id.get(str(key))
+            if control is None:
+                continue
+            control_type = control.get("type")
+            value = raw_value
+            if control_type in {"number", "range"}:
+                try:
+                    value = float(raw_value)
+                except (TypeError, ValueError):
+                    value = float(control.get("value", 0.0))
+                if control.get("min") is not None:
+                    value = max(value, float(control["min"]))
+                if control.get("max") is not None:
+                    value = min(value, float(control["max"]))
+                default = control.get("value")
+                step = control.get("step")
+                if (
+                    isinstance(default, int)
+                    and not isinstance(default, bool)
+                    and isinstance(step, (int, float))
+                    and float(step).is_integer()
+                ):
+                    value = int(round(value))
+            elif control_type == "checkbox":
+                value = _boolean_value(raw_value)
+            elif control_type == "select":
+                allowed = {option.get("value") for option in control.get("options", [])}
+                if value not in allowed:
+                    value = control.get("value")
+            elif value is not None:
+                value = str(value)[:2048]
+            sanitized[str(key)] = value
+            if value != raw_value:
+                adjusted[str(key)] = value
+        return sanitized, adjusted
+
+    def structure(self, entry: ModelEntry) -> dict[str, Any]:
+        """Return the definition, call, and complete parent-to-child trees."""
+        modified = entry.source.stat().st_mtime_ns
+        cache_key = f"{entry.source_id}:{entry.model_id}"
+        cached = self.structure_cache.get(cache_key)
+        if cached is not None and cached[0] == modified:
+            return cached[1]
+        with self.structure_lock:
+            cached = self.structure_cache.get(cache_key)
+            if cached is not None and cached[0] == modified:
+                return cached[1]
+            source = entry.source.read_text(encoding="utf-8")
+            tree = ast.parse(source, filename=str(entry.source))
+            structure = SourceStructure(entry.source, source, tree)
+            structure.analyze()
+            data = _interactive_data(structure)
+            if entry.source_id == "benchmark" and entry.label == "Bird_seed0":
+                for node in data["views"]["parts"]["nodes"]:
+                    part_name = str(node["id"])
+                    role = part_name.split("_", 1)[0]
+                    creator = BIRD_PART_CREATORS.get(role)
+                    if creator is None:
+                        continue
+                    node["part_name"] = part_name
+                    node["creator_function"] = creator
+                    node["label"] = f"{creator}()"
+            self.structure_cache[cache_key] = (modified, data)
+            return data
+
+    @staticmethod
+    def _runtime_graph_view(report: dict[str, Any]) -> dict[str, Any]:
+        """Condense the Blender probe report into the browser graph schema."""
+        raw_nodes = list(report.get("nodes", []))
+        # Bird's preview adapter keeps one final union object solely for GLB
+        # export.  It duplicates every observed part and would create a dense
+        # star of zero-gap relationships, so keep the semantic pre-join parts.
+        if len(raw_nodes) > 1:
+            raw_nodes = [
+                node
+                for node in raw_nodes
+                if not str(node.get("id", "")).endswith("_codex")
+            ]
+        nodes = [
+            {
+                "id": str(node["id"]),
+                "label": str(node["id"]),
+                "kind": "runtime_part",
+                "line": 0,
+                "end_line": 0,
+                "parameters": [],
+                "docstring": None,
+                "evidence": [],
+                "group": "Blender 运行时零件",
+                "origin": node.get("origin"),
+                "dimensions": node.get("dimensions"),
+            }
+            for node in raw_nodes
+        ]
+        node_ids = {node["id"] for node in nodes}
+        edges: list[dict[str, Any]] = []
+        incoming: set[str] = set()
+        for raw in report.get("edges", []):
+            relation = str(raw.get("relation") or "UNOBSERVABLE")
+            contact = bool(raw.get("contact"))
+            shared_anchor = bool(raw.get("shared_anchor"))
+            geometric_anchor_aligned = bool(
+                raw.get("geometric_anchor_aligned", shared_anchor)
+            )
+            directed = (
+                relation in {"DIRECTED", "DIRECTED_CODE"}
+                and contact
+                and shared_anchor
+                and raw.get("parent") in node_ids
+                and raw.get("child") in node_ids
+            )
+            parent = str(raw.get("parent") if directed else raw.get("node_a"))
+            child = str(raw.get("child") if directed else raw.get("node_b"))
+            if parent not in node_ids or child not in node_ids or parent == child:
+                continue
+            declarations = raw.get("declared_directions") or []
+            line = next(
+                (
+                    int(item.get("line") or 0)
+                    for item in declarations
+                    if int(item.get("line") or 0) > 0
+                ),
+                0,
+            )
+            edge = {
+                "parent": parent,
+                "child": child,
+                "relation": relation,
+                "line": line,
+                "evidence": (
+                    "严格有向边：单向证据、几何接触与共享世界坐标锚点均通过"
+                    if directed
+                    else "运行时几何与锚点候选关系"
+                ),
+                "directed_verified": directed,
+                "contact": contact,
+                "shared_anchor": shared_anchor,
+                "geometric_anchor_aligned": geometric_anchor_aligned,
+                "shared_anchor_evidence": raw.get("shared_anchor_evidence"),
+                "anchor_a": raw.get("anchor_a"),
+                "anchor_b": raw.get("anchor_b"),
+                "anchor_gap": raw.get("anchor_gap"),
+                "anchor_tolerance": raw.get("anchor_tolerance"),
+                "aabb_gap": raw.get("aabb_gap"),
+                "declared_directions": declarations,
+            }
+            edges.append(edge)
+            if directed:
+                incoming.add(child)
+        roots = sorted(node_ids - incoming) or sorted(node_ids)
+        relation_counts: dict[str, int] = {}
+        for edge in edges:
+            relation = str(edge["relation"])
+            relation_counts[relation] = relation_counts.get(relation, 0) + 1
+        summary = {
+            "nodes": len(nodes),
+            "edges": len(edges),
+            "relations": relation_counts,
+            "directed_edges": sum(bool(edge["directed_verified"]) for edge in edges),
+            "shared_anchor_edges": sum(bool(edge["shared_anchor"]) for edge in edges),
+            "geometric_anchor_candidates": sum(
+                bool(edge["geometric_anchor_aligned"]) for edge in edges
+            ),
+            "unverified_anchor_candidates": sum(
+                bool(edge["geometric_anchor_aligned"])
+                and not bool(edge["shared_anchor"])
+                for edge in edges
+            ),
+            "misaligned_anchor_edges": sum(
+                not bool(edge["geometric_anchor_aligned"]) for edge in edges
+            ),
+        }
+        return {
+            "label": "运行时锚点关系图",
+            "roots": roots,
+            "nodes": nodes,
+            "edges": edges,
+            "summary": summary,
+            "scene_extent": report.get("scene_extent"),
+            "contact_threshold": report.get("contact_threshold"),
+            "shared_anchor_tolerance": report.get("shared_anchor_tolerance"),
+        }
+
+    def runtime_graph(self, entry: ModelEntry) -> dict[str, Any]:
+        """Run the strict Blender-5 anchor/direction probe and cache its view."""
+        if not RUNTIME_GRAPH_PROBE.is_file():
+            raise RuntimeError(f"找不到运行时锚点探针：{RUNTIME_GRAPH_PROBE}")
+        source_stat = entry.source.stat()
+        probe_stat = RUNTIME_GRAPH_PROBE.stat()
+        payload = {
+            "source": entry.source_id,
+            "model": entry.model_id,
+            "source_mtime_ns": source_stat.st_mtime_ns,
+            "source_size": source_stat.st_size,
+            "probe_mtime_ns": probe_stat.st_mtime_ns,
+            "runtime_graph_version": RUNTIME_GRAPH_VERSION,
+            "blender_executable": str(self.blender),
+            "blender_version": PINNED_BLENDER_VERSION,
+            "contact_ratio": 0.025,
+            "anchor_ratio": 0.025,
+            "samples": 96,
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+        output = self.cache / f"{entry.label}-runtime-graph-{digest}.json"
+        raw_output = self.cache / f".{entry.label}-runtime-graph-{digest}.raw.json"
+        if output.is_file():
+            return json.loads(output.read_text(encoding="utf-8"))
+
+        command = [
+            str(self.blender),
+            "--background",
+            "--factory-startup",
+            "--python",
+            str(RUNTIME_GRAPH_PROBE),
+            "--",
+            "--script",
+            str(entry.source),
+            "--source-root",
+            str(entry.source.parent),
+            "--output",
+            str(raw_output),
+            "--contact-ratio",
+            "0.025",
+            "--anchor-ratio",
+            "0.025",
+            "--max-nodes",
+            "128",
+            "--max-edges",
+            "512",
+            "--samples",
+            "96",
+        ]
+        with self.render_lock:
+            if output.is_file():
+                return json.loads(output.read_text(encoding="utf-8"))
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=entry.source.parent,
+                    text=True,
+                    capture_output=True,
+                    timeout=self.timeout,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired:
+                render_output.unlink(missing_ok=True)
+                raise
+            if not raw_output.is_file():
+                details = "\n".join(
+                    (completed.stdout + "\n" + completed.stderr).splitlines()[-24:]
+                )
+                raise RuntimeError(
+                    f"Blender 运行时锚点分析失败（退出码 {completed.returncode}）\n"
+                    f"{details}"
+                )
+            report = json.loads(raw_output.read_text(encoding="utf-8"))
+            raw_output.unlink(missing_ok=True)
+            if report.get("status") != "ok":
+                raise RuntimeError(str(report.get("error") or "运行时锚点分析失败"))
+            view = self._runtime_graph_view(report)
+            output.write_text(
+                json.dumps(view, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            return view
+
+    def render(self, entry: ModelEntry, params: dict[str, Any]) -> dict[str, Any]:
+        if not self.blender.is_file() or not os.access(self.blender, os.X_OK):
+            raise RuntimeError(f"找不到 Blender：{self.blender}")
+
+        source_stat = entry.source.stat()
+        worker = APP_DIR / "blender_live_export.py"
+        worker_stat = worker.stat()
+        payload = {
+            "source": entry.source_id,
+            "model": entry.model_id,
+            "source_mtime_ns": source_stat.st_mtime_ns,
+            "source_size": source_stat.st_size,
+            "params": params,
+            "adapter": (
+                "bird"
+                if entry.source_id == "benchmark" and entry.label == "Bird_seed0"
+                else "generic"
+            ),
+            "blender_executable": str(self.blender),
+            "blender_version": PINNED_BLENDER_VERSION,
+            "render_worker_version": RENDER_WORKER_VERSION,
+            "render_worker_mtime_ns": worker_stat.st_mtime_ns,
+            "render_worker_size": worker_stat.st_size,
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+        output = self.cache / f"{entry.label}-{digest}.glb"
+        params_file = self.cache / f"{entry.label}-{digest}.json"
+
+        started = time.monotonic()
+        with self.render_lock:
+            params_file.write_text(canonical, encoding="utf-8")
+            render_output = self.cache / (
+                f".{entry.label}-{digest}-{time.time_ns()}.rendering.glb"
+            )
+            command = [
+                str(self.blender),
+                "--background",
+                "--factory-startup",
+                "--python",
+                str(worker),
+                "--",
+                "--source",
+                str(entry.source),
+                "--output",
+                str(render_output),
+                "--request",
+                str(params_file),
+            ]
+            completed = subprocess.run(
+                command,
+                cwd=entry.source.parent,
+                text=True,
+                capture_output=True,
+                timeout=self.timeout,
+                check=False,
+            )
+            if completed.returncode != 0 or not render_output.is_file():
+                render_output.unlink(missing_ok=True)
+                details = "\n".join(
+                    line
+                    for line in (completed.stdout + "\n" + completed.stderr).splitlines()
+                    if line.strip()
+                )
+                raise RuntimeError(
+                    f"Blender 生成失败（退出码 {completed.returncode}）\n"
+                    + "\n".join(details.splitlines()[-24:])
+                )
+            worker_report: dict[str, Any] = {}
+            for line in reversed(completed.stdout.splitlines()):
+                try:
+                    candidate = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(candidate, dict) and candidate.get("output"):
+                    worker_report = candidate
+                    break
+            os.replace(render_output, output)
+
+        return {
+            "url": f"/generated/{output.name}",
+            "cached": False,
+            "seconds": round(time.monotonic() - started, 2),
+            "bytes": output.stat().st_size,
+            "execution": worker_report.get("execution"),
+            "execution_id": worker_report.get("execution_id"),
+        }
+
+
+class PlaygroundHandler(BaseHTTPRequestHandler):
+    server_version = "ModelPlayground/1.0"
+
+    @property
+    def state(self) -> PlaygroundState:
+        return self.server.state  # type: ignore[attr-defined]
+
+    def log_message(self, format_string: str, *args: object) -> None:
+        print(f"[{self.log_date_time_string()}] {format_string % args}")
+
+    def _json(self, value: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
+        body = json.dumps(value, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _file(self, path: Path, content_type: str | None = None) -> None:
+        try:
+            body = path.read_bytes()
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        guessed = content_type or mimetypes.guess_type(path.name)[0]
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", guessed or "application/octet-stream")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _entry(
+        self,
+        source_id: str | None,
+        model_id: str | None,
+    ) -> ModelEntry | None:
+        models = self.state.source_models(source_id)
+        return models.get(model_id or "") if models is not None else None
+
+    def do_GET(self) -> None:
+        parsed = urllib.parse.urlsplit(self.path)
+        if parsed.path in ("/", "/index.html", "/model_playground.html"):
+            self._file(APP_DIR / "model_playground.html", "text/html; charset=utf-8")
+            return
+        if parsed.path == "/favicon.ico":
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.end_headers()
+            return
+        if parsed.path == "/api/sources":
+            self._json(
+                {
+                    "sources": self.state.sources(),
+                    "default": self.state.default_source,
+                }
+            )
+            return
+        if parsed.path == "/api/models":
+            query = urllib.parse.parse_qs(parsed.query)
+            source_id = (query.get("source") or [self.state.default_source])[0]
+            source_models = self.state.source_models(source_id)
+            if source_models is None:
+                self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
+                return
+            models = [
+                {"id": entry.model_id, "label": entry.label}
+                for entry in source_models.values()
+            ]
+            self._json({"source": source_id, "models": models, "count": len(models)})
+            return
+        if parsed.path == "/api/schema":
+            query = urllib.parse.parse_qs(parsed.query)
+            entry = self._entry(
+                (query.get("source") or [None])[0],
+                (query.get("model") or [None])[0],
+            )
+            if entry is None:
+                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                return
+            self._json(self.state.schema(entry))
+            return
+        if parsed.path == "/api/structure":
+            query = urllib.parse.parse_qs(parsed.query)
+            entry = self._entry(
+                (query.get("source") or [None])[0],
+                (query.get("model") or [None])[0],
+            )
+            if entry is None:
+                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                return
+            try:
+                self._json(self.state.structure(entry))
+            except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+                self._json(
+                    {"error": f"结构解析失败：{exc}"},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            return
+        if parsed.path == "/api/runtime-graph":
+            query = urllib.parse.parse_qs(parsed.query)
+            entry = self._entry(
+                (query.get("source") or [None])[0],
+                (query.get("model") or [None])[0],
+            )
+            if entry is None:
+                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                return
+            try:
+                self._json(self.state.runtime_graph(entry))
+            except subprocess.TimeoutExpired:
+                self._json(
+                    {"error": f"Blender 锚点分析超过 {self.state.timeout} 秒"},
+                    HTTPStatus.GATEWAY_TIMEOUT,
+                )
+            except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+                self._json(
+                    {"error": f"运行时锚点分析失败：{exc}"},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            return
+        if parsed.path.startswith("/vendor/"):
+            name = Path(parsed.path).name
+            if name not in {
+                "three.module.min.js",
+                "OrbitControls.js",
+                "GLTFLoader.js",
+                "BufferGeometryUtils.js",
+            }:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self._file(APP_DIR / "vendor" / name, "text/javascript; charset=utf-8")
+            return
+        if parsed.path.startswith("/generated/"):
+            name = Path(parsed.path).name
+            if not name.endswith(".glb"):
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self._file(self.state.cache / name, "model/gltf-binary")
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self) -> None:
+        if urllib.parse.urlsplit(self.path).path != "/api/render":
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length <= 0 or length > MAX_REQUEST_BYTES:
+            self._json({"error": "请求大小无效"}, HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            request = json.loads(self.rfile.read(length).decode("utf-8"))
+            entry = self._entry(request.get("source"), request.get("model"))
+            params = request.get("params", {})
+            if entry is None or not isinstance(params, dict):
+                raise ValueError("模型或参数无效")
+            params, adjusted = self.state.sanitize_params(entry, params)
+            result = self.state.render(entry, params)
+            if adjusted:
+                result["adjusted_params"] = adjusted
+        except subprocess.TimeoutExpired:
+            self._json(
+                {"error": f"Blender 生成超过 {self.state.timeout} 秒"},
+                HTTPStatus.GATEWAY_TIMEOUT,
+            )
+            return
+        except ValueError as exc:
+            self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except (RuntimeError, OSError) as exc:
+            self._json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+        self._json(result)
+
+
+def main() -> None:
+    args = _arguments()
+    state = PlaygroundState(args)
+    if not state.models_by_source:
+        raise SystemExit("没有找到任何可用的模型代码源")
+
+    server = ThreadingHTTPServer((args.host, args.port), PlaygroundHandler)
+    server.state = state  # type: ignore[attr-defined]
+    url = f"http://{args.host}:{args.port}/"
+    print(
+        "代码源: "
+        + ", ".join(
+            f"{state.source_labels[source_id]}={len(models)}"
+            for source_id, models in state.models_by_source.items()
+        )
+    )
+    print(f"Blender: {state.blender}")
+    print(f"Blender version pin: {PINNED_BLENDER_VERSION}")
+    print(f"打开: {url}")
+    if args.open:
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n已停止。")
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

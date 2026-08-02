@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LouverDoor_seed0/LouverDoor_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 66,
+  "extent": 2.049999952316284,
+  "n_views_rendered": 4,
+  "latency_s": 2.36,
+  "error": null
+}

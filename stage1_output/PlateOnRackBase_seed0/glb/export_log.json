@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PlateOnRackBase_seed0/PlateOnRackBase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/PlateOnRackBase_seed0/glb/PlateOnRackBase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 30.5,
+  "latency_s": 0.1,
+  "error": null
+}

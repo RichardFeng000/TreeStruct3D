@@ -1,0 +1,30 @@
+{
+  "stage": "stage1",
+  "output_dir": "/Users/fengruiding/Downloads/3d_code/Output",
+  "reference_dir": "/Users/fengruiding/Downloads/3d_code/reference",
+  "n_instances": 212,
+  "executability": {
+    "n_pass": 212,
+    "pass_rate": 1.0,
+    "by_status": {
+      "OK": 212
+    },
+    "mean_latency_s": 4.77
+  },
+  "shape_chamfer": {
+    "n_ok": 212,
+    "n_instances": 212,
+    "cd_conditional_mean": 0.08322605624106376,
+    "cd_penalized_mean": 0.08322605624106376,
+    "cd_yawmin_conditional_mean": 0.06990909399387892,
+    "cd_yawmin_penalized_mean": 0.06990909399387892,
+    "non_ok_instances": []
+  },
+  "image_similarity_siglip2": {
+    "n_full_paired": 212,
+    "view_paired_conditional_mean": 0.8057122366889468,
+    "view_paired_penalized_mean": 0.8057122366889468,
+    "best_assignment_conditional_mean": 0.8101680886773568,
+    "best_assignment_penalized_mean": 0.8101680886773568
+  }
+}

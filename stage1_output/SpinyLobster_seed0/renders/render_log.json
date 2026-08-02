@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SpinyLobster_seed0/SpinyLobster_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 22,
+  "extent": 5.297481536865234,
+  "n_views_rendered": 4,
+  "latency_s": 1.93,
+  "error": null
+}

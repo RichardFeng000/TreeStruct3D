@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Dandelion_seed0/Dandelion_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Dandelion_seed0/glb/Dandelion_seed0.glb",
+  "status": "OK",
+  "n_meshes": 3,
+  "size_kb": 1014.8,
+  "latency_s": 0.12,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- Color: The renders are light beige/tan, but the description specifies "dark brown".
+- Structural Error: Runner boards and top planks both run in the same direction (Y), which is incorrect; runners must be perpendicular to top planks.
+- 4-Way Entry: Because the previous runners were continuous beams along the Y axis, they blocked entry from the long sides.

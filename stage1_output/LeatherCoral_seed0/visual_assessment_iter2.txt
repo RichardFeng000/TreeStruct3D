@@ -1,0 +1,4 @@
+- The surface is far too smooth; it lacks the "fine granular polyps" and "extremely rough" texture described.
+- The lobes look like thin flower petals rather than broad, fleshy colony sections.
+- Colors are a uniform sandy beige; olive-green tones are missing.
+- I will increase vertex jitter/noise for roughness, widen the lobes for a fleshier feel, and adjust the material color to include green hues.

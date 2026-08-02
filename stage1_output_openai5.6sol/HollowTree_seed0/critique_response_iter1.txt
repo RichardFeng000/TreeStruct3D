@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly reads as a complete leafless dead tree with an irregular flared trunk, exposed roots, knobby joints, and an extensive network of tapered bare branches.
+</assessment>

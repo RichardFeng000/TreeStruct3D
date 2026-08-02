@@ -1,0 +1,48 @@
+{
+  "instance": "Fish_seed0",
+  "timestamp": "2026-07-20T04:49:03+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 76.64,
+  "code_chars": 15903,
+  "input_tokens": 15229,
+  "output_tokens": 5719,
+  "thoughts_tokens": 968,
+  "total_tokens": 21916,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 85,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The body is too bulbous and lumpy; reshape it into a cleaner laterally compressed oval with a defined tail peduncle.\n- Pectoral and pelvic fins look like stiff spikes; broaden them into attached fan-shaped fins with visible rays.\n- The mouth is nearly invisible and does not read as pointed or open; add separated lips and a dark opening.\n- Fin membranes are overly opaque and uniformly brown; use lighter golden-brown membranes with stronger contrasting rib lines.",
+      "raw_chars": 16428
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The fish is complete and recognizable, with an oval compressed body, clouded blue-gray skin, prominent ribbed golden fins, eye, and pointed mouth.",
+      "raw_chars": 187
+    }
+  ],
+  "error": null
+}

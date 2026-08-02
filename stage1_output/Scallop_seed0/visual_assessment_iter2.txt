@@ -1,0 +1,3 @@
+- Floating/disconnected pieces: The two valves are not hinged; they are floating apart with a visible gap at the hinge point.
+- Wrong overall shape: The shells look like corrugated sheets of metal rather than organic, convex scallop valves.
+- Missing geometric detail: The "fan" silhouette is too generic and lacks the characteristic rounded, slightly elongated scallop profile.

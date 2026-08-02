@@ -1,0 +1,4 @@
+- The basin geometry is completely distorted ("blob" shape) and not a square sink.
+- Severe misalignment: the faucet, basin, and pedestal are all floating separately with large gaps between them.
+- Wrong color: the green is too light/minty instead of "dark forest-green".
+- Pedestal lacks the specified wide square base structure; it looks like a simple cone.

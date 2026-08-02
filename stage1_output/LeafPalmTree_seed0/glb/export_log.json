@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafPalmTree_seed0/LeafPalmTree_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LeafPalmTree_seed0/glb/LeafPalmTree_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 53.6,
+  "latency_s": 0.1,
+  "error": null
+}

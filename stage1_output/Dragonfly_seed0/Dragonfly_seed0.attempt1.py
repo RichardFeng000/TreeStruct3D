@@ -1,0 +1,337 @@
+import bpy
+import bmesh
+import math
+from mathutils import Vector, Euler
+
+# Clear scene
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for block in list(bpy.data.meshes):
+    bpy.data.meshes.remove(block)
+for block in list(bpy.data.materials):
+    bpy.data.materials.remove(block)
+
+# Materials
+def make_mat(name, color, alpha=1.0, roughness=0.5, metallic=0.0, transmission=0.0):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
+    if transmission > 0:
+        bsdf.inputs["Transmission"].default_value = transmission
+    if alpha < 1.0:
+        bsdf.inputs["Alpha"].default_value = alpha
+        mat.blend_method = 'BLEND'
+    return mat
+
+mat_thorax = make_mat("Thorax", (0.05, 0.35, 0.28), roughness=0.3)
+mat_abdomen = make_mat("Abdomen", (0.10, 0.42, 0.16), roughness=0.3)
+mat_head = make_mat("Head", (0.04, 0.22, 0.16), roughness=0.25)
+mat_eye = make_mat("Eye", (0.02, 0.06, 0.10), roughness=0.05, metallic=0.5)
+mat_wing_mem = make_mat("WingMem", (0.92, 0.82, 0.65), alpha=0.15, roughness=0.05, transmission=0.95)
+mat_vein = make_mat("Vein", (0.45, 0.28, 0.12), alpha=0.7, roughness=0.3)
+mat_edge = make_mat("Edge", (0.55, 0.35, 0.15), alpha=0.6, roughness=0.3)
+mat_tip = make_mat("Tip", (0.06, 0.03, 0.01), alpha=0.5, roughness=0.2)
+mat_hair = make_mat("Hair", (0.15, 0.12, 0.08), roughness=0.9)
+
+# Helpers
+def bm_to_obj(bm, name, mat=None):
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    if mat:
+        obj.data.materials.append(mat)
+    return obj
+
+def add_tube(bm, points, radius=0.008, segs=5):
+    if len(points) < 2:
+        return
+    rings = []
+    for i, p in enumerate(points):
+        if i == 0:
+            d = points[1] - points[0]
+        elif i == len(points) - 1:
+            d = points[-1] - points[-2]
+        else:
+            d = points[i+1] - points[i-1]
+        if d.length < 1e-8:
+            continue
+        d = d.normalized()
+        up = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+        right = d.cross(up).normalized()
+        up = right.cross(d).normalized()
+        ring = []
+        for j in range(segs):
+            a = 2 * math.pi * j / segs
+            off = right * math.cos(a) * radius + up * math.sin(a) * radius
+            ring.append(bm.verts.new(p + off))
+        rings.append(ring)
+    for i in range(len(rings) - 1):
+        for j in range(segs):
+            v1, v2 = rings[i][j], rings[i][(j+1)%segs]
+            v3, v4 = rings[i+1][(j+1)%segs], rings[i+1][j]
+            try:
+                bm.faces.new([v1, v2, v3, v4])
+            except:
+                pass
+
+def set_smooth(obj, smooth=True):
+    for p in obj.data.polygons:
+        p.use_smooth = smooth
+
+# Wing shape functions
+def wing_w(t, mw, fore):
+    if fore:
+        if t < 0.05: return mw * 0.12 * (t/0.05)
+        elif t < 0.4: return mw * (0.12 + 0.88*((t-0.05)/0.35))
+        else: return mw * (1.0 - ((t-0.4)/0.6)**1.4)
+    else:
+        if t < 0.05: return mw * 0.15 * (t/0.05)
+        elif t < 0.15: return mw * (0.15 + 0.25*((t-0.05)/0.1))
+        elif t < 0.4: return mw * (0.4 + 0.6*((t-0.15)/0.25))
+        else: return mw * (1.0 - ((t-0.4)/0.6)**1.3)
+
+def wing_le(t, mw, fore):
+    return wing_w(t, mw, fore) * 0.35
+
+def wing_te(t, mw, fore):
+    return -wing_w(t, mw, fore) * 0.65
+
+# Body parts
+def make_abdomen():
+    bm = bmesh.new()
+    nseg = 10
+    length = 6.0
+    rings = []
+    for i in range(nseg + 1):
+        t = i / nseg
+        x = 2.3 - t * length
+        r = 0.46 * (1 - t * 0.96) ** 0.6
+        ring = []
+        for j in range(24):
+            a = 2 * math.pi * j / 24
+            ring.append(bm.verts.new((x, r * math.cos(a), r * math.sin(a) * 0.85)))
+        rings.append(ring)
+    for i in range(nseg):
+        for j in range(24):
+            v1, v2 = rings[i][j], rings[i][(j+1)%24]
+            v3, v4 = rings[i+1][(j+1)%24], rings[i+1][j]
+            bm.faces.new([v1, v2, v3, v4])
+    bm.faces.new(rings[0][::-1])
+    tip = bm.verts.new((2.3 - length - 0.5, 0, 0))
+    for j in range(24):
+        v1, v2 = rings[-1][j], rings[-1][(j+1)%24]
+        bm.faces.new([v1, v2, tip])
+    bm.normal_update()
+    return bm
+
+def make_thorax():
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=36, v_segments=24, radius=0.7)
+    for v in bm.verts:
+        v.co.x *= 1.8
+        v.co.z *= 0.80
+        if v.co.z > 0:
+            v.co.z += 0.06 * (1 - abs(v.co.x / 1.3) ** 2)
+    bm.normal_update()
+    return bm
+
+def make_head():
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=28, v_segments=18, radius=0.30)
+    for v in bm.verts:
+        v.co.x *= 1.2
+        v.co.z *= 0.95
+    bm.normal_update()
+    return bm
+
+def make_eye(side):
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=0.26)
+    for v in bm.verts:
+        v.co.x *= 1.4
+        if (side < 0 and v.co.y < 0) or (side > 0 and v.co.y > 0):
+            v.co.y *= 0.08
+    bm.normal_update()
+    return bm
+
+def make_hairs():
+    bm = bmesh.new()
+    for _ in range(120):
+        theta = random.uniform(0, 2*math.pi)
+        phi = random.uniform(0.15, 0.85) * math.pi
+        x = 2.3 + 1.25 * math.sin(phi) * math.cos(theta)
+        y = 0.7 * math.sin(phi) * math.sin(theta)
+        z = 0.55 * math.cos(phi)
+        n = Vector((x-2.3, y, z)).normalized()
+        hd = (n + Vector((random.uniform(-0.2,0.2), random.uniform(-0.2,0.2), random.uniform(0.1,0.4)))).normalized()
+        hl = random.uniform(0.05, 0.13)
+        s = Vector((x, y, z))
+        e = s + hd * hl
+        m = (s + e) / 2 + Vector((random.uniform(-0.008,0.008), random.uniform(-0.008,0.008), random.uniform(0,0.015)))
+        add_tube(bm, [s, m, e], 0.003, 4)
+    bm.normal_update()
+    return bm
+
+# Wing creation
+def make_wing(fore=True, mirror=False):
+    length = 4.8 if fore else 4.5
+    mw = 1.0 if fore else 1.25
+    sign = -1 if mirror else 1
+    parts = []
+
+    # Membrane
+    bm = bmesh.new()
+    nl, nw = 50, 8
+    grid = []
+    for i in range(nl+1):
+        t = i / nl
+        y = sign * t * length
+        le = wing_le(t, mw, fore)
+        te = wing_te(t, mw, fore)
+        row = []
+        for j in range(nw+1):
+            s = j / nw
+            x = le + (te-le) * s
+            z = 0.012 * math.sin(s*math.pi) * (1 - t*0.5)
+            if t > 0.7:
+                z -= 0.03 * ((t-0.7)/0.3)**2
+            row.append(bm.verts.new((x, y, z)))
+        grid.append(row)
+    for i in range(nl):
+        for j in range(nw):
+            bm.faces.new([grid[i][j], grid[i][j+1], grid[i+1][j+1], grid[i+1][j]])
+    if mirror:
+        bmesh.ops.reverse_faces(bm, faces=list(bm.faces))
+    bm.normal_update()
+    parts.append(bm_to_obj(bm, "wmem", mat_wing_mem))
+
+    # Veins - simplified to fine network
+    vbm = bmesh.new()
+    vfracs = [0.35, 0.22, 0.10, -0.03, -0.15, -0.28, -0.42, -0.55]
+    vradii = [0.01, 0.008, 0.006, 0.005, 0.005, 0.004, 0.003, 0.003]
+    for frac, vr in zip(vfracs, vradii):
+        path = []
+        for i in range(20):
+            t = i / 19
+            y = sign * t * length
+            w = wing_w(t, mw, fore)
+            x = w * frac
+            path.append(Vector((x, y, 0.014)))
+        add_tube(vbm, path, vr, 5)
+    # Cross veins
+    for tc in [0.2, 0.4, 0.6, 0.8]:
+        y = sign * tc * length
+        w = wing_w(tc, mw, fore)
+        for k in range(len(vfracs)-1):
+            x1, x2 = w * vfracs[k], w * vfracs[k+1]
+            add_tube(vbm, [Vector((x1,y,0.014)), Vector((x2, y, 0.014))], 0.003, 4)
+    if mirror:
+        bmesh.ops.reverse_faces(vbm, faces=list(vbm.faces))
+    vbm.normal_update()
+    parts.append(bm_to_obj(vbm, "wvein", mat_vein))
+
+    # Edges
+    ebm = bmesh.new()
+    le_path = []
+    for i in range(30):
+        t = i / 29
+        y = sign * t * length
+        x = wing_le(t, mw, fore)
+        le_path.append(Vector((x, y, 0.016)))
+    add_tube(ebm, le_path, 0.015, 6)
+    te_path = []
+    for i in range(30):
+        t = i / 29
+        y = sign * t * length
+        x = wing_te(t, mw, fore)
+        te_path.append(Vector((x, y, 0.016)))
+    add_tube(ebm, te_path, 0.01, 5)
+    if mirror:
+        bmesh.ops.reverse_faces(ebm, faces=list(ebm.faces))
+    ebm.normal_update()
+    parts.append(bm_to_obj(ebm, "wedge", mat_edge))
+
+    # Dark tip
+    tbm = bmesh.new()
+    tst = 0.85
+    tr, tc2 = 6, 4
+    tg = []
+    for i in range(tr+1):
+        t = tst + (1-tst) * (i/tr)
+        y = sign * t * length
+        le = wing_le(t, mw, fore)
+        te = wing_te(t, mw, fore)
+        row = []
+        for j in range(tc2+1):
+            s = j / tc2
+            row.append(tbm.verts.new((le + (te-le)*s, y, 0.010)))
+        tg.append(row)
+    for i in range(tr):
+        for j in range(tc2):
+            tbm.faces.new([tg[i][j], tg[i][j+1], tg[i+1][j+1], tg[i+1][j]])
+    if mirror:
+        bmesh.ops.reverse_faces(tbm, faces=list(tbm.faces))
+    tbm.normal_update()
+    parts.append(bm_to_obj(tbm, "wtip", mat_tip))
+
+    return parts
+
+# === ASSEMBLE ===
+
+abdomen = bm_to_obj(make_abdomen(), "Abdomen", mat_abdomen)
+
+thorax = bm_to_obj(make_thorax(), "Thorax", mat_thorax)
+thorax.location = (2.3, 0, 0)
+
+head = bm_to_obj(make_head(), "Head", mat_head)
+head.location = (3.55, 0, 0.05)
+
+for side, sn in [(-1, 'L'), (1, 'R')]:
+    eye = bm_to_obj(make_eye(side), f"Eye_{sn}", mat_eye)
+    eye.location = (3.6, side * 0.18, 0.10)
+    set_smooth(eye, False)
+
+bm_to_obj(make_hairs(), "Hairs", mat_hair)
+
+# Wing joints
+for wx, wy in [(2.7, 0.35), (2.0, 0.35), (2.7, -0.35), (2.0, -0.35)]:
+    jbm = bmesh.new()
+    bmesh.ops.create_uvsphere(jbm, u_segments=12, v_segments=8, radius=0.08)
+    jobj = bm_to_obj(jbm, "WingJoint", mat_thorax)
+    jobj.location = (wx, wy, 0.32)
+
+# Wings
+for part in make_wing(fore=True, mirror=False):
+    part.location = (2.7, 0.35, 0.32)
+    part.rotation_euler = Euler((0, 0, math.radians(-5)), 'XYZ')
+
+for part in make_wing(fore=False, mirror=False):
+    part.location = (2.0, 0.35, 0.32)
+    part.rotation_euler = Euler((0, 0, math.radians(8)), 'XYZ')
+
+for part in make_wing(fore=True, mirror=True):
+    part.location = (2.7, -0.35, 0.32)
+    part.rotation_euler = Euler((0, 0, math.radians(5)), 'XYZ')
+
+for part in make_wing(fore=False, mirror=True):
+    part.location = (2.0, -0.35, 0.32)
+    part.rotation_euler = Euler((0, 0, math.radians(-8)), 'XYZ')
+
+for obj in bpy.data.objects:
+    if obj.type == 'MESH':
+        if obj.name.startswith("Eye"):
+            set_smooth(obj, False)
+        else:
+            set_smooth(obj, True)
+
+for name in ["Abdomen", "Thorax", "Head"]:
+    obj = bpy.data.objects.get(name)
+    if obj:
+        mod = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+        mod.levels = 1
+        mod.render_levels = 2

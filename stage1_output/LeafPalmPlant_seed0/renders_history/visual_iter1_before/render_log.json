@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafPalmPlant_seed0/LeafPalmPlant_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 11.565618515014648,
+  "n_views_rendered": 4,
+  "latency_s": 1.82,
+  "error": null
+}

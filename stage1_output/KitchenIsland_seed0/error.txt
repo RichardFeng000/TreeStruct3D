@@ -1,0 +1,7 @@
+RuntimeError: HTTP 400: {
+  "error": {
+    "message": "Failed to load model \"google/gemma-4-31b\". Error: Operation canceled.",
+    "type": "invalid_request",
+    "param": "model"
+  }
+}

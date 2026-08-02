@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FloorLamp_seed0/FloorLamp_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/FloorLamp_seed0/glb/FloorLamp_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 14.4,
+  "latency_s": 0.09,
+  "error": null
+}

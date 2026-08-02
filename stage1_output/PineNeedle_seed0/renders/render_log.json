@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PineNeedle_seed0/PineNeedle_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 2.411877155303955,
+  "n_views_rendered": 4,
+  "latency_s": 1.59,
+  "error": null
+}

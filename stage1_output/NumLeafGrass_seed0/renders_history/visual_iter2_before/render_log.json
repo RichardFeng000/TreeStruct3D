@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/NumLeafGrass_seed0/NumLeafGrass_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 4,
+  "extent": 1.413881540298462,
+  "n_views_rendered": 4,
+  "latency_s": 1.97,
+  "error": null
+}

@@ -1,0 +1,4 @@
+- The books overlap and intersect unnaturally (clipping), rather than leaning against each other.
+- The "leaning" is random and disjointed; it lacks the cohesion of a row of books resting on one another.
+- Page edges are flat blocks; they need more distinct geometric separation from the covers to be recognizable as pages.
+- Rotation logic causes some books to float or sink below the origin point.

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/GrassesMonocot_seed0/GrassesMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 4.309447467327118,
+  "n_views_rendered": 4,
+  "latency_s": 2.07,
+  "error": null
+}

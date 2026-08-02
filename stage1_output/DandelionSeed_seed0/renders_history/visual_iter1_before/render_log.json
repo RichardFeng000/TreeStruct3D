@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/DandelionSeed_seed0/DandelionSeed_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 3,
+  "extent": 1.4042426347732544,
+  "n_views_rendered": 4,
+  "latency_s": 3.14,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- Leaves are too thin and short, appearing more like pine needles than aquatic grass/reeds.
+- The color is excessively dark (almost black in renders); needs a brighter muted green for visibility.
+- Leaf geometry is too stiff; needs a more graceful arch and a better taper to look organic.

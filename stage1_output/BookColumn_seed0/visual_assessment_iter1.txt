@@ -1,0 +1,3 @@
+- The "leaning against each other" effect is nearly invisible; the books are too vertical.
+- Lack of geometric distinction between covers and page blocks makes them look like simple rectangular prisms.
+- Objects are separate entities rather than a single coherent 3D model assembly.

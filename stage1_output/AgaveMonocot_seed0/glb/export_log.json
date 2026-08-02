@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/AgaveMonocot_seed0/AgaveMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/AgaveMonocot_seed0/glb/AgaveMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 71,
+  "size_kb": 713.2,
+  "latency_s": 0.35,
+  "error": null
+}

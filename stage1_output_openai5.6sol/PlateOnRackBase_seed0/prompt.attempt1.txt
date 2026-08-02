@@ -1,0 +1,407 @@
+Your previous Blender 5.0 Python script for the task below FAILED to produce a valid render. Read the error carefully and output a corrected, complete script.
+
+# Original task
+
+A 3D model of a round plate displayed on a wooden plate rack, rendered from a three-quarter perspective, featuring a large dark purple circular plate leaning upright against vertical wooden pegs that form a supporting stand.
+
+# Your previous code
+
+```python
+import bpy
+import bmesh
+import math
+from mathutils import Vector, Matrix
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks is not bpy.data.materials:
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+# Materials.
+def make_material(name, color, metallic=0.0, roughness=0.45):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Metallic"].default_value = metallic
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+purple = make_material("Deep Aubergine Ceramic", (0.105, 0.018, 0.155), 0.0, 0.22)
+purple_edge = make_material("Aubergine Rim", (0.155, 0.032, 0.225), 0.0, 0.20)
+wood = make_material("Warm Walnut Wood", (0.31, 0.125, 0.045), 0.0, 0.38)
+wood_light = make_material("Turned Walnut Highlights", (0.43, 0.205, 0.075), 0.0, 0.34)
+wood_dark = make_material("Walnut End Grain", (0.20, 0.065, 0.022), 0.0, 0.46)
+
+def smooth_object(obj):
+    if obj.type == 'MESH':
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
+
+def rounded_box(name, location, dimensions, material, bevel=0.06, segments=4):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    modifier = obj.modifiers.new("Soft rounded wooden edges", 'BEVEL')
+    modifier.width = bevel
+    modifier.segments = segments
+    modifier.limit_method = 'ANGLE'
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    obj.data.materials.append(material)
+    return obj
+
+def cylinder(name, radius, depth, location, material, vertices=32, bevel=0.0):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        end_fill_type='NGON',
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    if bevel > 0.0:
+        modifier = obj.modifiers.new("Rounded turned edges", 'BEVEL')
+        modifier.width = bevel
+        modifier.segments = 3
+        modifier.limit_method = 'ANGLE'
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+    smooth_object(obj)
+    return obj
+
+def sphere(name, radius, location, material, scale=(1.0, 1.0, 1.0), segments=32, rings=16):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        radius=radius,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+def torus(name, major_radius, minor_radius, location, rotation, material,
+          major_segments=96, minor_segments=12):
+    bpy.ops.mesh.primitive_torus_add(
+        major_segments=major_segments,
+        minor_segments=minor_segments,
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+# Base rails of the wooden rack.
+rounded_box(
+    "Left front-to-back foot",
+    (-1.17, -0.01, 0.13),
+    (0.28, 1.62, 0.26),
+    wood,
+    bevel=0.075
+)
+rounded_box(
+    "Right front-to-back foot",
+    (1.17, -0.01, 0.13),
+    (0.28, 1.62, 0.26),
+    wood,
+    bevel=0.075
+)
+rounded_box(
+    "Front lower cross rail",
+    (0.0, -0.69, 0.21),
+    (2.62, 0.25, 0.25),
+    wood_light,
+    bevel=0.07
+)
+rounded_box(
+    "Rear lower cross rail",
+    (0.0, 0.66, 0.21),
+    (2.62, 0.25, 0.25),
+    wood,
+    bevel=0.07
+)
+
+# Rear support crossbar behind the plate.
+rounded_box(
+    "Rear supporting crossbar",
+    (0.0, 0.43, 0.62),
+    (2.62, 0.19, 0.21),
+    wood_light,
+    bevel=0.065
+)
+
+# Tall rear turned pegs.
+rear_x = (-1.25, 1.25)
+for index, x in enumerate(rear_x):
+    cylinder(
+        f"Rear upright peg {index + 1}",
+        0.095,
+        3.02,
+        (x, 0.43, 1.73),
+        wood,
+        vertices=40,
+        bevel=0.025
+    )
+    sphere(
+        f"Rear peg rounded foot {index + 1}",
+        0.101,
+        (x, 0.43, 0.25),
+        wood,
+        scale=(1.0, 1.0, 0.85)
+    )
+    sphere(
+        f"Rear peg finial {index + 1}",
+        0.145,
+        (x, 0.43, 3.285),
+        wood_light,
+        scale=(1.0, 1.0, 1.14)
+    )
+    torus(
+        f"Rear peg collar {index + 1}",
+        0.105,
+        0.022,
+        (x, 0.43, 3.12),
+        (0.0, 0.0, 0.0),
+        wood_dark,
+        major_segments=40,
+        minor_segments=8
+    )
+    torus(
+        f"Rear peg lower turning {index + 1}",
+        0.102,
+        0.015,
+        (x, 0.43, 0.47),
+        (0.0, 0.0, 0.0),
+        wood_dark,
+        major_segments=40,
+        minor_segments=8
+    )
+
+# Short front pegs keep the plate from sliding forward.
+front_x = (-1.18, 1.18)
+for index, x in enumerate(front_x):
+    cylinder(
+        f"Front retaining peg {index + 1}",
+        0.10,
+        0.85,
+        (x, -0.55, 0.62),
+        wood,
+        vertices=40,
+        bevel=0.025
+    )
+    sphere(
+        f"Front peg finial {index + 1}",
+        0.135,
+        (x, -0.55, 1.07),
+        wood_light,
+        scale=(1.0, 1.0, 1.08)
+    )
+    torus(
+        f"Front peg collar {index + 1}",
+        0.106,
+        0.019,
+        (x, -0.55, 0.93),
+        (0.0, 0.0, 0.0),
+        wood_dark,
+        major_segments=40,
+        minor_segments=8
+    )
+
+# Lathed ceramic plate. The local axis is Y, with the visible face toward -Y.
+plate_profile = [
+    (0.000, 0.080),
+    (0.260, 0.078),
+    (0.600, 0.066),
+    (0.970, 0.025),
+    (1.250, -0.045),
+    (1.445, -0.125),
+    (1.565, -0.168),
+    (1.635, -0.138),
+    (1.670, -0.070),
+    (1.670, 0.010),
+    (1.630, 0.075),
+    (1.520, 0.115),
+    (1.300, 0.145),
+    (1.020, 0.170),
+    (0.750, 0.205),
+    (0.610, 0.255),
+    (0.570, 0.300),
+    (0.470, 0.315),
+    (0.370, 0.270),
+    (0.350, 0.225),
+    (0.230, 0.215),
+    (0.000, 0.205)
+]
+
+segments = 144
+vertices = []
+faces = []
+
+for seg in range(segments):
+    angle = 2.0 * math.pi * seg / segments
+    ca = math.cos(angle)
+    sa = math.sin(angle)
+    for radius, y in plate_profile:
+        vertices.append((radius * ca, y, radius * sa))
+
+profile_count = len(plate_profile)
+for seg in range(segments):
+    next_seg = (seg + 1) % segments
+    for p in range(profile_count - 1):
+        a = seg * profile_count + p
+        b = next_seg * profile_count + p
+        c = next_seg * profile_count + p + 1
+        d = seg * profile_count + p + 1
+        faces.append((a, b, c, d))
+
+plate_mesh = bpy.data.meshes.new("Dish-shaped circular plate mesh")
+plate_mesh.from_pydata(vertices, [], faces)
+plate_mesh.update()
+
+# Merge the duplicated pole vertices and recalculate normals.
+bm = bmesh.new()
+bm.from_mesh(plate_mesh)
+bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+bm.to_mesh(plate_mesh)
+bm.free()
+plate_mesh.update()
+
+plate = bpy.data.objects.new("Large dark purple circular plate", plate_mesh)
+bpy.context.collection.objects.link(plate)
+plate.data.materials.append(purple)
+smooth_object(plate)
+
+# Lean the plate backward against the tall pegs.
+plate_center = Vector((0.0, 0.0, 2.075))
+plate_tilt = math.radians(-8.0)
+plate.location = plate_center
+plate.rotation_euler = (plate_tilt, 0.0, 0.0)
+
+# Slight bevel improves the ceramic rim and silhouette.
+bevel_modifier = plate.modifiers.new("Fine ceramic edge softening", 'BEVEL')
+bevel_modifier.width = 0.012
+bevel_modifier.segments = 2
+bevel_modifier.limit_method = 'ANGLE'
+
+# Add a raised circular rim on the visible face.
+tilt_matrix = Matrix.Rotation(plate_tilt, 4, 'X')
+
+def transformed_plate_point(local_point):
+    return plate_center + tilt_matrix @ Vector(local_point)
+
+front_rim_location = transformed_plate_point((0.0, -0.145, 0.0))
+front_rim = torus(
+    "Raised circular plate rim",
+    1.505,
+    0.035,
+    front_rim_location,
+    (math.radians(90.0) + plate_tilt, 0.0, 0.0),
+    purple_edge,
+    major_segments=144,
+    minor_segments=14
+)
+
+# Subtle inner bead emphasizes the shallow dish.
+inner_bead_location = transformed_plate_point((0.0, -0.043, 0.0))
+inner_bead = torus(
+    "Inner dish transition ring",
+    1.205,
+    0.018,
+    inner_bead_location,
+    (math.radians(90.0) + plate_tilt, 0.0, 0.0),
+    purple_edge,
+    major_segments=144,
+    minor_segments=10
+)
+
+# Ceramic foot ring on the rear of the plate.
+foot_location = transformed_plate_point((0.0, 0.268, 0.0))
+foot_ring = torus(
+    "Rear ceramic foot ring",
+    0.505,
+    0.055,
+    foot_location,
+    (math.radians(90.0) + plate_tilt, 0.0, 0.0),
+    purple,
+    major_segments=96,
+    minor_segments=14
+)
+
+# Add small wooden contact pads where the plate meets the lower rack.
+for index, x in enumerate((-0.92, 0.92)):
+    rounded_box(
+        f"Plate resting block {index + 1}",
+        (x, -0.22, 0.39),
+        (0.34, 0.34, 0.18),
+        wood_light,
+        bevel=0.06
+    )
+
+# Ensure sensible viewport presentation and object selection.
+for obj in bpy.context.scene.objects:
+    obj.select_set(False)
+plate.select_set(True)
+bpy.context.view_layer.objects.active = plate
+
+# Set the assembly's world origin convention and neutral scene background.
+bpy.context.scene.world.color = (0.045, 0.045, 0.045)
+bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+```
+
+# Execution result
+
+- status: ERR_EXEC
+- meshes produced: 0
+- views rendered: 0/4
+- attempt: 2 of 4
+
+# Error / diagnostic output (from Blender stderr / runtime)
+
+TypeError: bpy_struct: item.attr = val: enum "BLENDER_EEVEE_NEXT" not found in ('BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'CYCLES')
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/PlateOnRackBase_seed0/PlateOnRackBase_seed0.py", line 360, in <module>
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: bpy_struct: item.attr = val: enum "BLENDER_EEVEE_NEXT" not found in ('BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'CYCLES')
+
+# Your task
+
+Fix the bug and output the COMPLETE corrected Python script. Do NOT output a diff, patch, or explanation. The same hard format constraints from the system prompt still apply: pure Python source only, no markdown fences, no prose before or after the code. The first character of your response must be the first character of valid Python.
+
+Common failure modes to consider, depending on the error:
+- `ERR_EXEC` (Python raised during script execution): a Blender 5.0 API mismatch, a missing import, a wrong arg name, or a runtime exception in your geometry code. Read the traceback line that mentions YOUR script.
+- `ERR_NO_MESH` (script ran clean but no MESH object remains): you may have created only curves / empties / lights, deleted everything, or forgot to convert curves to mesh. Make sure at least one `bpy.types.Object` of type `'MESH'` exists when the script ends.
+- `ERR_RENDER`: scene is built but cameras / view setup blew up — usually safe to ignore, but check for NaN coordinates or infinite-extent geometry.
+- `ERR_TIMEOUT`: your script is too slow (too many subdivisions, runaway loops, very heavy boolean ops). Reduce density or break up large operations.
+
+Do not just try the same thing again — change the approach for whatever the error indicates.
+

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/glb/Mirror_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 36.8,
+  "latency_s": 0.1,
+  "error": null
+}

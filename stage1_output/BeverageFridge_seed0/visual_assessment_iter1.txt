@@ -1,0 +1,3 @@
+- Major floating/disconnected pieces: The door, glass top, and handle are completely separated from the body.
+- Wrong proportions: Parts are scaled incorrectly relative to their positions, leading to the "exploded" look.
+- Color issue: The brown is too light (more of a peach/tan) rather than dark brown.

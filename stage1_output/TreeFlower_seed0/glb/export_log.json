@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TreeFlower_seed0/TreeFlower_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/TreeFlower_seed0/glb/TreeFlower_seed0.glb",
+  "status": "OK",
+  "n_meshes": 49,
+  "size_kb": 712.0,
+  "latency_s": 0.12,
+  "error": null
+}

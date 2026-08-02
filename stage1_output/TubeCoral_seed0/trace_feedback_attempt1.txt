@@ -1,0 +1,213 @@
+Original text-to-3D task:
+
+A tube coral rendered as a textured 3D model. The coral features multiple thick, upright cylindrical finger-like tubes growing upward from a shared base, fanning outward in a hand-like arrangement. The entire surface of each tube is covered in dense granular polyp bumps giving a rough, coarse texture. The coloring is warm sandy beige with muted olive-green tones and subtle pink blush highlights. The finger-like tubes vary slightly in height and lean outward, creating a distinctive splayed silhouette on the white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple Principled BSDF material with a given color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        # Make it look slightly organic/rough
+        bsdf.inputs['Roughness'].default_value = 0.8
+    return mat
+
+def create_coral_material():
+    """Creates a material with the requested beige, olive and pink tones."""
+    mat = bpy.data.materials.new(name="CoralMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    # Clear default nodes
+    for n in nodes:
+        nodes.remove(n)
+        
+    # Create Nodes
+    output = nodes.new('ShaderNodeOutputMaterial')
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    noise = nodes.new('ShaderNodeTexNoise')
+    color_ramp = nodes.new('ShaderNodeValToRGB')
+    
+    # Setup Noise
+    noise.inputs['Scale'].default_value = 15.0
+    noise.inputs['Detail'].default_value = 8.0
+    
+    # Setup Color Ramp for the specified palette: Sandy Beige, Olive-Green, Pink Blush
+    color_ramp.color_ramp.elements[0].position = 0.0
+    color_ramp.color_ramp.elements[0].color = (0.83, 0.71, 0.55, 1) # Sandy Beige
+    
+    # Add element for Olive Green
+    el1 = color_ramp.color_ramp.elements.new(0.4)
+    el1.color = (0.35, 0.42, 0.2, 1) # Muted Olive-Green
+    
+    # Adjust Pink Blush
+    color_ramp.color_ramp.elements[2].position = 0.8
+    color_ramp.color_ramp.elements[2].color = (0.95, 0.75, 0.8, 1) # Subtle Pink Blush
+    
+    # Connections
+    links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
+    links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+    
+    # Material properties
+    bsdf.inputs['Roughness'].default_value = 0.9
+    
+    return mat
+
+def generate_tube(start_pos, end_pos, radius):
+    """Generates a single finger-like tube with granular detail."""
+    bm = bmesh.new()
+    
+    # Create base cylinder (the 'finger')
+    segments = 24
+    rings = 30
+    bmesh.ops.create_cone(bm, cap_ends=True, radius1=radius, radius2=radius*0.6, depth=1.0, segments=segments)
+    
+    # Transform to align with the growth direction
+    direction = end_pos - start_pos
+    length = direction.length
+    rot_quat = direction.to_track_quat('Z', 'Y')
+    
+    bmesh.ops.rotate(bm, cent=(0, 0, 0), axis=rot_quat.axis, angle=rot_quat.angle)
+    bmesh.ops.scale(bm, vec=(1, 1, length), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=start_pos + (direction * 0.5), verts=bm.verts)
+
+    # Subdivide heavily to allow for granular bumps (polyps)
+    for _ in range(2):
+        bmesh.ops.subdivide_edges(bm, edges=bm.edges, cuts=1, use_grid_fill=True)
+
+    # Apply Granular Polyps: displace vertices randomly and create "bumps"
+    # General noise
+    for v in bm.verts:
+        v.co += Vector((random.uniform(-0.02, 0.02), 
+                        random.uniform(-0.02, 0.02), 
+                        random.uniform(-0.02, 0.02)))
+
+    # Create distinct polyp bumps by pushing clusters of vertices out
+    num_bumps = 150
+    for _ in range(num_bumps):
+        target_v = random.choice(bm.verts)
+        bump_radius = 0.12
+        bump_strength = random.uniform(0.05, 0.18)
+        
+        # Find neighbors within a small distance to create a "blob"
+        for v in bm.verts:
+            dist = (v.co - target_v.co).length
+            if dist < bump_radius:
+                # Push vertex outwards from the tube center line roughly
+                push_dir = (v.co - start_pos).normalized() 
+                # For a better effect, just push away from origin of local tube coordinate
+                v.co += push_dir * bump_strength * (1.0 - dist/bump_radius)
+
+    mesh = bpy.data.meshes.new("TubeMesh")
+    bm.to_mesh(mesh)
+    bm.free()
+    return mesh
+
+def generate_coral():
+    clear_scene()
+    
+    # Materials
+    coral_mat = create_coral_material()
+    
+    # Base Parameters
+    num_tubes = 7
+    base_radius = 1.2
+    min_height = 3.0
+    max_height = 6.0
+    tube_radius = 0.35
+
+    # 1. Create the shared base (a blobby organic shape)
+    bm_base = bmesh.new()
+    bmesh.ops.create_uvsphere(bm_base, u_segments=32, v_segments=16, radius=base_radius)
+    # Flatten and distort the base
+    for v in bm_base.verts:
+        v.co.z *= 0.4
+        v.co.x += random.uniform(-0.1, 0.1)
+        v.co.y += random.uniform(-0.1, 0.1)
+    
+    mesh_base = bpy.data.meshes.new("CoralBase")
+    bm_base.to_mesh(mesh_base)
+    bm_base.free()
+    
+    obj_base = bpy.data.objects.new("CoralBase", mesh_base)
+    bpy.context.collection.objects.link(obj_base)
+    obj_base.data.materials.append(coral_mat)
+    
+    # 2. Create the tubes (fingers)
+    for i in range(num_tubes):
+        # Calculate fanning position (circular layout on base)
+        angle = (2 * math.pi / num_tubes) * i
+        start_x = math.cos(angle) * random.uniform(0.3, 0.8)
+        start_y = math.sin(angle) * random.uniform(0.3, 0.8)
+        start_pos = Vector((start_x, start_y, 0))
+        
+        # Splayed direction (leaning outward from center)
+        lean_factor = random.uniform(1.2, 2.0)
+        end_height = random.uniform(min_height, max_height)
+        end_pos = Vector((start_x * lean_factor, start_y * lean_factor, end_height))
+        
+        # Variation in thickness
+        r = tube_radius * random.uniform(0.8, 1.2)
+        
+        tube_mesh = generate_tube(start_pos, end_pos, r)
+        obj_tube = bpy.data.objects.new(f"Tube_{i}", tube_mesh)
+        bpy.context.collection.objects.link(obj_tube)
+        obj_tube.data.materials.append(coral_mat)
+
+    # Final polish: Add Subdivision Surface modifier to the base for smoothness
+    mod = obj_base.modifiers.new(name="Subdiv", type='SUBSURF')
+    mod.levels = 2
+    mod.render_levels = 2
+
+if __name__ == "__main__":
+    generate_coral()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: rotate: keyword "axis" is invalid for this operator
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/TubeCoral_seed0.py", line 174, in <module>
+    generate_coral()
+  File "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/TubeCoral_seed0.py", line 163, in generate_coral
+    tube_mesh = generate_tube(start_pos, end_pos, r)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/TubeCoral_seed0.py", line 81, in generate_tube
+    bmesh.ops.rotate(bm, cent=(0, 0, 0), axis=rot_quat.axis, angle=rot_quat.angle)
+TypeError: rotate: keyword "axis" is invalid for this operator
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

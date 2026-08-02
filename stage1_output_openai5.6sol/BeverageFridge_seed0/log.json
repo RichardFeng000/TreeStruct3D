@@ -1,0 +1,48 @@
+{
+  "instance": "BeverageFridge_seed0",
+  "timestamp": "2026-07-20T04:46:54+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 45.56,
+  "code_chars": 8213,
+  "input_tokens": 9451,
+  "output_tokens": 2544,
+  "thoughts_tokens": 1001,
+  "total_tokens": 12996,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 21,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The cabinet and door render as pale copper/peach, not dark brown; use substantially darker, less reflective brown materials.\n- The background is black instead of plain white; explicitly disable film transparency and configure a white world.\n- Bright trim-like reflections overwhelm the top and door edges; increase roughness and simplify the perimeter detailing.",
+      "raw_chars": 8635
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The compact cube form, dark glass top, front door, and attached right-side vertical metallic handle are all clearly represented.",
+      "raw_chars": 169
+    }
+  ],
+  "error": null
+}

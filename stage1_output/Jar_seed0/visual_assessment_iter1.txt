@@ -1,0 +1,3 @@
+- The body appears completely opaque brown rather than "semi-transparent brownish tinted". 
+- The material lacks the necessary Blend Mode and updated Blender 5.0 Principled BSDF properties (Transmission Weight) to render as semi-transparent in most viewers.
+- I will replace the Solidify modifier with explicit inner/outer wall geometry to ensure transparency reveals the thickness of the glass, making it look like a real jar.

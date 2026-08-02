@@ -1,0 +1,4 @@
+- Missing parts: The "dark spine tips" at the bottom are invisible because they were created as edges rather than meshes.
+- Wrong proportions: Leaves look like thin needles/spikes instead of "sword-shaped leaves."
+- Missing geometric detail: Material is a flat color; it lacks the requested golden-yellow with subtle green tints.
+- Overall shape: Scale segments are too sharp (pyramidal) compared to natural pineapple fruitlets.

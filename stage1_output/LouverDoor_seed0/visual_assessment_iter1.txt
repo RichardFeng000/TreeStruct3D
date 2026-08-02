@@ -1,0 +1,4 @@
+- The frame is light gray in the renders, not "dark charcoal". It needs a much darker base color.
+- The copper/rose-gold color is too brown; it should be more vibrant and metallic to match "rose-gold".
+- The "inset" nature of the slats is barely visible; the depth difference between the frame and slats should be increased for visual clarity.
+- Slat density could be improved for a more professional louvered look.

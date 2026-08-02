@@ -1,0 +1,4 @@
+- The render is completely overexposed (blown out), appearing as a white blob rather than "pale blue-gray".
+- The "dark base ring" is invisible because the plate's flat bottom rests directly on it, hiding it from view.
+- The geometry is too blocky; the transition from the rim to the well lacks smooth curvature.
+- Fix: Lower color values and increase roughness to combat overexposure; modify the bottom of the plate to be concave so the base ring is visible; improve beveling for a smoother ceramic look.

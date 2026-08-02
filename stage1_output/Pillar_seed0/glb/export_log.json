@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pillar_seed0/Pillar_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Pillar_seed0/glb/Pillar_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1687.2,
+  "latency_s": 0.17,
+  "error": null
+}

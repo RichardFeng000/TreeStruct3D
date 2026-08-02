@@ -1,0 +1,48 @@
+{
+  "instance": "CauliflowerCoral_seed0",
+  "timestamp": "2026-07-20T04:47:52+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 74.01,
+  "code_chars": 13166,
+  "input_tokens": 12884,
+  "output_tokens": 4280,
+  "thoughts_tokens": 1326,
+  "total_tokens": 18490,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The exposed smooth platter-like base is too prominent; conceal it beneath an irregular low colony mass.\n- Perimeter lobes resemble uniform hanging beans rather than densely interlocking coral growth; vary their tilt, height, width, and placement.\n- Surface granules are oversized and read as loose pebbles; replace them with finer, partially embedded bumps.\n- Build more distinct rounded terminal clusters across the sides as well as the top.",
+      "raw_chars": 13668
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model convincingly forms a low, wide cauliflower-like coral mass with dense rounded lobes, knobby clusters, granular texture, and appropriate sandy coloration.",
+      "raw_chars": 204
+    }
+  ],
+  "error": null
+}

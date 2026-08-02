@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PlateBase_seed0/PlateBase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 0.31980371475219727,
+  "n_views_rendered": 4,
+  "latency_s": 2.26,
+  "error": null
+}

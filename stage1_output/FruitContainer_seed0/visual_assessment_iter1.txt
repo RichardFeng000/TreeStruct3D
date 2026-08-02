@@ -1,0 +1,3 @@
+- Floating pieces: The fruits are hovering in mid-air instead of resting on the bowl's surface.
+- Missing geometric detail/Material: The "dark matte exterior" is not implemented; the model uses default grey materials.
+- Shape: The bowl is too flared; it needs a more "low cylindrical profile" as described.

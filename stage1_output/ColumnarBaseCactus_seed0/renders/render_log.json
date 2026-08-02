@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ColumnarBaseCactus_seed0/ColumnarBaseCactus_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 8.440903663635254,
+  "n_views_rendered": 4,
+  "latency_s": 3.95,
+  "error": null
+}

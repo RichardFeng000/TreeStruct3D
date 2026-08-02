@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Volute_seed0/Volute_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 8.982834339141846,
+  "n_views_rendered": 4,
+  "latency_s": 8.13,
+  "error": null
+}

@@ -1,0 +1,48 @@
+{
+  "instance": "Jellyfish_seed0",
+  "timestamp": "2026-07-20T04:49:28+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 65.87,
+  "code_chars": 10533,
+  "input_tokens": 11584,
+  "output_tokens": 3478,
+  "thoughts_tokens": 1139,
+  "total_tokens": 16201,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 5,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The tentacles look like thick, angular cords; make them substantially thinner, smoother, more numerous, and more irregularly wispy.\n- The oral arm reads as disconnected fleshy chunks rather than one continuous ribbon; rebuild it as a clearly continuous twisting strip.\n- The bell underside forms an overly bright, flat plate; open and lighten the underside while retaining the lobed rim.\n- The shadow is a distinct solid oval; replace it with broader, subtler layered haze.",
+      "raw_chars": 11066
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The translucent faceted bell, dense wispy tentacle cascade, and prominent spiraling central ribbon form a complete and recognizable ethereal jellyfish.",
+      "raw_chars": 192
+    }
+  ],
+  "error": null
+}

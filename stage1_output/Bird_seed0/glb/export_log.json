@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Bird_seed0/Bird_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Bird_seed0/glb/Bird_seed0.glb",
+  "status": "OK",
+  "n_meshes": 40,
+  "size_kb": 8501.7,
+  "latency_s": 0.97,
+  "error": null
+}

@@ -1,0 +1,194 @@
+Original text-to-3D task:
+
+A 3D model of a textured clam shell rendered from a three-quarter perspective, featuring two oval valve halves hinged together and partially open, with concentric growth ring patterns visible on the outer surfaces in brown and cream tones, and a darker interior.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def create_valve(name, is_top=True):
+    # Create a sphere and deform it into an oval clam shape
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32, radius=1.0)
+    obj = bpy.context.active_object
+    obj.name = name
+
+    # Scale to create the oval valve shape
+    # x: width, y: length (hinge axis), z: height
+    obj.scale = (0.8, 1.4, 0.6)
+    bpy.ops.object.transform_apply(scale=True)
+
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    
+    # Remove the bottom half to make it a shell valve
+    # We assume Z is up, so remove vertices with z < 0
+    bm.verts.ensure_lookup_table()
+    verts_to_delete = [v for v in bm.verts if v.co.z < -0.1]
+    bmesh.ops.delete(bm, geom=verts_to_delete, context='VERTS')
+
+    # Define hinge point (the back of the shell)
+    hinge_pos = Vector((0, 1.4, 0))
+    
+    # Apply organic deformation and growth rings
+    # Growth rings are based on distance from the hinge point
+    for v in bm.verts:
+        dist = (v.co - hinge_pos).length
+        # Sine wave for concentric ridges
+        ridge = math.sin(dist * 12.0) * 0.03
+        # Slight random noise for organic feel
+        noise = (random.random() - 0.5) * 0.01
+        # Apply displacement along normal
+        # Since it's a sphere, the normal is roughly v.co / |v.co|
+        normal = v.co.normalized()
+        v.co += normal * (ridge + noise)
+
+    bm.to_mesh(obj.data)
+    bm.free()
+
+    # Add a Solidify modifier to give it thickness
+    solid = obj.modifiers.new(name="Solidify", type='SOLIDIFY')
+    solid.thickness = 0.05
+    bpy.ops.object.modifier_apply(modifier="Solidify")
+
+    return obj
+
+def assign_materials(obj):
+    # Create materials
+    mat_outer_cream = create_material("OuterCream", (0.9, 0.85, 0.7, 1.0))
+    mat_outer_brown = create_material("OuterBrown", (0.4, 0.3, 0.2, 1.0))
+    mat_inner = create_material("InnerDark", (0.2, 0.15, 0.1, 1.0))
+
+    # Assign materials based on normals and vertex positions
+    # Outer surfaces have normals pointing away from center
+    # Inner surfaces have normals pointing towards the interior of the shell's volume
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+
+    for face in bm.faces:
+        center = face.calc_center_median()
+        # Heuristic for interior vs exterior based on Z height relative to original shell surface
+        # Since the shell is mostly above Z=0 and we solidified it, 
+        # faces with normals pointing generally 'up' are outer.
+        if face.normal.z < -0.1:
+            face.material_index = 2 # InnerDark
+        else:
+            # Create stripes for growth rings on the exterior
+            dist = (center - Vector((0, 1.4, 0))).length
+            if math.sin(dist * 12.0) > 0:
+                face.material_index = 0 # Cream
+            else:
+                face.material_index = 1 # Brown
+
+    bm.to_mesh(obj.data)
+    bm.free()
+    
+    # Assign materials to object slots
+    obj.data.materials.append(mat_outer_cream)
+    obj.data.materials.append(mat_outer_brown)
+    obj.data.materials.append(mat_inner)
+
+def main():
+    clear_scene()
+
+    # Create top valve
+    top_valve = create_valve("TopValve", is_top=True)
+    assign_materials(top_valve)
+
+    # Create bottom valve (duplicate and flip/rotate)
+    bottom_valve = create_valve("BottomValve", is_top=False)
+    assign_materials(bottom_valve)
+
+    # Position the valves to be hinged at the back
+    # The hinge point was calculated as (0, 1.4, 0) in local space
+    # We need to rotate them around this point.
+    
+    # Set origin to hinge point for rotation
+    # Move geometry so hinge is at world origin, then rotate, then move back
+    def pivot_rotate(obj, angle_deg, axis):
+        # Shift center of object to the back edge (hinge)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS') # approximate
+        # Better approach: manually offset mesh and move origin
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        # Move all vertices so that (0, 1.4, 0) becomes (0, 0, 0)
+        offset = Vector((0, 1.4, 0))
+        for v in bm.verts:
+            v.co -= offset
+        bm.to_mesh(obj.data)
+        bm.free()
+        # Rotate around the new origin (the hinge)
+        obj.rotation_euler[axis] = math.radians(angle_deg)
+
+    # Top valve rotation
+    pivot_rotate(top_valve, -30, 'X') # Tilt open slightly
+    
+    # Bottom valve setup: flip it and rotate it
+    # We can mirror the top valve's geometry for the bottom one
+    bpy.context.view_layer.objects.active = bottom_valve
+    bottom_valve.scale.z = -1.0 # Mirror across XY plane
+    bpy.ops.object.transform_apply(scale=True)
+    # Rotate slightly to be partially open
+    pivot_rotate(bottom_valve, 20, 'X')
+
+    # Move the assembly so it's centered at world origin
+    # The hinge is currently at (0,0,0) because of pivot_rotate.
+    # Let's shift everything back slightly so the center of the shell is at origin.
+    shift = Vector((0, -0.7, 0))
+    top_valve.location += shift
+    bottom_valve.location += shift
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: euler indices must be integers, not str
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Clam_seed0/Clam_seed0.py", line 154, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Clam_seed0/Clam_seed0.py", line 136, in main
+    pivot_rotate(top_valve, -30, 'X') # Tilt open slightly
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Clam_seed0/Clam_seed0.py", line 133, in pivot_rotate
+    obj.rotation_euler[axis] = math.radians(angle_deg)
+    ~~~~~~~~~~~~~~~~~~^^^^^^
+TypeError: euler indices must be integers, not str
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

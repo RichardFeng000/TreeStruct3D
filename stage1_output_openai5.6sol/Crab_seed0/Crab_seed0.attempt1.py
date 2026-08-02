@@ -1,0 +1,371 @@
+import bpy
+import math
+from mathutils import Vector
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.collections):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+
+def smooth(obj):
+    if obj and obj.type == 'MESH':
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
+    return obj
+
+
+def material(name, color, roughness=0.4, specular=0.45):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = color
+    mat.use_nodes = True
+    shader = mat.node_tree.nodes.get("Principled BSDF")
+    shader.inputs["Base Color"].default_value = color
+    shader.inputs["Roughness"].default_value = roughness
+    if "Specular IOR Level" in shader.inputs:
+        shader.inputs["Specular IOR Level"].default_value = specular
+    return mat
+
+
+def shell_material():
+    mat = bpy.data.materials.new("Subtly mottled dark reddish brown shell")
+    mat.diffuse_color = (0.19, 0.025, 0.012, 1.0)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    out = nodes.new("ShaderNodeOutputMaterial")
+    shader = nodes.new("ShaderNodeBsdfPrincipled")
+    tex = nodes.new("ShaderNodeTexCoord")
+    noise = nodes.new("ShaderNodeTexNoise")
+    fine = nodes.new("ShaderNodeTexNoise")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    tex.location = (-700, 0)
+    noise.location = (-500, 100)
+    fine.location = (-500, -160)
+    ramp.location = (-230, 100)
+    bump.location = (-180, -160)
+    shader.location = (100, 40)
+    out.location = (380, 40)
+
+    noise.inputs["Scale"].default_value = 3.3
+    noise.inputs["Detail"].default_value = 5.0
+    noise.inputs["Roughness"].default_value = 0.72
+    noise.inputs["Distortion"].default_value = 0.12
+
+    fine.inputs["Scale"].default_value = 24.0
+    fine.inputs["Detail"].default_value = 3.0
+    fine.inputs["Roughness"].default_value = 0.58
+
+    cr = ramp.color_ramp
+    cr.elements[0].position = 0.18
+    cr.elements[0].color = (0.035, 0.003, 0.002, 1.0)
+    cr.elements[1].position = 0.84
+    cr.elements[1].color = (0.29, 0.045, 0.016, 1.0)
+    mid = cr.elements.new(0.47)
+    mid.color = (0.12, 0.012, 0.006, 1.0)
+    warm = cr.elements.new(0.66)
+    warm.color = (0.22, 0.027, 0.009, 1.0)
+
+    shader.inputs["Roughness"].default_value = 0.3
+    if "Specular IOR Level" in shader.inputs:
+        shader.inputs["Specular IOR Level"].default_value = 0.48
+
+    bump.inputs["Strength"].default_value = 0.11
+    bump.inputs["Distance"].default_value = 0.035
+
+    links.new(tex.outputs["Generated"], noise.inputs["Vector"])
+    links.new(tex.outputs["Generated"], fine.inputs["Vector"])
+    links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], shader.inputs["Base Color"])
+    links.new(fine.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    links.new(shader.outputs["BSDF"], out.inputs["Surface"])
+    return mat
+
+
+shell_mat = shell_material()
+underside_mat = material("Dark warm underside", (0.115, 0.018, 0.008, 1.0), 0.5)
+leg_mat = material("Orange brown walking legs", (0.52, 0.12, 0.025, 1.0), 0.42)
+joint_mat = material("Dark orange joints", (0.30, 0.045, 0.012, 1.0), 0.43)
+claw_mat = material("Deep red claws", (0.56, 0.025, 0.009, 1.0), 0.29)
+claw_dark_mat = material("Dark red claw joints", (0.27, 0.012, 0.005, 1.0), 0.36)
+ivory_mat = material("Warm ivory pincer tips", (0.88, 0.77, 0.57, 1.0), 0.34)
+eye_stalk_mat = material("Ivory white eye stalks", (0.9, 0.88, 0.72, 1.0), 0.32)
+eye_mat = material("Glossy black eyes", (0.004, 0.002, 0.001, 1.0), 0.12, 0.6)
+mouth_mat = material("Orange mouthparts", (0.38, 0.065, 0.014, 1.0), 0.46)
+
+
+def ellipsoid(name, location, scale, mat, rotation=(0.0, 0.0, 0.0), segments=32, rings=16):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    obj.data.materials.append(mat)
+    smooth(obj)
+    return obj
+
+
+def segment(name, start, end, r1, r2, mat, vertices=16):
+    a = Vector(start)
+    b = Vector(end)
+    delta = b - a
+    length = delta.length
+    if length <= 0.0001:
+        return None
+
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=r1,
+        radius2=r2,
+        depth=length,
+        location=(a + b) * 0.5
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = delta.to_track_quat('Z', 'Y')
+    obj.data.materials.append(mat)
+    smooth(obj)
+    return obj
+
+
+def tube(name, points, radii, mat, sides=14):
+    pts = [Vector(p) for p in points]
+    verts = []
+    faces = []
+
+    for i, point in enumerate(pts):
+        if i == 0:
+            tangent = (pts[1] - pts[0]).normalized()
+        elif i == len(pts) - 1:
+            tangent = (pts[-1] - pts[-2]).normalized()
+        else:
+            tangent = (pts[i + 1] - pts[i - 1]).normalized()
+
+        reference = Vector((0.0, 0.0, 1.0))
+        if abs(tangent.dot(reference)) > 0.92:
+            reference = Vector((0.0, 1.0, 0.0))
+        normal = tangent.cross(reference).normalized()
+        binormal = tangent.cross(normal).normalized()
+
+        for j in range(sides):
+            angle = math.tau * j / sides
+            offset = normal * math.cos(angle) + binormal * math.sin(angle)
+            verts.append(tuple(point + offset * radii[i]))
+
+    for i in range(len(pts) - 1):
+        for j in range(sides):
+            nj = (j + 1) % sides
+            a = i * sides + j
+            b = i * sides + nj
+            c = (i + 1) * sides + nj
+            d = (i + 1) * sides + j
+            faces.append((a, b, c, d))
+
+    first_center = len(verts)
+    verts.append(tuple(pts[0]))
+    last_center = len(verts)
+    verts.append(tuple(pts[-1]))
+
+    for j in range(sides):
+        nj = (j + 1) % sides
+        faces.append((first_center, j, nj))
+        offset = (len(pts) - 1) * sides
+        faces.append((last_center, offset + nj, offset + j))
+
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(mat)
+    smooth(obj)
+    return obj
+
+
+# Broad, low shore-crab body.
+ellipsoid("Wide rounded carapace", (0.0, 0.05, 0.64), (2.48, 1.40, 0.57),
+          shell_mat, segments=64, rings=32)
+ellipsoid("Visible underside", (0.0, 0.12, 0.34), (2.12, 1.15, 0.30),
+          underside_mat, segments=48, rings=24)
+
+# Dark geometric relief that remains integrated into the shell.
+for i, values in enumerate([
+    (-1.08, 0.02, 1.175, 0.52, 0.36, 0.035, -0.10),
+    (1.08, 0.02, 1.175, 0.52, 0.36, 0.035, 0.10),
+    (-0.47, 0.43, 1.205, 0.47, 0.34, 0.030, 0.03),
+    (0.47, 0.43, 1.205, 0.47, 0.34, 0.030, -0.03),
+]):
+    x, y, z, sx, sy, sz, rz = values
+    ellipsoid("Subtle shell lobe %02d" % i, (x, y, z), (sx, sy, sz),
+              shell_mat, rotation=(0.0, 0.0, rz), segments=28, rings=12)
+
+# Small lateral carapace teeth.
+for side in (-1, 1):
+    for i, (y, z, length) in enumerate([
+        (-0.72, 0.68, 0.28),
+        (-0.20, 0.60, 0.25),
+        (0.34, 0.52, 0.20),
+    ]):
+        segment(
+            "Carapace edge tooth %s %d" % ("L" if side < 0 else "R", i),
+            (side * 2.25, y, z),
+            (side * (2.25 + length), y - 0.04, z - 0.035),
+            0.12, 0.015, shell_mat, 12
+        )
+
+# Four laterally spread walking legs on each side.
+leg_paths = [
+    [(2.00, -0.36, 0.43), (2.58, -0.38, 0.35), (3.15, -0.45, 0.22), (3.78, -0.62, 0.08)],
+    [(2.12, 0.02, 0.42), (2.76, 0.04, 0.34), (3.40, 0.08, 0.20), (4.05, 0.05, 0.07)],
+    [(2.08, 0.43, 0.41), (2.72, 0.55, 0.33), (3.34, 0.72, 0.19), (3.94, 0.89, 0.07)],
+    [(1.86, 0.82, 0.40), (2.43, 1.05, 0.31), (2.93, 1.38, 0.18), (3.38, 1.75, 0.07)],
+]
+
+for side in (-1, 1):
+    side_name = "Left" if side < 0 else "Right"
+    for li, path in enumerate(leg_paths):
+        pts = [(side * x, y, z) for x, y, z in path]
+        segment("%s leg %d upper" % (side_name, li + 1), pts[0], pts[1],
+                0.18, 0.145, leg_mat, 14)
+        segment("%s leg %d middle" % (side_name, li + 1), pts[1], pts[2],
+                0.145, 0.09, leg_mat, 14)
+        segment("%s leg %d foot" % (side_name, li + 1), pts[2], pts[3],
+                0.09, 0.025, leg_mat, 12)
+        ellipsoid("%s leg %d hip" % (side_name, li + 1), pts[0],
+                  (0.21, 0.17, 0.14), joint_mat, segments=20, rings=10)
+        ellipsoid("%s leg %d knee" % (side_name, li + 1), pts[2],
+                  (0.13, 0.12, 0.105), joint_mat, segments=18, rings=9)
+
+# Dominant right cheliped, long and conspicuous.
+dominant_arm_points = [
+    (1.72, -0.72, 0.52),
+    (2.35, -1.02, 0.48),
+    (2.88, -1.55, 0.44),
+    (2.93, -2.03, 0.46),
+]
+for i in range(3):
+    segment("Dominant arm segment %d" % (i + 1),
+            dominant_arm_points[i], dominant_arm_points[i + 1],
+            0.29 - i * 0.025, 0.255 - i * 0.025,
+            claw_dark_mat if i < 2 else claw_mat, 18)
+for i, point in enumerate(dominant_arm_points[1:3]):
+    ellipsoid("Dominant arm joint %d" % i, point, (0.34, 0.31, 0.28),
+              claw_mat, segments=26, rings=13)
+
+ellipsoid("Dominant elongated palm", (2.96, -2.66, 0.52),
+          (0.74, 0.98, 0.45), claw_mat,
+          rotation=(0.02, -0.05, -0.03), segments=48, rings=24)
+ellipsoid("Dominant palm ridge", (3.02, -2.74, 0.72),
+          (0.56, 0.75, 0.18), claw_dark_mat,
+          rotation=(0.0, 0.0, -0.03), segments=32, rings=14)
+
+# Long separated fingers with red bases and ivory distal sections.
+tube("Dominant outer red finger",
+     [(3.35, -3.27, 0.52), (3.55, -3.62, 0.49), (3.58, -3.91, 0.49)],
+     [0.24, 0.19, 0.145], claw_mat, 16)
+tube("Dominant outer ivory finger",
+     [(3.58, -3.91, 0.49), (3.51, -4.20, 0.50), (3.28, -4.46, 0.54)],
+     [0.15, 0.10, 0.028], ivory_mat, 16)
+tube("Dominant inner red finger",
+     [(2.60, -3.27, 0.65), (2.34, -3.56, 0.72), (2.28, -3.84, 0.73)],
+     [0.22, 0.17, 0.13], claw_mat, 16)
+tube("Dominant inner ivory finger",
+     [(2.28, -3.84, 0.73), (2.34, -4.10, 0.70), (2.56, -4.34, 0.62)],
+     [0.135, 0.09, 0.025], ivory_mat, 16)
+
+for i, (start, end) in enumerate([
+    ((3.48, -3.78, 0.49), (3.34, -3.78, 0.52)),
+    ((3.47, -4.02, 0.50), (3.34, -4.01, 0.54)),
+    ((2.36, -3.73, 0.72), (2.50, -3.73, 0.68)),
+    ((2.37, -3.98, 0.70), (2.51, -3.97, 0.66)),
+]):
+    segment("Dominant pincer tooth %d" % i, start, end, 0.052, 0.008, ivory_mat, 9)
+
+# Smaller opposing claw.
+small_arm_points = [
+    (-1.72, -0.72, 0.50),
+    (-2.22, -0.96, 0.46),
+    (-2.58, -1.38, 0.43),
+    (-2.56, -1.72, 0.44),
+]
+for i in range(3):
+    segment("Small arm segment %d" % (i + 1),
+            small_arm_points[i], small_arm_points[i + 1],
+            0.23 - i * 0.02, 0.20 - i * 0.02,
+            claw_dark_mat, 16)
+for i, point in enumerate(small_arm_points[1:3]):
+    ellipsoid("Small claw joint %d" % i, point, (0.27, 0.24, 0.21),
+              claw_mat, segments=24, rings=12)
+
+ellipsoid("Small claw palm", (-2.55, -2.13, 0.46),
+          (0.47, 0.64, 0.32), claw_mat,
+          rotation=(0.0, 0.03, 0.04), segments=40, rings=20)
+
+tube("Small outer red finger",
+     [(-2.83, -2.54, 0.44), (-2.98, -2.77, 0.43), (-2.99, -2.96, 0.44)],
+     [0.16, 0.12, 0.09], claw_mat, 14)
+tube("Small outer ivory finger",
+     [(-2.99, -2.96, 0.44), (-2.91, -3.14, 0.46), (-2.75, -3.27, 0.49)],
+     [0.095, 0.062, 0.022], ivory_mat, 14)
+tube("Small inner red finger",
+     [(-2.30, -2.54, 0.56), (-2.15, -2.75, 0.60), (-2.14, -2.93, 0.60)],
+     [0.15, 0.11, 0.085], claw_mat, 14)
+tube("Small inner ivory finger",
+     [(-2.14, -2.93, 0.60), (-2.21, -3.10, 0.58), (-2.37, -3.22, 0.54)],
+     [0.09, 0.06, 0.02], ivory_mat, 14)
+
+# White eye stalks at the front edge.
+for side in (-1, 1):
+    base = (side * 0.64, -1.12, 0.75)
+    tip = (side * 0.76, -1.48, 0.91)
+    segment("White eye stalk %s" % side, base, tip, 0.095, 0.125,
+            eye_stalk_mat, 18)
+    ellipsoid("White eye bulb %s" % side, tip, (0.16, 0.145, 0.14),
+              eye_stalk_mat, segments=26, rings=13)
+    ellipsoid("Black eye %s" % side,
+              (tip[0], tip[1] - 0.105, tip[2] + 0.015),
+              (0.092, 0.055, 0.082), eye_mat,
+              rotation=(math.radians(10), 0.0, 0.0), segments=22, rings=11)
+
+# Compact mouth plates and short antennae.
+for i, data in enumerate([
+    (-0.38, -1.24, 0.40, -0.14),
+    (0.38, -1.24, 0.40, 0.14),
+    (-0.13, -1.34, 0.36, -0.08),
+    (0.13, -1.34, 0.36, 0.08),
+]):
+    x, y, z, rz = data
+    ellipsoid("Mouth plate %d" % i, (x, y, z), (0.25, 0.14, 0.085),
+              mouth_mat, rotation=(0.0, 0.0, rz), segments=20, rings=10)
+
+tube("Left antenna",
+     [(-0.15, -1.29, 0.59), (-0.23, -1.54, 0.62), (-0.30, -1.72, 0.58)],
+     [0.027, 0.017, 0.006], mouth_mat, 8)
+tube("Right antenna",
+     [(0.15, -1.29, 0.59), (0.23, -1.54, 0.62), (0.30, -1.72, 0.58)],
+     [0.027, 0.017, 0.006], mouth_mat, 8)
+
+crab_collection = bpy.data.collections.new("Shore Crab Assembly")
+bpy.context.scene.collection.children.link(crab_collection)
+
+for obj in list(bpy.context.scene.collection.objects):
+    for collection in list(obj.users_collection):
+        collection.objects.unlink(obj)
+    crab_collection.objects.link(obj)
+
+for obj in bpy.context.selected_objects:
+    obj.select_set(False)
+bpy.context.view_layer.objects.active = None

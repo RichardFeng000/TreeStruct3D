@@ -1,0 +1,4 @@
+- Floating components: The basin is hovering significantly above the pedestal column.
+- Wrong overall shape: Both the basin and pedestal look like amorphous blobs/eggs rather than architectural square-based forms due to excessive subdivision on low-poly geometry.
+- Missing geometric detail: The basin does not resemble a "square basin with rounded corners" but rather a melted sphere.
+- Misalignment: The faucet is not properly mounted to the back edge of the sink.

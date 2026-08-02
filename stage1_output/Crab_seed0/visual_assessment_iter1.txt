@@ -1,0 +1,3 @@
+- Floating pieces: The legs and claws are not properly attached to the carapace, appearing as disconnected segments hovering nearby.
+- Missing geometric detail: The "mottled pattern" is completely absent (flat color), and the pincer tips are simple cylinders rather than anatomically shaped pincers.
+- Proportions: The eye stalks are too needle-like and lack organic thickness.

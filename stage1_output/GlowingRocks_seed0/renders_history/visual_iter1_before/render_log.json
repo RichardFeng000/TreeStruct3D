@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/GlowingRocks_seed0/GlowingRocks_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 4.013150930404663,
+  "n_views_rendered": 4,
+  "latency_s": 6.73,
+  "error": null
+}

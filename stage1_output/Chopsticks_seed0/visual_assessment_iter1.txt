@@ -1,0 +1,3 @@
+- The chopsticks appear as bright white/light grey lines in the render, failing the "dark blue-black" color requirement.
+- They are too thin to be clearly visible or to showcase the requested geometric details (squared tops, tapered tips).
+- Material application needs to be more robust and the scale increased slightly for visibility.

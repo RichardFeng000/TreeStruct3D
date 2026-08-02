@@ -1,0 +1,179 @@
+{
+  "model": "stage1_output",
+  "results_root": ".",
+  "n_instances": 9,
+  "n_ok": 9,
+  "n_points": 4096,
+  "normalization": "unit_sphere",
+  "yaw_alignment": [
+    0,
+    90,
+    180,
+    270
+  ],
+  "penalty_cd": 0.27345645659001294,
+  "penalty_cd_yawmin": 0.25526204491951887,
+  "cd": {
+    "conditional_mean": 0.10208790483959253,
+    "penalized_mean": 0.10208790483959253
+  },
+  "cd_yawmin": {
+    "conditional_mean": 0.09489673050560388,
+    "penalized_mean": 0.09489673050560388
+  },
+  "per_instance": [
+    {
+      "instance": "Bird_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.03681752408194019,
+      "cd_yawmin": 0.03681752408194019,
+      "yaw_argmin": 0,
+      "cd_per_yaw": [
+        0.03681752408194019,
+        0.049685262349448714,
+        0.05677705949833364,
+        0.0667378018210397
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Chameleon_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.09544381650036485,
+      "cd_yawmin": 0.09337886252389294,
+      "yaw_argmin": 180,
+      "cd_per_yaw": [
+        0.09544381650036485,
+        0.10990690859642492,
+        0.09337886252389294,
+        0.11084345243473614
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Conch_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.03950829609046559,
+      "cd_yawmin": 0.03950829609046559,
+      "yaw_argmin": 0,
+      "cd_per_yaw": [
+        0.03950829609046559,
+        0.19427199934695985,
+        0.12866097237314372,
+        0.2506010948527026
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Crab_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.06780702622328968,
+      "cd_yawmin": 0.06780702622328968,
+      "yaw_argmin": 0,
+      "cd_per_yaw": [
+        0.06780702622328968,
+        0.10949886786619438,
+        0.07677989323333304,
+        0.10170641878693298
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Fish_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.17740321355780003,
+      "cd_yawmin": 0.1575331142605892,
+      "yaw_argmin": 90,
+      "cd_per_yaw": [
+        0.17740321355780003,
+        0.1575331142605892,
+        0.17754094186167846,
+        0.1638283543475505
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Lobster_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.1672124210729882,
+      "cd_yawmin": 0.1400454337392649,
+      "yaw_argmin": 270,
+      "cd_per_yaw": [
+        0.1672124210729882,
+        0.16018130075430226,
+        0.16928107918886087,
+        0.1400454337392649
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Mussel_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.08578569170394411,
+      "cd_yawmin": 0.08229677108578162,
+      "yaw_argmin": 270,
+      "cd_per_yaw": [
+        0.08578569170394411,
+        0.09928712941264634,
+        0.1030310106919975,
+        0.08229677108578162
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Nautilus_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.18230430439334194,
+      "cd_yawmin": 0.17017469661301257,
+      "yaw_argmin": 270,
+      "cd_per_yaw": [
+        0.18230430439334194,
+        0.17732606178018423,
+        0.17371576208221712,
+        0.17017469661301257
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    },
+    {
+      "instance": "Scallop_seed0",
+      "ref_exists": true,
+      "gen_exists": true,
+      "cd": 0.06650884993219815,
+      "cd_yawmin": 0.06650884993219815,
+      "yaw_argmin": 0,
+      "cd_per_yaw": [
+        0.06650884993219815,
+        0.09122138380415418,
+        0.07670911844933072,
+        0.09671276280510079
+      ],
+      "n_ref_pts": 4096,
+      "n_gen_pts": 4096,
+      "status": "OK"
+    }
+  ]
+}

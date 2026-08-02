@@ -1,0 +1,230 @@
+Original text-to-3D task:
+
+A 3D model of a beverage bottle rendered from a three-quarter perspective. The bottle features a tapered conical body with a narrow cylindrical neck, a small rounded cap, and a decorative label band around the mid-section with colorful printed pattern.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_principled.inputs['Base Color'].default_value = color
+    mat.node_tree.links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def create_bottle():
+    # Parameters
+    base_radius = 0.6
+    shoulder_radius = 0.4
+    neck_radius = 0.15
+    body_height = 1.8
+    neck_height = 0.6
+    cap_height = 0.2
+    cap_radius = 0.17
+    label_height = 0.5
+    label_z_start = 0.6
+    label_offset = 0.01
+
+    # --- Bottle Body and Neck ---
+    bm = bmesh.new()
+    
+    # Base circle
+    bmesh.ops.create_circle(bm, cap_ends=False, radius=base_radius, segments=32)
+    
+    # Extrude up to shoulder height (conical taper)
+    # We'll create the body by extruding and scaling
+    face = bm.faces[0]
+    res = bmesh.ops.extrude_face_region(bm, geom=[face])
+    verts = res['geom']
+    # Move and scale the extruded vertices to form the taper
+    for v in verts:
+        if isinstance(v, bmesh.types.Vert):
+            v.co.z += body_height
+            v.co.x *= (shoulder_radius / base_radius)
+            v.co.y *= (shoulder_radius / base_radius)
+
+    # Shoulder transition to neck
+    face = bm.faces[-1] # Top face
+    # Inset for the neck
+    # Since bmesh doesn't have a direct 'inset', we can scale vertices of a new loop or use bevel/extrude logic
+    # Easier: create the ring for the neck by extruding and scaling again
+    res = bmesh.ops.extrude_face_region(bm, geom=[face])
+    verts = res['geom']
+    for v in verts:
+        if isinstance(v, bmesh.types.Vert):
+            v.co.z += 0.2 # shoulder height
+            # Scale to neck radius
+            dist = math.sqrt(v.co.x**2 + v.co.y**2)
+            scale_factor = neck_radius / dist if dist > 0 else 1
+            v.co.x *= scale_factor
+            v.co.y *= scale_factor
+
+    # Neck extrusion
+    face = bm.faces[-1]
+    res = bmesh.ops.extrude_face_region(bm, geom=[face])
+    verts = res['geom']
+    for v in verts:
+        if isinstance(v, bmesh.types.Vert):
+            v.co.z += neck_height
+
+    # Close the bottle top
+    bmesh.ops.contextual_create(bm, geom=bm.verts[-32:]) # This is a bit risky, better to use a face
+
+    # Cleanup and create object
+    bm.to_mesh("bottle_body")
+    obj_body = bpy.data.objects.new("BottleBody", bpy.data.meshes["bottle_body"])
+    bpy.context.collection.objects.link(obj_body)
+    bm.free()
+
+    # Smooth shading
+    for poly in obj_body.data.polygons:
+        poly.use_smooth = True
+
+    # --- Cap ---
+    cap_bm = bmesh.new()
+    bmesh.ops.create_circle(cap_bm, radius=cap_radius, segments=32)
+    face = cap_bm.faces[0]
+    res = bmesh.ops.extrude_face_region(cap_bm, geom=[face])
+    for v in res['geom']:
+        if isinstance(v, bmesh.types.Vert):
+            v.co.z += cap_height
+    
+    # Round the top of the cap
+    top_face = cap_bm.faces[-1]
+    bmesh.ops.bevel(cap_bm, geom=[top_face], width=0.1, segments=4, affect='VERTICES') 
+    # Bevel on a face doesn't quite work for rounding the top, let's just use a sphere-like cap
+    
+    # Better way for rounded cap: Use a cylinder and then move center vert up or bevel edges
+    cap_bm.to_mesh("bottle_cap")
+    obj_cap = bpy.data.objects.new("BottleCap", bpy.data.meshes["bottle_cap"])
+    bpy.context.collection.objects.link(obj_cap)
+    # Move cap to top of neck
+    obj_cap.location.z = body_height + 0.2 + neck_height
+    cap_bm.free()
+
+    # --- Label Band ---
+    label_bm = bmesh.new()
+    bmesh.ops.create_circle(label_bm, radius=shoulder_radius * 0.7 + label_offset, segments=32) # Approximate mid-taper radius
+    # Actually let's calculate the radius at label_z_start precisely
+    # Radius at z = t is base_rad - (base_rad - shoulder_rad)*(t/body_height)
+    t = label_z_start
+    current_rad = base_radius - (base_radius - shoulder_radius) * (t / body_height) + label_offset
+    
+    # Redo label circle with precise radius
+    label_bm.clear() 
+    bmesh.ops.create_circle(label_bm, radius=current_rad, segments=32)
+    face = label_bm.faces[0]
+    res = bmesh.ops.extrude_face_region(label_bm, geom=[face])
+    for v in res['geom']:
+        if isinstance(v, bmesh.types.Vert):
+            v.co.z += label_height
+    
+    # To make it a "band", we should ideally have thickness or just leave as shell. 
+    # Let's give it slight thickness via a modifier later or manual extrusion.
+    label_bm.to_mesh("bottle_label")
+    obj_label = bpy.data.objects.new("BottleLabel", bpy.data.meshes["bottle_label"])
+    bpy.context.collection.objects.link(obj_label)
+    obj_label.location.z = label_z_start
+    label_bm.free()
+
+    # Materials
+    glass_mat = create_material("Glass", (0.1, 0.4, 0.8, 1.0))
+    cap_mat = create_material("CapPlastic", (0.8, 0.1, 0.1, 1.0))
+    
+    obj_body.data.materials.append(glass_mat)
+    obj_cap.data.materials.append(cap_mat)
+
+    # Colorful Label Pattern (Geometry-based color strips)
+    # We split the label into vertical strips and assign colors
+    label_mesh = obj_label.data
+    num_strips = 12
+    for i in range(num_strips):
+        strip_mat = create_material(f"LabelColor_{i}", (random.random(), random.random(), random.random(), 1.0))
+        label_mesh.materials.append(strip_mat)
+
+    # Assign materials to faces of the label band
+    # The label is a cylinder shell. Faces are arranged in order around the ring.
+    faces = label_mesh.polygons
+    # We have two rings of 32 faces if we extruded? No, usually one loop of faces.
+    # Let's check number of faces.
+    if len(faces) > 0:
+        for idx, face in enumerate(faces):
+            mat_index = (idx // (len(faces)//num_strips)) % num_strips
+            face.material_index = mat_index
+
+    # Final tweaks to the bottle shape (smoothness/bevel)
+    bpy.context.view_layer.objects.active = obj_body
+    bpy.ops.object.shade_smooth()
+    
+    bpy.context.view_layer.objects.active = obj_cap
+    bpy.ops.object.shade_smooth()
+
+    # Fix Label Radius logic: the body is tapered, so a cylinder label won't fit perfectly.
+    # We need to taper the label band as well.
+    for vert in obj_label.data.vertices:
+        z = vert.co.z
+        # Calculate radius at this height relative to bottle base
+        # z absolute is actually (obj_label.location.z + vert.co.z)
+        abs_z = label_z_start + z
+        rad_at_z = base_radius - (base_radius - shoulder_radius) * (abs_z / body_height) + label_offset
+        # Move vertex to this radius
+        vec = Vector((vert.co.x, vert.co.y, 0))
+        if vec.length > 0:
+            vec.normalize()
+            vert.co.x = vec.x * rad_at_z
+            vert.co.y = vec.y * rad_at_z
+
+    return obj_body, obj_cap, obj_label
+
+def main():
+    clear_scene()
+    create_bottle()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: index 0 out of range
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Bottle_seed0/Bottle_seed0.py", line 191, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Bottle_seed0/Bottle_seed0.py", line 188, in main
+    create_bottle()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Bottle_seed0/Bottle_seed0.py", line 43, in create_bottle
+    face = bm.faces[0]
+           ~~~~~~~~^^^
+IndexError: BMElemSeq[index]: index 0 out of range
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

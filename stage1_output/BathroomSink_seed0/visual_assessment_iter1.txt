@@ -1,0 +1,4 @@
+- The sink is a light mint green instead of the requested "dark green stone".
+- Missing marble veining in the interior surface.
+- The gooseneck faucet positioning and proportions are slightly off; it looks detached from the basin rim in some renders.
+- Need to implement procedural textures for the marble effect.

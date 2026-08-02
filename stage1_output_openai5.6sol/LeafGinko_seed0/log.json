@@ -1,0 +1,35 @@
+{
+  "instance": "LeafGinko_seed0",
+  "timestamp": "2026-07-20T04:49:42+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 4.73,
+  "code_chars": 9922,
+  "input_tokens": 5157,
+  "output_tokens": 51,
+  "thoughts_tokens": 89,
+  "total_tokens": 5297,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The model clearly reads as a complete ginkgo leaf with attached long petiole, fan-shaped veined blade, central notch, scalloped edge, and subtle curvature.",
+      "raw_chars": 196
+    }
+  ],
+  "error": null
+}

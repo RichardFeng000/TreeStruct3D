@@ -1,0 +1,48 @@
+{
+  "instance": "Chameleon_seed0",
+  "timestamp": "2026-07-20T04:47:54+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 64.94,
+  "code_chars": 13264,
+  "input_tokens": 13784,
+  "output_tokens": 4685,
+  "thoughts_tokens": 873,
+  "total_tokens": 19342,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 255,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The creature renders far too dark and small, making its texture and anatomy difficult to read; brighten the olive material and strengthen the silhouette.\n- Several limbs are hidden against the torso, and the grasping multi-toed feet are barely recognizable; spread all four limbs and enlarge the toes.\n- The head and eyes look lumpy and poorly integrated; use a clearer rounded head with attached, upward-visible eye turrets.\n- Dark speckling and the spinal ridge need stronger visible coverage.",
+      "raw_chars": 13819
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model clearly presents a flattened olive chameleon with four attached grasping limbs, prominent eyes, a subtle spinal ridge, speckled leathery skin, and an extremely long tapered tail.",
+      "raw_chars": 229
+    }
+  ],
+  "error": null
+}

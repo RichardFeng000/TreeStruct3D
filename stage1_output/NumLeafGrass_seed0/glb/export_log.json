@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/NumLeafGrass_seed0/NumLeafGrass_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/NumLeafGrass_seed0/glb/NumLeafGrass_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 17.1,
+  "latency_s": 0.09,
+  "error": null
+}

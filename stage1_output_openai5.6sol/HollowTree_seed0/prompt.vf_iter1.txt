@@ -1,0 +1,475 @@
+Original text-to-3D task:
+
+A 3D model of a bare leafless dead tree rendered against a white background. The tree shows a single irregular brown-and-russet wooden trunk widening at the base, with many slender bare branches and twigs spreading outward from the upper trunk in a sparse network, knobby joints visible at branching points, and casting a dark shadow on the ground.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(18473)
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks is bpy.data.materials:
+        continue
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+# White world background, without adding environmental geometry.
+world = bpy.data.worlds.get("World")
+if world is None:
+    world = bpy.data.worlds.new("World")
+bpy.context.scene.world = world
+world.use_nodes = True
+background = world.node_tree.nodes.get("Background")
+if background:
+    background.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    background.inputs["Strength"].default_value = 0.8
+world.color = (1.0, 1.0, 1.0)
+
+# Brown and russet bark materials.
+def make_material(name, color, roughness):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+materials = [
+    make_material("Dark Weathered Bark", (0.155, 0.068, 0.030), 0.93),
+    make_material("Dry Brown Bark", (0.285, 0.118, 0.047), 0.90),
+    make_material("Russet Bark", (0.410, 0.145, 0.055), 0.88),
+    make_material("Pale Broken Wood", (0.390, 0.235, 0.120), 0.86),
+]
+
+verts = []
+faces = []
+face_materials = []
+face_smooth = []
+
+def local_frame(tangent):
+    tangent = tangent.normalized()
+    if abs(tangent.z) < 0.88:
+        side = tangent.cross(Vector((0.0, 0.0, 1.0))).normalized()
+    else:
+        side = tangent.cross(Vector((1.0, 0.0, 0.0))).normalized()
+    up = side.cross(tangent).normalized()
+    return side, up
+
+def add_tube(points, radii, sides=8, material_index=1, flatten=1.0,
+             cap_start=True, cap_end=True, irregularity=0.08):
+    if len(points) < 2:
+        return
+
+    start_index = len(verts)
+    ring_indices = []
+
+    for i, point in enumerate(points):
+        if i == 0:
+            tangent = points[1] - points[0]
+        elif i == len(points) - 1:
+            tangent = points[-1] - points[-2]
+        else:
+            tangent = points[i + 1] - points[i - 1]
+
+        side, up = local_frame(tangent)
+        ring = []
+        for j in range(sides):
+            angle = 2.0 * math.pi * j / sides
+            wave = (
+                math.sin(j * 2.31 + i * 1.17) * 0.52 +
+                math.sin(j * 4.07 - i * 0.83) * 0.25
+            )
+            jitter = 1.0 + irregularity * wave + random.uniform(-irregularity * 0.25, irregularity * 0.25)
+            radial = side * math.cos(angle) + up * (math.sin(angle) * flatten)
+            ring.append(len(verts))
+            verts.append(tuple(point + radial * radii[i] * jitter))
+        ring_indices.append(ring)
+
+    for i in range(len(ring_indices) - 1):
+        for j in range(sides):
+            face = (
+                ring_indices[i][j],
+                ring_indices[i][(j + 1) % sides],
+                ring_indices[i + 1][(j + 1) % sides],
+                ring_indices[i + 1][j],
+            )
+            faces.append(face)
+            color_roll = random.random()
+            if color_roll < 0.08:
+                mat = 2
+            elif color_roll < 0.13:
+                mat = 0
+            else:
+                mat = material_index
+            face_materials.append(mat)
+            face_smooth.append(True)
+
+    if cap_start:
+        faces.append(tuple(reversed(ring_indices[0])))
+        face_materials.append(material_index)
+        face_smooth.append(False)
+
+    if cap_end:
+        faces.append(tuple(ring_indices[-1]))
+        face_materials.append(3 if radii[-1] < 0.045 else material_index)
+        face_smooth.append(False)
+
+def add_knob(center, radius, scale=(1.0, 1.0, 1.0), material_index=1,
+             segments=9, rings=5, roughness=0.12):
+    base = len(verts)
+    local_rings = []
+
+    top_index = len(verts)
+    verts.append((
+        center.x,
+        center.y,
+        center.z + radius * scale[2] * (1.0 + random.uniform(-0.04, 0.04))
+    ))
+
+    for r in range(1, rings):
+        phi = math.pi * r / rings
+        ring = []
+        for s in range(segments):
+            theta = 2.0 * math.pi * s / segments
+            noise = 1.0 + roughness * (
+                0.55 * math.sin(theta * 3.0 + phi * 2.4) +
+                0.25 * math.sin(theta * 5.0 - phi)
+            ) + random.uniform(-roughness * 0.18, roughness * 0.18)
+            x = center.x + math.sin(phi) * math.cos(theta) * radius * scale[0] * noise
+            y = center.y + math.sin(phi) * math.sin(theta) * radius * scale[1] * noise
+            z = center.z + math.cos(phi) * radius * scale[2] * noise
+            ring.append(len(verts))
+            verts.append((x, y, z))
+        local_rings.append(ring)
+
+    bottom_index = len(verts)
+    verts.append((
+        center.x,
+        center.y,
+        center.z - radius * scale[2] * (1.0 + random.uniform(-0.04, 0.04))
+    ))
+
+    first = local_rings[0]
+    for s in range(segments):
+        faces.append((top_index, first[s], first[(s + 1) % segments]))
+        face_materials.append(material_index)
+        face_smooth.append(True)
+
+    for r in range(len(local_rings) - 1):
+        ring_a = local_rings[r]
+        ring_b = local_rings[r + 1]
+        for s in range(segments):
+            faces.append((
+                ring_a[s],
+                ring_b[s],
+                ring_b[(s + 1) % segments],
+                ring_a[(s + 1) % segments],
+            ))
+            face_materials.append(2 if random.random() < 0.10 else material_index)
+            face_smooth.append(True)
+
+    last = local_rings[-1]
+    for s in range(segments):
+        faces.append((last[(s + 1) % segments], last[s], bottom_index))
+        face_materials.append(material_index)
+        face_smooth.append(True)
+
+# Irregular central trunk.
+trunk_points = []
+trunk_radii = []
+trunk_count = 19
+for i in range(trunk_count):
+    t = i / (trunk_count - 1)
+    z = 5.85 * t
+    x = 0.105 * math.sin(t * 7.2) + 0.045 * math.sin(t * 17.0)
+    y = 0.085 * math.sin(t * 5.3 + 0.7) + 0.035 * math.sin(t * 15.0)
+    if i == 0:
+        x = 0.0
+        y = 0.0
+    radius = 0.68 * ((1.0 - t) ** 0.72) + 0.105
+    radius *= 1.0 + 0.045 * math.sin(i * 2.2)
+    trunk_points.append(Vector((x, y, z)))
+    trunk_radii.append(radius)
+
+add_tube(
+    trunk_points,
+    trunk_radii,
+    sides=14,
+    material_index=1,
+    flatten=1.0,
+    cap_start=True,
+    cap_end=True,
+    irregularity=0.12
+)
+
+# Root flare and exposed, flattened roots radiating from the base.
+root_count = 9
+for i in range(root_count):
+    angle = 2.0 * math.pi * i / root_count + random.uniform(-0.17, 0.17)
+    direction = Vector((math.cos(angle), math.sin(angle), 0.0))
+    side = Vector((-direction.y, direction.x, 0.0))
+    length = random.uniform(1.05, 1.75)
+    root_points = []
+    root_radii = []
+    segments = 6
+    for j in range(segments):
+        t = j / (segments - 1)
+        bend = side * math.sin(t * math.pi) * random.uniform(-0.13, 0.13)
+        center = direction * (length * (t ** 0.82)) + bend
+        center.z = 0.20 * (1.0 - t) + 0.055
+        root_points.append(center)
+        root_radii.append((0.34 + random.uniform(-0.035, 0.035)) * ((1.0 - t) ** 0.9) + 0.025)
+    add_tube(
+        root_points,
+        root_radii,
+        sides=9,
+        material_index=1 if i % 3 else 2,
+        flatten=0.38,
+        cap_start=False,
+        cap_end=True,
+        irregularity=0.13
+    )
+
+# Bulbous root collar around the base.
+add_knob(Vector((0.0, 0.0, 0.25)), 0.67, (1.04, 0.98, 0.62), 1, 12, 6, 0.10)
+
+# Small old burls on the trunk.
+for idx, angle, size in [
+    (4, 0.4, 0.17),
+    (7, 2.7, 0.14),
+    (10, 5.1, 0.13),
+    (13, 1.8, 0.105),
+]:
+    center = trunk_points[idx]
+    outward = Vector((math.cos(angle), math.sin(angle), 0.15)).normalized()
+    center = center + outward * (trunk_radii[idx] * 0.82)
+    add_knob(center, size, (1.05, 0.90, 1.12), 2 if idx % 2 else 1, 8, 5, 0.14)
+
+def random_perpendicular(direction):
+    trial = Vector((
+        random.uniform(-1.0, 1.0),
+        random.uniform(-1.0, 1.0),
+        random.uniform(-0.5, 1.0)
+    ))
+    perpendicular = trial - direction * trial.dot(direction)
+    if perpendicular.length < 0.001:
+        perpendicular = direction.cross(Vector((0.0, 0.0, 1.0)))
+    if perpendicular.length < 0.001:
+        perpendicular = Vector((1.0, 0.0, 0.0))
+    return perpendicular.normalized()
+
+def grow_branch(start, initial_direction, length, radius, depth, tone=1):
+    direction = initial_direction.normalized()
+    point_count = 5 if depth >= 2 else 4
+    points = [start.copy()]
+    current = start.copy()
+    current_dir = direction.copy()
+
+    side_bias = random_perpendicular(current_dir) * random.uniform(-0.12, 0.12)
+    for i in range(1, point_count):
+        progress = i / (point_count - 1)
+        wander = Vector((
+            random.uniform(-0.22, 0.22),
+            random.uniform(-0.22, 0.22),
+            random.uniform(-0.13, 0.20)
+        ))
+        lift = Vector((0.0, 0.0, 0.10 if depth >= 2 else -0.015))
+        current_dir = (current_dir * 0.86 + wander + side_bias + lift).normalized()
+        step = length / (point_count - 1)
+        step *= random.uniform(0.88, 1.10)
+        current = current + current_dir * step
+        points.append(current.copy())
+
+    if depth > 0:
+        end_radius = max(radius * random.uniform(0.62, 0.70), 0.018)
+    else:
+        end_radius = max(radius * random.uniform(0.15, 0.25), 0.008)
+
+    radii = []
+    for i in range(point_count):
+        t = i / (point_count - 1)
+        taper = radius * (1.0 - t) + end_radius * t
+        taper *= 1.0 + 0.035 * math.sin(i * 2.7 + length)
+        radii.append(taper)
+
+    add_tube(
+        points,
+        radii,
+        sides=8 if radius > 0.11 else 7,
+        material_index=tone,
+        cap_start=False,
+        cap_end=(depth == 0),
+        irregularity=0.09
+    )
+
+    if depth <= 0:
+        return
+
+    joint = points[-1]
+    if end_radius > 0.026:
+        add_knob(
+            joint,
+            end_radius * random.uniform(1.08, 1.27),
+            (1.0, 0.94, 1.04),
+            2 if random.random() < 0.18 else tone,
+            8,
+            5,
+            0.11
+        )
+
+    terminal_direction = (points[-1] - points[-2]).normalized()
+    fork_axis = random_perpendicular(terminal_direction)
+    secondary_axis = terminal_direction.cross(fork_axis).normalized()
+
+    spread_a = random.uniform(0.40, 0.62)
+    spread_b = random.uniform(0.38, 0.60)
+    child_a = (
+        terminal_direction * random.uniform(0.72, 0.88) +
+        fork_axis * spread_a +
+        secondary_axis * random.uniform(-0.18, 0.18) +
+        Vector((0.0, 0.0, random.uniform(0.02, 0.16)))
+    ).normalized()
+    child_b = (
+        terminal_direction * random.uniform(0.68, 0.86) -
+        fork_axis * spread_b +
+        secondary_axis * random.uniform(-0.18, 0.18) +
+        Vector((0.0, 0.0, random.uniform(-0.02, 0.14)))
+    ).normalized()
+
+    child_radius = end_radius * random.uniform(0.76, 0.88)
+    grow_branch(
+        joint,
+        child_a,
+        length * random.uniform(0.57, 0.68),
+        child_radius,
+        depth - 1,
+        tone if random.random() > 0.18 else 2
+    )
+    grow_branch(
+        joint,
+        child_b,
+        length * random.uniform(0.54, 0.66),
+        child_radius * random.uniform(0.87, 1.0),
+        depth - 1,
+        tone if random.random() > 0.22 else 2
+    )
+
+    # Occasional short side twig makes the crown less symmetrically forked.
+    if depth >= 2 and random.random() < 0.48:
+        side_direction = (
+            terminal_direction * 0.55 +
+            secondary_axis * random.choice((-1.0, 1.0)) * random.uniform(0.55, 0.80) +
+            Vector((0.0, 0.0, random.uniform(-0.05, 0.22)))
+        ).normalized()
+        grow_branch(
+            points[-2],
+            side_direction,
+            length * random.uniform(0.34, 0.46),
+            max(radius * 0.34, 0.018),
+            depth - 2,
+            2 if random.random() < 0.30 else tone
+        )
+
+# Main crown branches, distributed irregularly around the upper trunk.
+branch_specs = [
+    (5, 2.20, 2.35, 0.225, 3),
+    (6, 5.15, 2.10, 0.205, 3),
+    (7, 0.65, 2.55, 0.220, 3),
+    (8, 3.45, 2.15, 0.195, 3),
+    (9, 1.85, 2.40, 0.190, 3),
+    (10, 4.72, 2.15, 0.180, 3),
+    (11, 0.08, 2.25, 0.175, 3),
+    (12, 2.85, 2.00, 0.160, 3),
+    (13, 5.55, 1.90, 0.150, 3),
+    (14, 1.15, 1.80, 0.140, 3),
+    (15, 3.90, 1.62, 0.130, 3),
+    (16, 0.35, 1.45, 0.115, 2),
+]
+
+for n, (idx, angle, length, radius, depth) in enumerate(branch_specs):
+    start = trunk_points[idx].copy()
+    radial = Vector((math.cos(angle), math.sin(angle), 0.0))
+    upward = 0.30 + 0.16 * ((idx - 5) / 11.0) + random.uniform(-0.12, 0.16)
+    direction = Vector((radial.x, radial.y, upward)).normalized()
+    start = start + radial * (trunk_radii[idx] * 0.56)
+    add_knob(
+        start,
+        radius * 1.26,
+        (1.05, 0.96, 1.10),
+        2 if n % 4 == 0 else 1,
+        9,
+        5,
+        0.13
+    )
+    grow_branch(start, direction, length, radius, depth, 2 if n % 5 == 0 else 1)
+
+# A forked, narrowing continuation at the crown rather than a perfectly straight top.
+top_start = trunk_points[-2]
+top_direction = Vector((0.12, -0.08, 1.0)).normalized()
+grow_branch(top_start, top_direction, 1.35, 0.13, 2, 1)
+
+# Broken branch stubs with exposed pale end grain.
+stub_specs = [
+    (3, 1.55, 0.46, 0.15),
+    (5, 4.05, 0.35, 0.125),
+    (8, 2.35, 0.31, 0.105),
+    (11, 5.80, 0.28, 0.085),
+]
+for idx, angle, length, radius in stub_specs:
+    radial = Vector((math.cos(angle), math.sin(angle), 0.12)).normalized()
+    start = trunk_points[idx] + radial * (trunk_radii[idx] * 0.55)
+    end = start + radial * length
+    middle = start.lerp(end, 0.55) + Vector((0.0, 0.0, random.uniform(-0.025, 0.04)))
+    add_knob(start, radius * 1.18, (1.0, 0.95, 1.0), 1, 8, 5, 0.11)
+    add_tube(
+        [start, middle, end],
+        [radius, radius * 0.76, radius * 0.60],
+        sides=8,
+        material_index=1,
+        cap_start=False,
+        cap_end=True,
+        irregularity=0.10
+    )
+
+mesh = bpy.data.meshes.new("Dead_Tree_Mesh")
+mesh.from_pydata(verts, [], faces)
+mesh.materials.clear()
+for material in materials:
+    mesh.materials.append(material)
+
+for polygon, material_index, smooth in zip(mesh.polygons, face_materials, face_smooth):
+    polygon.material_index = material_index
+    polygon.use_smooth = smooth
+
+mesh.validate(verbose=False)
+mesh.update()
+
+tree = bpy.data.objects.new("Bare_Leafless_Dead_Tree", mesh)
+bpy.context.collection.objects.link(tree)
+
+# Keep the coherent assembly at the world origin.
+tree.location = (0.0, 0.0, 0.0)
+tree.rotation_euler = (0.0, 0.0, 0.0)
+
+bpy.context.view_layer.objects.active = tree
+tree.select_set(True)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

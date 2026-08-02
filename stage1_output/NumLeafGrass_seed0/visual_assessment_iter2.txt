@@ -1,0 +1,3 @@
+- The leaflets are clumped together into a single spherical mass, failing to look like a radial cluster of distinct leaves.
+- Proportions are wrong; the leaves should be flatter, more oval-shaped, and clearly separated.
+- The "dark green" is not translating well in renders; will adjust for better visibility while keeping it dark.

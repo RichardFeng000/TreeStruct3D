@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/NatureShelfTrinkets_seed0/NatureShelfTrinkets_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 17,
+  "extent": 2.2483999729156494,
+  "n_views_rendered": 4,
+  "latency_s": 2.34,
+  "error": null
+}

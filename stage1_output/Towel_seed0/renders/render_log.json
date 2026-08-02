@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Towel_seed0/Towel_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 5,
+  "extent": 3.304962396621704,
+  "n_views_rendered": 4,
+  "latency_s": 3.28,
+  "error": null
+}

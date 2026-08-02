@@ -1,0 +1,4 @@
+- Abdomen segments are too spherical and look like beads rather than wide, overlapping carapace plates.
+- The tail fan is a single flat disc instead of a radiating "fan" structure.
+- Antennae exhibit visible angular bends; they need higher resolution for smooth curves.
+- Walking legs lack the "pointed tips" mentioned in the description.

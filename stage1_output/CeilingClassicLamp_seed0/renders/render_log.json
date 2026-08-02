@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CeilingClassicLamp_seed0/CeilingClassicLamp_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 4,
+  "extent": 1.75,
+  "n_views_rendered": 4,
+  "latency_s": 3.64,
+  "error": null
+}

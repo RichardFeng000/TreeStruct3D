@@ -1,0 +1,4 @@
+- Wrong proportions: The shell is too spherical and "blobby"; clam shells should be flatter, oval plates.
+- Missing geometric detail: Growth rings are merely color patches; they should have actual physical ridges/texture.
+- Texture issues: Color transitions between brown and cream are blocky and jagged.
+- Misalignment: The hinge area looks slightly disconnected in some views.

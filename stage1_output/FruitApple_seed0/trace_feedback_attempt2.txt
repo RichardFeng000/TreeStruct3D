@@ -1,0 +1,166 @@
+Original text-to-3D task:
+
+An apple rendered as a textured 3D model. The fruit has a classic round, slightly flattened spherical shape with a smooth, soft pink-peach surface. The coloring is a uniform warm peachy pink with subtle lighter cream streaks radiating vertically from the stem dimple, giving a natural blush apple appearance. A short, straight brown stem protrudes from a neatly indented crown at the top. The smooth, slightly glossy surface reflects soft highlights. A small black circular base disc grounds the fruit on the white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    if bpy.context.active_object and bpy.context.active_object.mode == 'EDIT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color, roughness=0.5, metallic=0.0):
+    """Creates a simple Principled BSDF material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = roughness
+        bsdf.inputs['Metallic'].default_value = metallic
+    return mat
+
+def create_apple():
+    """Creates the main body of the apple."""
+    # Create a sphere as the base
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32, radius=1.0)
+    apple = bpy.context.active_object
+    apple.name = "AppleBody"
+
+    # Slightly flatten and widen to get that apple silhouette
+    apple.scale = (1.1, 1.1, 0.9)
+    # Correct operator for applying scale in Blender
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    # Use BMesh to sculpt the top dimple and bottom flatten
+    bm = bmesh.new()
+    bm.from_mesh(apple.data)
+    
+    for v in bm.verts:
+        x, y, z = v.co
+        # Top Crown Dimple: Push vertices down near the top center
+        if z > 0.6:
+            dist_sq = x**2 + y**2
+            # Create a parabolic dip at the top
+            if dist_sq < 0.5:
+                # Strength of push depends on distance from center
+                dip = 0.2 * (1.0 - (dist_sq / 0.5))
+                v.co.z -= dip
+        
+        # Bottom Flattening: Squash the very bottom slightly
+        if z < -0.8:
+            v.co.z += (-z - 0.8) * 0.3
+
+    bm.to_mesh(apple.data)
+    bm.free()
+
+    # Smooth shading
+    bpy.ops.object.shade_smooth()
+    
+    # High fidelity surface
+    subsurf = apple.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+
+    # Material: Warm Peachy Pink (RGB)
+    apple_mat = create_material("AppleMat", (1.0, 0.7, 0.6), roughness=0.35)
+    apple.data.materials.append(apple_mat)
+
+    return apple
+
+def create_stem():
+    """Creates the stem of the apple."""
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.04, depth=0.35)
+    stem = bpy.context.active_object
+    stem.name = "AppleStem"
+    
+    # Position it at the top crown center
+    stem.location = (0, 0, 0.85)
+    
+    # Slight taper and a very subtle lean for natural look
+    bm = bmesh.new()
+    bm.from_mesh(stem.data)
+    for v in bm.verts:
+        if v.co.z > 0: # Upper part of stem
+            v.co.x += 0.03
+            v.co.y += 0.02
+            # Taper the tip
+            scale_factor = 1.0 - (v.co.z * 0.5)
+            v.co.x *= scale_factor
+            v.co.y *= scale_factor
+    bm.to_mesh(stem.data)
+    bm.free()
+
+    bpy.ops.object.shade_smooth()
+    
+    # Material: Brown
+    stem_mat = create_material("StemMat", (0.2, 0.1, 0.05), roughness=0.8)
+    stem.data.materials.append(stem_mat)
+
+def create_base():
+    """Creates the small black circular base disc."""
+    bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.4, depth=0.015)
+    base = bpy.context.active_object
+    base.name = "BaseDisc"
+    
+    # Place it at the bottom of the apple body
+    base.location = (0, 0, -0.92)
+    
+    bpy.ops.object.shade_smooth()
+    
+    # Material: Black
+    base_mat = create_material("BaseMat", (0.01, 0.01, 0.01), roughness=0.6)
+    base.data.materials.append(base_mat)
+
+def main():
+    clear_scene()
+    create_apple()
+    create_stem()
+    create_base()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+ValueError: bpy_struct: item.attr = val: sequences of dimension 0 should contain 4 items, not 3
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 124, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 119, in main
+    create_apple()
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 68, in create_apple
+    apple_mat = create_material("AppleMat", (1.0, 0.7, 0.6), roughness=0.35)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 20, in create_material
+    bsdf.inputs['Base Color'].default_value = color
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: bpy_struct: item.attr = val: sequences of dimension 0 should contain 4 items, not 3
+
+This is repair attempt 3 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

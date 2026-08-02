@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CurvedStaircase_seed0/CurvedStaircase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 7.294240474700928,
+  "n_views_rendered": 4,
+  "latency_s": 3.56,
+  "error": null
+}

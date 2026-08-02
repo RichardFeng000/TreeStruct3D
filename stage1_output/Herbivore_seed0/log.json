@@ -1,0 +1,56 @@
+{
+  "instance": "Herbivore_seed0",
+  "timestamp": "2026-07-09T16:03:29+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 154.71,
+  "code_chars": 7051,
+  "input_tokens": 9483,
+  "output_tokens": 5454,
+  "thoughts_tokens": null,
+  "total_tokens": 14937,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Fur is black, not sandy beige-pink with brown stripes; vertex color isn't driving the material.\n- No visible legs, head, or neck \u2014 geometry is fused into a blob.\n- Particle hair covers everything but lacks color variation or stripe detail.\n- Missing facial features and paws; overall shape lacks quadrupedal structure.",
+      "raw_chars": 7480
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Creature is entirely black, ignoring the sandy beige-pink base and brownish-gray stripes.\n- No visible legs, head, or neck \u2014 just a blob with fur.\n- Fur particle system is active but color is wrong and geometry is malformed.\n- Body shape is amorphous, not stocky with rounded back and short neck.",
+      "raw_chars": 7415
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

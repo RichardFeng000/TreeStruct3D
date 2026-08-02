@@ -1,0 +1,2 @@
+- The model is too pristine; the "weathered" description is barely represented by a bevel. It needs aggressive vertex perturbation and simulated "chips" on corners to look genuinely aged.
+- Fluting depth is slightly shallow, making it less visually distinct in the renders.

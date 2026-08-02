@@ -1,0 +1,149 @@
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default scene of all objects."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+    # Ensure we clean up orphaned data
+    for mesh in bpy.data.meshes:
+        bpy.data.meshes.remove(mesh)
+    for mat in bpy.data.materials:
+        bpy.data.materials.remove(mat)
+
+def create_material():
+    """Creates a deep navy blue-gray material."""
+    mat = bpy.data.materials.new(name="KnifeMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        # Deep navy blue-gray color (RGBA)
+        bsdf.inputs['Base Color'].default_value = (0.08, 0.12, 0.18, 1.0)
+        bsdf.inputs['Roughness'].default_value = 0.3
+        bsdf.inputs['Metallic'].default_value = 0.7
+    return mat
+
+def create_knife():
+    """Procedurally generates the knife geometry."""
+    # Parameters
+    handle_length = 5.0
+    blade_length = 12.0
+    handle_width = 1.2
+    handle_thickness = 0.8
+    blade_base_width = 2.4
+    blade_thickness = 0.15
+    segments = 32
+
+    mesh = bpy.data.meshes.new("Knife")
+    obj = bpy.data.objects.new("Knife", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+
+    # 1. Create the Handle Profile (Circle/Ellipse)
+    verts = []
+    for i in range(segments):
+        angle = (2 * math.pi * i) / segments
+        x = math.cos(angle) * handle_width * 0.5
+        z = math.sin(angle) * handle_thickness * 0.5
+        verts.append(bm.verts.new((x, 0, z)))
+    
+    # Create the first face (the base of the handle)
+    face = bm.faces.new(verts)
+
+    # Extrude handle along Y axis
+    handle_steps = 8
+    for s in range(handle_steps):
+        # Find the face that is moving forward (+Y)
+        current_face = [f for f in bm.faces if f.normal.y > 0.9]
+        if not current_face: break
+        
+        res = bmesh.ops.extrude_face_region(bm, geom=current_face)
+        verts_extruded = [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]
+        for v in verts_extruded:
+            v.co.y += handle_length / handle_steps
+
+    # 2. Transition to Blade Base
+    # Current face is the end of the handle
+    current_face = [f for f in bm.faces if f.normal.y > 0.9]
+    if current_face:
+        res = bmesh.ops.extrude_face_region(bm, geom=current_face)
+        verts_extruded = [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]
+        
+        for v in verts_extruded:
+            # Blend and Flatten
+            v.co.y += 1.0 # Transition length
+            # Scale X to blade width, Z to blade thickness
+            # We use a simple linear scale based on the existing relative coordinates
+            old_x = v.co.x / (handle_width * 0.5) if handle_width != 0 else 0
+            old_z = v.co.z / (handle_thickness * 0.5) if handle_thickness != 0 else 0
+            v.co.x = old_x * (blade_base_width * 0.5)
+            v.co.z = old_z * (blade_thickness * 0.5)
+
+    # 3. Create the Blade Body
+    blade_steps = 12
+    for s in range(blade_steps):
+        current_face = [f for f in bm.faces if f.normal.y > 0.9]
+        if not current_face: break
+        
+        res = bmesh.ops.extrude_face_region(bm, geom=current_face)
+        verts_extruded = [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]
+        
+        progress = (s + 1) / blade_steps
+        offset_y = blade_length / blade_steps
+        
+        for v in verts_extruded:
+            v.co.y += offset_y
+            # Taper the width towards a point
+            taper = 1.0 - (progress * 0.9) # Leave some tiny width before final collapse
+            if progress > 0.7:
+                tip_taper = 1.0 - ((progress - 0.7) / 0.3)
+                v.co.x *= max(0.01, tip_taper)
+            else:
+                v.co.x *= taper
+
+    # 4. Close the Tip
+    # Find vertices at the very end of the Y axis
+    max_y = max(v.co.y for v in bm.verts)
+    tip_verts = [v for v in bm.verts if v.co.y >= max_y - 0.1]
+    if tip_verts:
+        # Collapse all vertices at the tip into one single point
+        bmesh.ops.collapse(bm, verts=tip_verts)
+
+    # Final cleanup and updates
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Center the object so it sits at origin
+    # Calculate current bounding box to center
+    bbox = [v.co for v in mesh.vertices]
+    min_y = min(v.y for v in bbox)
+    max_y = max(v.y for v in bbox)
+    obj.location.y = - (min_y + max_y) / 2
+
+    # Apply a Subdivision Surface modifier for smoothness
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+    
+    # Smooth shading
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    return obj
+
+if __name__ == "__main__":
+    clear_scene()
+    
+    # Create geometry
+    knife_obj = create_knife()
+    
+    # Apply material
+    knife_mat = create_material()
+    if knife_obj.data.materials:
+        knife_obj.data.materials[0] = knife_mat
+    else:
+        knife_obj.data.materials.append(knife_mat)

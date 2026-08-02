@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Crab_seed0/Crab_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Crab_seed0/glb/Crab_seed0.glb",
+  "status": "OK",
+  "n_meshes": 37,
+  "size_kb": 576.8,
+  "latency_s": 0.15,
+  "error": null
+}
