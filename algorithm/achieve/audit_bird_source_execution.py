@@ -9,9 +9,17 @@ from pathlib import Path
 import sys
 
 
-APP_DIR = Path(__file__).resolve().parent
-SOURCE = APP_DIR / "benchmark" / "categories" / "Bird_seed0" / "Bird_seed0.py"
-WORKER = APP_DIR / "blender_live_export.py"
+ALGORITHM_DIR = Path(__file__).resolve().parent.parent
+APP_DIR = ALGORITHM_DIR.parent
+SOURCE = (
+    APP_DIR
+    / "datasets"
+    / "benchmark"
+    / "categories"
+    / "Bird_seed0"
+    / "Bird_seed0.py"
+)
+WORKER = ALGORITHM_DIR / "blender_live_export.py"
 EXPECTED_CREATORS = {
     "body": 1,
     "head": 1,

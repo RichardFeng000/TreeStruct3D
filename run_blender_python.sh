@@ -6,7 +6,7 @@ usage() {
   printf '用法: %s <blender_python.py> [脚本参数...]\n' "$(basename "$0")"
   printf '\n'
   printf '示例:\n'
-  printf '  %s ./benchmark/categories/Bird_seed0/Bird_seed0.py\n' "$(basename "$0")"
+  printf '  %s ./datasets/benchmark/categories/Bird_seed0/Bird_seed0.py\n' "$(basename "$0")"
   printf '  %s ./scene.py --seed 0 --output ./result.blend\n' "$(basename "$0")"
   printf '\n'
   printf '固定使用项目内 Blender 5.0。\n'

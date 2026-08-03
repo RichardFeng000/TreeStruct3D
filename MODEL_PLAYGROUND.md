@@ -1,5 +1,14 @@
 # Blender 模型参数编辑器
 
+项目代码已经按职责分成两层：
+
+- `frontend/`：网页界面、参数面板、树图/锚点图和 Three.js 模型预览。
+- `algorithm/`：Blender Python 静态解析、完整执行、参数注入、运行时关系分析和 GLB 导出。
+
+运行时父子和共享锚点 probe 已复制到 `algorithm/runtime/blender_probe.py`，项目运行不再读取外部 `SR_F1_Structural_Metric`。
+
+三个数据源统一放在 `datasets/`；旧报告和结构输出放在根目录 `achieve/`；运行缓存和一键启动脚本继续放在项目根目录。详细目录说明见 `README.md`。
+
 启动：
 
 ```bash
@@ -13,9 +22,9 @@ cd /Users/fengruiding/Downloads/3d_code/validation_test
 
 可切换的代码源：
 
-- `Benchmark 验证集`：`validation_test/benchmark/categories`，212 个模型。
-- `Stage 1 Output`：完整复制到 `validation_test/stage1_output`，网页只列出每个模型目录中的正式同名 Python，212 个模型。
-- `Stage 1 · GPT-5.6-sol`：完整复制到 `validation_test/stage1_output_openai5.6sol`，网页只列出正式同名 Python，当前 46 个模型。
+- `Benchmark 验证集`：`validation_test/datasets/benchmark/categories`，212 个模型。
+- `Stage 1 Output`：`validation_test/datasets/stage1_output`，网页只列出每个模型目录中的正式同名 Python，212 个模型。
+- `Stage 1 · GPT-5.6-sol`：`validation_test/datasets/stage1_output_openai5.6sol`，网页只列出正式同名 Python，当前 46 个模型。
 
 切换来源时会尽量保持当前同名模型；如果新来源没有该模型，优先选择 Bird，否则选择列表中的第一个。参数、结构树、运行时锚点和 Blender 预览始终使用当前代码源，缓存键也包含代码源，避免同名模型互相覆盖。
 

@@ -25,13 +25,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from code_structure_tree import SourceStructure, _interactive_data
+try:
+    from .code_structure_tree import SourceStructure, _interactive_data
+except ImportError:  # Support direct execution: python3 algorithm/model_playground.py
+    from code_structure_tree import SourceStructure, _interactive_data
 
 
-APP_DIR = Path(__file__).resolve().parent
-DEFAULT_BENCHMARK = APP_DIR / "benchmark" / "categories"
-DEFAULT_STAGE1_OUTPUT = APP_DIR / "stage1_output"
-DEFAULT_STAGE1_GPT56_SOL = APP_DIR / "stage1_output_openai5.6sol"
+ALGORITHM_DIR = Path(__file__).resolve().parent
+APP_DIR = ALGORITHM_DIR.parent
+FRONTEND_DIR = APP_DIR / "frontend"
+DATASETS_DIR = APP_DIR / "datasets"
+DEFAULT_BENCHMARK = DATASETS_DIR / "benchmark" / "categories"
+DEFAULT_STAGE1_OUTPUT = DATASETS_DIR / "stage1_output"
+DEFAULT_STAGE1_GPT56_SOL = DATASETS_DIR / "stage1_output_openai5.6sol"
 DEFAULT_BLENDER = Path(
     "/Users/fengruiding/Downloads/3d_code/tools/"
     "Blender-5.0.app/Contents/MacOS/Blender"
@@ -39,13 +45,7 @@ DEFAULT_BLENDER = Path(
 PINNED_BLENDER_VERSION = "5.0.0"
 RUNTIME_GRAPH_VERSION = "7-preview-anchor-overlay"
 RENDER_WORKER_VERSION = "9-semantic-highlight-overlays"
-RUNTIME_GRAPH_PROBE = (
-    APP_DIR.parent
-    / "SR_F1_Structural_Metric"
-    / "part_causal_graph_v0"
-    / "part_causal_graph"
-    / "blender_probe.py"
-)
+RUNTIME_GRAPH_PROBE = ALGORITHM_DIR / "runtime" / "blender_probe.py"
 DEFAULT_CACHE = APP_DIR / ".model_playground_cache"
 MAX_REQUEST_BYTES = 256 * 1024
 
@@ -765,7 +765,7 @@ class PlaygroundState:
             raise RuntimeError(f"找不到 Blender：{self.blender}")
 
         source_stat = entry.source.stat()
-        worker = APP_DIR / "blender_live_export.py"
+        worker = ALGORITHM_DIR / "blender_live_export.py"
         worker_stat = worker.stat()
         payload = {
             "source": entry.source_id,
@@ -893,7 +893,10 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
         if parsed.path in ("/", "/index.html", "/model_playground.html"):
-            self._file(APP_DIR / "model_playground.html", "text/html; charset=utf-8")
+            self._file(
+                FRONTEND_DIR / "model_playground.html",
+                "text/html; charset=utf-8",
+            )
             return
         if parsed.path == "/favicon.ico":
             self.send_response(HTTPStatus.NO_CONTENT)
@@ -994,7 +997,10 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             }:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            self._file(APP_DIR / "vendor" / name, "text/javascript; charset=utf-8")
+            self._file(
+                FRONTEND_DIR / "vendor" / name,
+                "text/javascript; charset=utf-8",
+            )
             return
         if parsed.path.startswith("/generated/"):
             name = Path(parsed.path).name

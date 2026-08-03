@@ -16,7 +16,7 @@ Each category is a `<Name>_seed0/` directory with three files:
 
 ## Downloading
 
-The runner expects the data at `benchmark/categories/<Category>_seed0/...`.
+The runner expects the data at `datasets/benchmark/categories/<Category>_seed0/...`.
 Two one-liners that produce that layout:
 
 ```bash
@@ -25,14 +25,14 @@ pip install -U "huggingface_hub[cli]"
 huggingface-cli download YipengGao/3DCode \
     --repo-type dataset --include "3DCodeBench/*" \
     --local-dir /tmp/3dcode_dl
-mkdir -p benchmark/categories
-mv /tmp/3dcode_dl/3DCodeBench/* benchmark/categories/
+mkdir -p datasets/benchmark/categories
+mv /tmp/3dcode_dl/3DCodeBench/* datasets/benchmark/categories/
 
 # Option 2: git clone (uses git-lfs; only fetch the benchmark folder)
 GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/datasets/YipengGao/3DCode /tmp/3dcode_dl
 cd /tmp/3dcode_dl && git lfs pull --include "3DCodeBench/**" && cd -
-mkdir -p benchmark/categories
-cp -r /tmp/3dcode_dl/3DCodeBench/* benchmark/categories/
+mkdir -p datasets/benchmark/categories
+cp -r /tmp/3dcode_dl/3DCodeBench/* datasets/benchmark/categories/
 ```
 
 ## Why on HuggingFace?

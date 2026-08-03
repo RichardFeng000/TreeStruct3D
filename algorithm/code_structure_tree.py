@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Render Python/Blender source structure as definition, call, and part trees.
 
-The static attachment analysis follows the same core ideas used by
-SR_F1_Structural_Metric/part_causal_graph_v0:
+The static attachment analysis follows the same core ideas used by the bundled
+Blender runtime probe:
 
 * parse source with :mod:`ast`;
 * recognize attachment helpers from child/parent-like parameter names;
@@ -1698,7 +1698,11 @@ def _interactive_data(structure: SourceStructure) -> dict[str, object]:
 
 
 def _interactive_html(structure: SourceStructure) -> str:
-    template_path = Path(__file__).with_name("interactive_tree_template.html")
+    template_path = (
+        Path(__file__).resolve().parent.parent
+        / "frontend"
+        / "interactive_tree_template.html"
+    )
     if not template_path.is_file():
         raise SystemExit(f"Interactive HTML template is missing: {template_path}")
     template = template_path.read_text(encoding="utf-8")

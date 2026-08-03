@@ -12,7 +12,7 @@ fi
 
 port="${1:-8765}"
 printf '启动模型参数编辑器：http://127.0.0.1:%s/\n' "$port"
-exec python3 "$script_dir/model_playground.py" \
+exec python3 "$script_dir/algorithm/model_playground.py" \
   --blender "$blender_bin" \
   --port "$port" \
   --open

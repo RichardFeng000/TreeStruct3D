@@ -6,14 +6,20 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
-import model_playground
+try:
+    from .. import model_playground
+except ImportError:  # Support: python3 algorithm/achieve/audit_runtime_graphs.py
+    ALGORITHM_DIR = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(ALGORITHM_DIR))
+    import model_playground
 
 
-APP_DIR = Path(__file__).resolve().parent
+APP_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 def arguments() -> argparse.Namespace:
@@ -33,7 +39,7 @@ def arguments() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=APP_DIR / "audit_reports",
+        default=APP_DIR / "achieve" / "audit_reports",
     )
     return parser.parse_args()
 

@@ -12,8 +12,8 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -f "$SCRIPT_DIR/model_playground.py" ]]; then
-  echo "错误：找不到 $SCRIPT_DIR/model_playground.py" >&2
+if [[ ! -f "$SCRIPT_DIR/algorithm/model_playground.py" ]]; then
+  echo "错误：找不到 $SCRIPT_DIR/algorithm/model_playground.py" >&2
   exit 1
 fi
 
@@ -33,4 +33,4 @@ fi
 
 echo "启动 Blender 模型参数编辑器：$URL"
 cd "$SCRIPT_DIR"
-exec python3 model_playground.py "${args[@]}" "$@"
+exec python3 algorithm/model_playground.py "${args[@]}" "$@"
