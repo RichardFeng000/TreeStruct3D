@@ -15,6 +15,8 @@
       --muted: #94a3b8;
       --accent: #63a6ff;
       --accent-soft: rgba(99, 166, 255, 0.16);
+      --must-watch: #ffd166;
+      --must-watch-soft: rgba(255, 209, 102, 0.16);
       --danger: #ff8d8d;
       --success: #63d69a;
       --edge-confirmed: #55d98b;
@@ -131,10 +133,51 @@
       padding: 0 10px;
     }
 
+    .must-watch-legend {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 1px solid rgba(255, 209, 102, 0.48);
+      border-radius: 999px;
+      background: var(--must-watch-soft);
+      color: var(--must-watch);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    #model-select.must-watch-selected {
+      border-color: var(--must-watch);
+      background: linear-gradient(0deg, var(--must-watch-soft), var(--must-watch-soft)), var(--panel-2);
+      box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.18), 0 0 16px rgba(255, 209, 102, 0.1);
+      color: #ffe7a6;
+      font-weight: 700;
+    }
+
+    #model-select option.must-watch-option {
+      background-color: #3b321c;
+      color: #ffe29a;
+      font-weight: 700;
+    }
+
     .top-actions {
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    #copy-selection-button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    #copy-selection-button.copied {
+      border-color: rgba(99, 214, 154, 0.72);
+      background: rgba(99, 214, 154, 0.14);
+      color: #a9f2ca;
     }
 
     .switch {
@@ -414,7 +457,7 @@
     }
 
     .graph-edge.edge-anchor {
-      stroke: var(--edge-anchor);
+      stroke: var(--edge-confirmed);
       stroke-width: 2;
     }
 
@@ -504,7 +547,7 @@
 
     .graph-legend-line.confirmed { border-color: var(--edge-confirmed); }
     .graph-legend-line.code { border-color: var(--edge-code); }
-    .graph-legend-line.anchor { border-color: var(--edge-anchor); }
+    .graph-legend-line.anchor { border-color: var(--edge-confirmed); }
     .graph-legend-line.coupled { border-color: var(--edge-coupled); }
     .graph-legend-line.contact {
       border-color: var(--edge-contact);
@@ -738,15 +781,15 @@
     .anchor-lane-center { cursor: pointer; }
 
     .anchor-lane-center rect {
-      fill: rgba(69, 201, 192, 0.08);
-      stroke: #45c9c0;
+      fill: rgba(85, 217, 139, 0.08);
+      stroke: var(--edge-confirmed);
       stroke-width: 1.8;
     }
 
     .anchor-lane-center:hover rect,
     .anchor-lane-center.selected rect {
-      fill: rgba(69, 201, 192, 0.16);
-      filter: drop-shadow(0 0 6px rgba(69, 201, 192, 0.28));
+      fill: rgba(85, 217, 139, 0.16);
+      filter: drop-shadow(0 0 6px rgba(85, 217, 139, 0.28));
     }
 
     .anchor-lane-center.confirmed rect {
@@ -757,21 +800,21 @@
     .anchor-lane-center.confirmed .anchor-lane-center-title { fill: #91edb5; }
 
     .anchor-lane-center-title {
-      fill: #78e1d9;
+      fill: #91edb5;
       font-size: 10px;
       font-weight: 700;
       text-anchor: middle;
     }
 
     .anchor-lane-center-coordinate {
-      fill: #e0f7f4;
+      fill: #e1f8ea;
       font-size: 10px;
       font-variant-numeric: tabular-nums;
       text-anchor: middle;
     }
 
     .anchor-lane-center-meta {
-      fill: #8eb9b5;
+      fill: #91bca2;
       font-size: 9px;
       font-variant-numeric: tabular-nums;
       text-anchor: middle;
@@ -779,7 +822,7 @@
 
     .anchor-lane-connector {
       fill: none;
-      stroke: #45c9c0;
+      stroke: var(--edge-confirmed);
       stroke-width: 2.2;
     }
 
@@ -933,6 +976,12 @@
       color: #ffabb4;
     }
 
+    .preview-selection.anchor-visible {
+      border-color: rgba(67, 245, 155, 0.62);
+      background: rgba(12, 37, 29, 0.92);
+      color: #9bffd0;
+    }
+
     .preview-selection span {
       min-width: 0;
       overflow: hidden;
@@ -1018,8 +1067,10 @@
       </div>
       <div class="model-picker">
         <label for="model-select">模型</label>
+        <span id="must-watch-legend" class="must-watch-legend" title="GPT-5.6-sol 清单中的必看模型">★ 必看 46</span>
         <select id="model-select" aria-label="选择模型"></select>
       </div>
+      <button id="copy-selection-button" type="button" title="复制当前代码源和模型名称">复制当前选择</button>
       <div class="top-actions">
         <label class="switch" for="auto-update">
           <input id="auto-update" type="checkbox" checked>
@@ -1053,7 +1104,7 @@
             <button id="graph-fit" type="button">居中</button>
           </div>
           <div id="anchor-controls" class="anchor-controls" hidden aria-label="锚点关系筛选">
-            <button class="anchor-mode active" type="button" data-anchor-mode="confirmed">确认父子</button>
+            <button class="anchor-mode active" type="button" data-anchor-mode="confirmed">父子方向</button>
             <button class="anchor-mode" type="button" data-anchor-mode="shared">共享锚点</button>
             <button class="anchor-mode" type="button" data-anchor-mode="issues">问题关系</button>
             <button class="anchor-mode" type="button" data-anchor-mode="all">全部关系</button>
@@ -1110,6 +1161,8 @@
 
     const sourceSelect = document.getElementById('source-select');
     const modelSelect = document.getElementById('model-select');
+    const mustWatchLegend = document.getElementById('must-watch-legend');
+    const copySelectionButton = document.getElementById('copy-selection-button');
     const controlsHost = document.getElementById('controls');
     const panelTitle = document.getElementById('panel-title');
     const statusEl = document.getElementById('viewer-status');
@@ -1186,12 +1239,16 @@
     let values = {};
     let currentModel = null;
     let previewHighlightRequest = null;
+    const previewAnchorOverlay = new THREE.Group();
+    previewAnchorOverlay.name = 'shared-anchor-overlay';
+    scene.add(previewAnchorOverlay);
     let renderTimer = null;
     let generationRunning = false;
     let generationQueued = false;
     let generationVersion = 0;
     let runtimeGraphVersion = 0;
     let selectionVersion = 0;
+    let copySelectionTimer = null;
     let structureData = null;
     let partVisibilityByNode = new Map();
     let partVisibilityByRole = new Map();
@@ -1229,6 +1286,49 @@
     function setLoading(active) {
       loadingEl.classList.toggle('visible', active);
       loadingEl.setAttribute('aria-hidden', active ? 'false' : 'true');
+    }
+
+    function currentSelectionText() {
+      const sourceLabel = sourceSelect.selectedOptions[0]?.textContent?.trim() || '';
+      const modelOption = modelSelect.selectedOptions[0];
+      const modelLabel = modelOption?.dataset.modelLabel || modelOption?.textContent?.trim() || '';
+      const star = modelOption?.dataset.mustWatch === 'true' ? '★ ' : '';
+      if (!sourceLabel || !modelLabel) return '';
+      return `代码源：${sourceLabel}\n模型：${star}${modelLabel}`;
+    }
+
+    async function copyCurrentSelection() {
+      const text = currentSelectionText();
+      if (!text) {
+        setStatus('当前没有可复制的代码源和模型。', 'error');
+        return;
+      }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement('textarea');
+          try {
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.append(textarea);
+            textarea.select();
+            if (!document.execCommand('copy')) throw new Error('复制失败');
+          } finally {
+            textarea.remove();
+          }
+        }
+        clearTimeout(copySelectionTimer);
+        copySelectionButton.textContent = '已复制';
+        copySelectionButton.classList.add('copied');
+        copySelectionTimer = setTimeout(() => {
+          copySelectionButton.textContent = '复制当前选择';
+          copySelectionButton.classList.remove('copied');
+        }, 1600);
+      } catch (error) {
+        setStatus(`复制失败：${String(error.message || error)}`, 'error');
+      }
     }
 
     function makeSvg(tag, attributes = {}) {
@@ -1514,14 +1614,19 @@
     }
 
     function runtimeRelationLabel(edge) {
+      if (edge.runtime_pending) return '代码父→子 · 等待 Blender 5.0 计算锚点';
+      if (edge.shared_anchor) {
+        if (edge.parent_child_known) return '共享锚点 · 确认父→子';
+        return '共享锚点 · 方向未知';
+      }
       const labels = {
-        DIRECTED: '运行时确认父→子',
-        DIRECTED_CODE: '代码确认父→子',
-        COUPLED: '双向联动',
-        DECLARED_CONSTRUCTION: '声明连接',
-        UNDIRECTED_CONTACT: '仅接触',
-        BROKEN_ATTACHMENT: '断裂或锚点错位',
-        UNOBSERVABLE: edge.shared_anchor ? '共享锚点·方向未知' : '证据不足',
+        DIRECTED: '运行时确认父→子 · 估算锚点（非共享）',
+        DIRECTED_CODE: '代码确认父→子 · 估算锚点（非共享）',
+        COUPLED: '双向联动 · 估算锚点（非共享）',
+        DECLARED_CONSTRUCTION: '声明连接 · 估算锚点（非共享）',
+        UNDIRECTED_CONTACT: '仅接触 · 估算锚点（非共享）',
+        BROKEN_ATTACHMENT: '父子关系存在，但连接断裂或锚点错位',
+        UNOBSERVABLE: '证据不足 · 估算锚点（非共享）',
       };
       return labels[edge.relation] || edge.relation;
     }
@@ -1535,6 +1640,10 @@
       );
     }
 
+    function isDirectedAnchorEdge(edge) {
+      return Boolean(edge.parent_child_known || edge.directed_verified);
+    }
+
     function anchorEdgeKey(edge) {
       return [
         edge.parent,
@@ -1546,7 +1655,7 @@
 
     function anchorModeLabel(mode) {
       return {
-        confirmed: '确认父子',
+        confirmed: '父子方向',
         shared: '共享锚点',
         issues: '问题关系',
         all: '全部关系',
@@ -1554,10 +1663,11 @@
     }
 
     function anchorEdgeMatches(edge, mode = graphState.anchorMode) {
-      if (mode === 'confirmed') return isStrictAnchorEdge(edge);
+      if (mode === 'confirmed') return isDirectedAnchorEdge(edge);
       if (mode === 'shared') return Boolean(edge.shared_anchor);
       if (mode === 'issues') {
-        return edge.relation === 'BROKEN_ATTACHMENT' || !edge.shared_anchor;
+        return !edge.runtime_pending
+          && (edge.relation === 'BROKEN_ATTACHMENT' || !edge.shared_anchor);
       }
       return true;
     }
@@ -1585,26 +1695,104 @@
       return anchorRelationListView(view);
     }
 
+    function staticAnchorFallback(partsView) {
+      const sourceNodes = partsView?.nodes || [];
+      const physicalRelations = new Set([
+        'DIRECTED_CODE',
+        'PARENT_ASSIGNMENT',
+        'METHOD_DATAFLOW',
+        'ATTACHMENT_CALL',
+      ]);
+      const sourceEdges = (partsView?.edges || []).filter(
+        (edge) => physicalRelations.has(edge.relation)
+      );
+      const nodeIds = new Set(
+        sourceEdges.flatMap((edge) => [edge.parent, edge.child])
+      );
+      const nodes = sourceNodes.filter((node) => nodeIds.has(node.id)).map((node) => ({
+        ...node,
+        kind: 'source_attachment_part',
+        group: node.group || '源码父子零件',
+        origin: null,
+        dimensions: null,
+      }));
+      const edges = sourceEdges
+        .filter((edge) => nodeIds.has(edge.parent) && nodeIds.has(edge.child))
+        .map((edge) => ({
+          parent: edge.parent,
+          child: edge.child,
+          relation: 'DIRECTED_CODE',
+          source_relation: edge.relation,
+          line: edge.line || 0,
+          evidence: `源码关系：${edge.evidence || edge.relation || '父子构建'}`,
+          directed_verified: false,
+          parent_child_known: true,
+          direction_source: 'static_code',
+          contact: null,
+          shared_anchor: false,
+          geometric_anchor_aligned: null,
+          shared_anchor_evidence: null,
+          anchor_estimated: false,
+          anchor_method: 'static_source_attachment_pending_runtime',
+          anchor_a: null,
+          anchor_b: null,
+          anchor_gap: null,
+          anchor_tolerance: null,
+          aabb_gap: null,
+          declared_directions: [{
+            parent: edge.parent,
+            child: edge.child,
+            source: edge.relation || 'static_code',
+            line: edge.line || 0,
+          }],
+          runtime_pending: true,
+        }));
+      const incoming = new Set(edges.map((edge) => edge.child));
+      const roots = (partsView?.roots || []).filter((id) => nodeIds.has(id));
+      if (!roots.length) roots.push(...nodes.map((node) => node.id).filter((id) => !incoming.has(id)));
+      return {
+        label: '源码父子锚点图（Blender 验证中）',
+        roots,
+        nodes,
+        edges,
+        summary: {
+          nodes: nodes.length,
+          edges: edges.length,
+          directed_edges: edges.length,
+          runtime_directed_edges: 0,
+          shared_anchor_edges: 0,
+          estimated_anchor_edges: 0,
+        },
+        runtime_pending: true,
+        runtime_error: null,
+      };
+    }
+
     function edgeVisual(edge) {
       if (graphState.view === 'anchors') {
         const strictDirected = isStrictAnchorEdge(edge);
         if (strictDirected) {
           return {
-            className: edge.relation === 'DIRECTED' ? 'edge-confirmed' : 'edge-directed-code',
-            markerEnd: edge.relation === 'DIRECTED'
-              ? 'url(#graph-arrow-confirmed)'
-              : 'url(#graph-arrow-code)',
+            className: 'edge-confirmed',
+            markerEnd: 'url(#graph-arrow-confirmed)',
             label: runtimeRelationLabel(edge),
           };
         }
         if (edge.relation === 'BROKEN_ATTACHMENT') {
           return { className: 'edge-broken', markerEnd: '', label: runtimeRelationLabel(edge) };
         }
+        if (edge.shared_anchor) {
+          return { className: 'edge-anchor', markerEnd: '', label: runtimeRelationLabel(edge) };
+        }
         if (edge.relation === 'COUPLED') {
           return { className: 'edge-coupled', markerEnd: '', label: runtimeRelationLabel(edge) };
         }
-        if (edge.shared_anchor) {
-          return { className: 'edge-anchor', markerEnd: '', label: runtimeRelationLabel(edge) };
+        if (isDirectedAnchorEdge(edge)) {
+          return {
+            className: 'edge-directed-code',
+            markerEnd: 'url(#graph-arrow-code)',
+            label: runtimeRelationLabel(edge),
+          };
         }
         if (edge.contact || edge.relation === 'UNDIRECTED_CONTACT' || edge.relation === 'DECLARED_CONSTRUCTION') {
           return { className: 'edge-contact', markerEnd: '', label: runtimeRelationLabel(edge) };
@@ -1647,18 +1835,29 @@
           (edge) => anchorEdgeMatches(edge, button.dataset.anchorMode)
         ).length || 0;
         button.textContent = `${anchorModeLabel(button.dataset.anchorMode)} ${count}`;
+        button.title = ({
+          confirmed: '所有父→子方向；其中只有通过共享证据、接触和锚点对齐的关系会同时出现在“共享锚点”',
+          shared: '父子方向中的严格子集：必须有显式共享证据、几何接触，并且 A/B 锚点落入容差',
+          issues: '没有通过共享锚点验证的关系，包括断裂、错位、仅接触和证据不足',
+          all: '显示运行时分析得到的全部关系',
+        })[button.dataset.anchorMode] || '';
         button.classList.toggle('active', active);
         button.setAttribute('aria-pressed', String(active));
       }
       if (graphState.view === 'anchors') {
         graphLegend.hidden = false;
+        const anchorViewData = structureData?.views?.anchors;
+        if (anchorViewData?.nodes?.length && !anchorViewData?.edges?.length) {
+          graphLegend.innerHTML = `
+            <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>分析完成：当前模型有 ${anchorViewData.nodes.length} 个运行时 Mesh，未识别到物理父子或共享锚点关系</span>`;
+          return;
+        }
         graphLegend.innerHTML = `
-          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>实线箭头：运行时单向 + 接触 + 共享锚点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色箭头：代码单向 + 接触 + 共享锚点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line anchor"></i>共享锚点已有代码/运行证据，方向未知</span>
-          <span class="graph-legend-item"><i class="graph-legend-line contact"></i>仅接触</span>
+          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>绿色：共享锚点；带箭头表示父→子方向明确</span>
+          <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色箭头：父→子方向已知，A/B 是算法估算锚点，非共享</span>
+          <span class="graph-legend-item"><i class="graph-legend-line contact"></i>黄色虚线：仅接触，A/B 是估算锚点，非共享</span>
           <span class="graph-legend-item"><i class="graph-legend-line broken"></i>断裂/锚点错位</span>
-          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>仅几何接近，共享锚点未证明</span>`;
+          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>灰色点线：仅几何接近，A/B 是估算锚点，非共享</span>`;
         return;
       }
       if (graphState.view === 'parts') {
@@ -1673,11 +1872,20 @@
     }
 
     function showAnchorEdgeDetail(edge) {
-      const connector = isStrictAnchorEdge(edge) ? ' → ' : ' — ';
+      const connector = isDirectedAnchorEdge(edge) ? ' → ' : ' — ';
+      const contactLabel = edge.contact === null || edge.contact === undefined
+        ? '等待 Blender 5.0'
+        : (edge.contact ? '是' : '否');
+      const alignmentLabel = edge.geometric_anchor_aligned === null
+        || edge.geometric_anchor_aligned === undefined
+        ? '等待 Blender 5.0'
+        : (edge.geometric_anchor_aligned ? '是' : '否');
       const lines = [
         `${edge.parent}${connector}${edge.child}`,
         `关系：${runtimeRelationLabel(edge)}`,
-        `方向确认：${edge.directed_verified ? '是' : '否'}；接触：${edge.contact ? '是' : '否'}；几何点对齐：${edge.geometric_anchor_aligned ? '是' : '否'}；共享锚点已证明：${edge.shared_anchor ? '是' : '否'}`,
+        `父子方向：${isDirectedAnchorEdge(edge) ? '已知' : '未知'}；接触：${contactLabel}；候选点落入距离阈值：${alignmentLabel}`,
+        `锚点性质：${edge.shared_anchor ? '共享锚点' : 'A/B 分离的非共享锚点候选'}`,
+        `锚点取得方式：${anchorMethodLabel(edge)}`,
         `共享证据：${sharedAnchorEvidenceLabel(edge)}`,
         `锚点间距：${formatGraphNumber(edge.anchor_gap)}；容差：${formatGraphNumber(edge.anchor_tolerance)}`,
       ];
@@ -1702,13 +1910,28 @@
     }
 
     function anchorIssueLabel(edge) {
+      if (edge.runtime_pending) return '代码父子关系已识别；等待 Blender 计算 A/B 锚点';
       if (edge.relation === 'BROKEN_ATTACHMENT') return '断裂：连接锚点未对齐';
-      if (edge.geometric_anchor_aligned && !edge.shared_anchor) {
-        return '几何接近，但共享锚点未被代码或运行证明';
+      if (isDirectedAnchorEdge(edge) && edge.contact && !edge.shared_anchor) {
+        return '父子关系成立；A/B 是估算锚点，未共享';
       }
-      if (edge.contact && !edge.shared_anchor) return '对象接触，但世界锚点不共享';
-      if (!edge.contact && !edge.shared_anchor) return '对象未接触，世界锚点不共享';
+      if (edge.geometric_anchor_aligned && !edge.shared_anchor) {
+        return '几何接近；A/B 是估算锚点，未共享';
+      }
+      if (edge.contact && !edge.shared_anchor) return '对象接触，但 A/B 锚点不共享';
+      if (!edge.contact && !edge.shared_anchor) return '对象未接触，A/B 锚点不共享';
       return runtimeRelationLabel(edge);
+    }
+
+    function anchorMethodLabel(edge) {
+      if (edge.shared_anchor) return '源码显式共享锚点，并由 Blender 5.0 核验';
+      if (edge.anchor_method === 'static_source_attachment_pending_runtime') {
+        return '已从源码识别父子调用；A/B 世界坐标和接触状态正在由 Blender 5.0 计算';
+      }
+      if (edge.anchor_method === 'nearest_evaluated_mesh_vertex_samples') {
+        return 'Blender 5.0 从两张 Mesh 各取最多 96 个顶点样本，再选择距离最近的 A/B 点；这是估算，不是源码锚点';
+      }
+      return edge.anchor_estimated ? '算法估算，非源码声明' : '未知';
     }
 
     function sharedAnchorEvidenceLabel(edge) {
@@ -1717,7 +1940,10 @@
         code_direction: '代码单向数据流',
         runtime_or_code_coupling: '运行时双向联动或代码双向连接',
         code_construction: '代码连接/构建记录',
-      })[edge.shared_anchor_evidence] || (edge.shared_anchor ? '已证明（未标注来源）' : '无');
+        explicit_anchor_id: '父子对象声明了相同锚点 ID',
+        declared_world_anchor: '源码声明了同一世界坐标锚点',
+        authored_anchor_pair: '源码声明了配对的父/子局部锚点',
+      })[edge.shared_anchor_evidence] || (edge.shared_anchor ? '已证明（未标注来源）' : '没有显式共享证据');
     }
 
     function renderSharedAnchorLanes(rawView, view) {
@@ -1894,7 +2120,7 @@
         height: view.edges.length * (laneHeight + laneGap) + 6,
       };
       const focus = graphState.anchorFocusNode ? ` · 只看 ${graphState.anchorFocusNode}` : '';
-      graphStatus.textContent = `共享锚点 · ${view.edges.length} 条关系${focus} · 只保留有代码或运行证据的关系 · 无箭头的 A/B 表示方向未知`;
+      graphStatus.textContent = `共享锚点 · ${view.edges.length} 条关系${focus} · 只保留显式共享证据；绿色带箭头表示父→子，绿色无箭头表示方向未知`;
       updateGraphTransform();
     }
 
@@ -2038,14 +2264,14 @@
           x: centerWidth / 2,
           y: 34,
         });
-        coordinateA.textContent = `A 锚点 ${anchorPointCoordinate(edge.anchor_a)}`;
+        coordinateA.textContent = `A 估算锚点 ${anchorPointCoordinate(edge.anchor_a)}`;
         center.append(coordinateA);
         const coordinateB = makeSvg('text', {
           class: 'issue-lane-coordinate',
           x: centerWidth / 2,
           y: 49,
         });
-        coordinateB.textContent = `B 锚点 ${anchorPointCoordinate(edge.anchor_b)}`;
+        coordinateB.textContent = `B 估算锚点 ${anchorPointCoordinate(edge.anchor_b)}`;
         center.append(coordinateB);
         const meta = makeSvg('text', {
           class: 'issue-lane-meta',
@@ -2109,7 +2335,7 @@
         const content = document.createElement('span');
         const main = document.createElement('span');
         main.className = 'anchor-relation-main';
-        main.textContent = `${index + 1}. ${edge.parent}${isStrictAnchorEdge(edge) ? ' → ' : ' — '}${edge.child}`;
+        main.textContent = `${index + 1}. ${edge.parent}${isDirectedAnchorEdge(edge) ? ' → ' : ' — '}${edge.child}`;
         const meta = document.createElement('span');
         meta.className = 'anchor-relation-meta';
         meta.textContent = `${runtimeRelationLabel(edge)} · 间距 ${formatGraphNumber(edge.anchor_gap)}`;
@@ -2126,7 +2352,7 @@
       graphState.selectedEdge = key;
       graphState.selected = null;
       const issuePair = graphState.view === 'anchors' && graphState.anchorMode === 'issues';
-      if (edge.shared_anchor || issuePair) {
+      if (edge.shared_anchor || issuePair || isDirectedAnchorEdge(edge)) {
         const nodeById = new Map(view.nodes.map((node) => [node.id, node]));
         const endpoints = [nodeById.get(edge.parent), nodeById.get(edge.child)].filter(Boolean);
         const pairLabel = issuePair
@@ -2137,7 +2363,8 @@
         highlightPreviewGraphNodes(
           endpoints,
           view,
-          pairLabel
+          pairLabel,
+          edge
         );
       } else {
         clearPreviewPartHighlight();
@@ -2358,7 +2585,12 @@
         : '滚轮上下浏览 · Ctrl/⌘+滚轮缩放';
       if (graphState.view === 'anchors') {
         const focus = graphState.anchorFocusNode ? ` · 聚焦 ${graphState.anchorFocusNode}` : '';
-        graphStatus.textContent = `${anchorModeLabel(graphState.anchorMode)} · 显示 ${layout.positions.size}/${rawView.nodes.length} 个节点 · ${layout.visibleEdges.length}/${relationView.edges.length} 条关系${focus} · 点击节点只看一跳关系，点击下方关系卡看端点与坐标`;
+        const runtimeNote = rawView.runtime_pending
+          ? ' · 当前先显示源码父子关系，Blender 5.0 正在补算接触与 A/B 坐标'
+          : (rawView.runtime_error ? ` · Blender 验证失败：${rawView.runtime_error}` : '');
+        graphStatus.textContent = rawView.edges.length
+          ? `${anchorModeLabel(graphState.anchorMode)} · 显示 ${layout.positions.size}/${rawView.nodes.length} 个节点 · ${layout.visibleEdges.length}/${relationView.edges.length} 条关系${focus}${runtimeNote} · 点击节点只看一跳关系，点击下方关系卡看端点与坐标`
+          : `锚点分析完成 · ${rawView.nodes.length} 个运行时 Mesh · 0 条物理父子关系 · 0 个共享锚点 · 点击节点可在右侧高亮整个 Mesh`;
       } else {
         graphStatus.textContent = `${view.label} · ${layout.positions.size}/${view.nodes.length} 个节点 · ${layout.visibleEdges.length} 条关系 · ${navigationHint}`;
       }
@@ -2480,15 +2712,25 @@
     function updateGraphTabs() {
       for (const button of graphTabs.querySelectorAll('[data-graph-view]')) {
         const viewName = button.dataset.graphView;
-        const available = Boolean(structureData?.views?.[viewName]?.nodes?.length);
+        const view = structureData?.views?.[viewName];
+        const available = Boolean(view?.nodes?.length);
         button.disabled = !available;
+        button.title = viewName === 'anchors'
+          ? (!available
+            ? '正在等待 Blender 5.0 运行时锚点分析'
+            : (!view.edges?.length
+              ? '打开查看：运行时对象存在，但没有物理父子/共享锚点关系'
+              : '打开锚点关系图'))
+          : '';
         button.classList.toggle('active', viewName === graphState.view);
         button.setAttribute('aria-pressed', String(viewName === graphState.view));
       }
     }
 
     function setGraphView(viewName) {
-      if (!structureData?.views?.[viewName]?.nodes?.length) return;
+      const view = structureData?.views?.[viewName];
+      const available = Boolean(view?.nodes?.length);
+      if (!available) return;
       clearPreviewPartHighlight();
       graphState.view = viewName;
       graphState.collapsed.clear();
@@ -2501,11 +2743,13 @@
         graphFullscreenButton.setAttribute('aria-pressed', 'false');
       }
       graphDetail.textContent = viewName === 'anchors'
-        ? (graphState.anchorMode === 'shared'
+        ? (!view.edges?.length
+          ? `Blender 5.0 运行时分析完成：${view.nodes.length} 个 Mesh，0 条物理父子关系，0 个共享锚点。点击唯一节点可在右侧高亮整个 Mesh。`
+          : (graphState.anchorMode === 'shared'
           ? '每一行都是一组共享锚点关系。绿色箭头表示确认父 → 子；无箭头的蓝色端点 A 和紫色端点 B 表示方向未知。'
           : (graphState.anchorMode === 'issues'
-            ? '每一行对照一组问题关系的 A/B 锚点坐标、间距与容差；点击中间的问题卡片会在右侧同时高亮对象 A 和 B。红色表示断裂或错位，橙色表示接触但锚点不共享。'
-            : '默认只显示确认父子关系。点击节点聚焦一跳邻居；点击下方关系卡查看两个端点、锚点间距和世界坐标。'))
+            ? '每一行对照一组问题关系的 A/B 估算锚点坐标、间距与容差；点击中间的问题卡片会在右侧同时高亮对象 A 和 B。红色表示断裂或错位，橙色表示接触但锚点不共享。'
+            : '默认只显示父子方向。蓝色表示父→子已知但 A/B 只是估算锚点；只有绿色才是共享锚点。点击关系卡可查看估算方法和坐标。')))
         : '点击节点可查看父节点、全部直接子节点和源码行号。';
       updateGraphTabs();
       renderGraph();
@@ -2515,12 +2759,17 @@
     function initializeGraph(data) {
       clearPreviewPartHighlight();
       structureData = data;
+      const fallback = staticAnchorFallback(data.views.parts);
+      if (fallback.nodes.length && fallback.edges.length) {
+        structureData.views.anchors = fallback;
+      }
       graphState.query = '';
       graphSearch.value = '';
       graphState.collapsed.clear();
       graphState.selected = null;
       graphState.selectedEdge = null;
       graphState.anchorFocusNode = null;
+      graphState.anchorMode = fallback.edges.length ? 'confirmed' : 'all';
       graphState.view = data.views.parts.nodes.length
         ? 'parts'
         : (data.views.definitions.nodes.length ? 'definitions' : 'calls');
@@ -2774,7 +3023,12 @@
     }
 
     function previewMeshNames(mesh) {
-      const names = [mesh.name, mesh.geometry?.name].filter(Boolean).map(String);
+      const names = [
+        mesh.name,
+        mesh.geometry?.name,
+        mesh.userData?.codex_semantic_node_id,
+        mesh.userData?.codex_attachment_helper,
+      ].filter(Boolean).map(String);
       let parent = mesh.parent;
       while (parent && parent !== currentModel) {
         if (parent.name) names.push(String(parent.name));
@@ -2917,7 +3171,104 @@
       return clone;
     }
 
+    function clearPreviewAnchorOverlay() {
+      for (const child of [...previewAnchorOverlay.children]) {
+        previewAnchorOverlay.remove(child);
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          for (const material of materials) material.dispose();
+        }
+      }
+    }
+
+    function runtimePointToPreview(values) {
+      if (!currentModel || values?.length !== 3) return null;
+      const bounds = structureData?.views?.anchors?.source_bounds;
+      if (bounds?.min?.length !== 3 || bounds?.max?.length !== 3) return null;
+      const box = new THREE.Box3().setFromObject(currentModel);
+      if (box.isEmpty()) return null;
+      const fraction = (value, minimum, maximum) => {
+        const span = maximum - minimum;
+        return Math.abs(span) > 1e-9 ? (value - minimum) / span : 0.5;
+      };
+      const x = fraction(Number(values[0]), Number(bounds.min[0]), Number(bounds.max[0]));
+      const y = fraction(Number(values[2]), Number(bounds.min[2]), Number(bounds.max[2]));
+      const z = fraction(Number(values[1]), Number(bounds.min[1]), Number(bounds.max[1]));
+      // Blender is Z-up; glTF is Y-up and maps Blender +Y to glTF -Z.
+      return new THREE.Vector3(
+        THREE.MathUtils.lerp(box.min.x, box.max.x, x),
+        THREE.MathUtils.lerp(box.min.y, box.max.y, y),
+        THREE.MathUtils.lerp(box.max.z, box.min.z, z)
+      );
+    }
+
+    function addPreviewAnchorSphere(position, radius, color, options = {}) {
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: options.opacity !== undefined && options.opacity < 1,
+        opacity: options.opacity ?? 1,
+        depthTest: false,
+        depthWrite: false,
+      });
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 20, 14),
+        material
+      );
+      marker.position.copy(position);
+      marker.renderOrder = options.renderOrder ?? 20;
+      if (options.pulse) marker.userData.anchorPulse = true;
+      previewAnchorOverlay.add(marker);
+      return marker;
+    }
+
+    function addPreviewAnchorLine(start, end, color) {
+      if (!start || !end) return;
+      const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+      const material = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.92,
+        depthTest: false,
+        depthWrite: false,
+      });
+      const line = new THREE.Line(geometry, material);
+      line.renderOrder = 18;
+      previewAnchorOverlay.add(line);
+    }
+
+    function showPreviewAnchorOverlay(edge, view) {
+      clearPreviewAnchorOverlay();
+      const pointA = runtimePointToPreview(edge?.anchor_a);
+      const pointB = runtimePointToPreview(edge?.anchor_b);
+      if (!pointA || !pointB || !currentModel) return false;
+      const modelBox = new THREE.Box3().setFromObject(currentModel);
+      const size = modelBox.getSize(new THREE.Vector3());
+      const radius = Math.max(size.length() * 0.008, 0.008);
+      const midpoint = pointA.clone().add(pointB).multiplyScalar(0.5);
+      const nodeById = new Map((view?.nodes || []).map((node) => [node.id, node]));
+      const parentCenter = runtimePointToPreview(nodeById.get(edge.parent)?.center);
+      const childCenter = runtimePointToPreview(nodeById.get(edge.child)?.center);
+
+      addPreviewAnchorLine(parentCenter, midpoint, 0x48d8ff);
+      addPreviewAnchorLine(midpoint, childCenter, 0xd77cff);
+      addPreviewAnchorLine(pointA, pointB, edge.shared_anchor ? 0x4ff5a6 : 0xff746f);
+      if (parentCenter) addPreviewAnchorSphere(parentCenter, radius * 0.62, 0x48d8ff, { opacity: 0.9 });
+      if (childCenter) addPreviewAnchorSphere(childCenter, radius * 0.62, 0xd77cff, { opacity: 0.9 });
+      addPreviewAnchorSphere(pointA, radius * 0.82, 0x48d8ff);
+      addPreviewAnchorSphere(pointB, radius * 0.82, 0xd77cff);
+      const mainColor = edge.shared_anchor ? 0x43f59b : 0xff746f;
+      addPreviewAnchorSphere(midpoint, radius * 1.38, mainColor, { pulse: true });
+      addPreviewAnchorSphere(midpoint, radius * 2.35, mainColor, {
+        opacity: 0.2,
+        pulse: true,
+        renderOrder: 19,
+      });
+      return true;
+    }
+
     function clearPreviewPartHighlight(resetRequest = true) {
+      clearPreviewAnchorOverlay();
       if (currentModel) {
         currentModel.traverse((child) => {
           if (!child.isMesh || !child.userData.playgroundOriginalMaterial) return;
@@ -2932,27 +3283,37 @@
       if (resetRequest) previewHighlightRequest = null;
       previewSelection.hidden = true;
       previewSelection.classList.remove('missing');
+      previewSelection.classList.remove('anchor-visible');
       previewSelectionLabel.textContent = '';
     }
 
     function applyPreviewPartHighlight() {
       clearPreviewPartHighlight(false);
       if (!previewHighlightRequest || !currentModel) return;
-      const { nodes, view, label } = previewHighlightRequest;
+      const { nodes, view, label, edge } = previewHighlightRequest;
+      const anchorVisible = edge ? showPreviewAnchorOverlay(edge, view) : false;
+      previewSelection.classList.toggle('anchor-visible', anchorVisible);
       const matched = new Set();
       for (const node of nodes) {
         for (const mesh of matchingPreviewMeshes(node, view)) matched.add(mesh);
       }
       if (!matched.size) {
         previewSelection.hidden = false;
-        previewSelection.classList.add('missing');
-        previewSelectionLabel.textContent = `未找到“${label}”对应的独立 Mesh`;
+        previewSelection.classList.toggle('missing', !anchorVisible);
+        previewSelectionLabel.textContent = anchorVisible
+          ? `${edge.shared_anchor ? '共享锚点' : '锚点对'}：${label} · 绿色=共享位置，青色=A，紫色=B`
+          : `未找到“${label}”对应的独立 Mesh`;
         return;
       }
       let meshCount = 0;
       currentModel.traverse((child) => {
         if (!child.isMesh) return;
         const highlighted = matched.has(child);
+        const semanticOverlay = Boolean(child.userData?.codex_semantic_overlay);
+        if (semanticOverlay && !highlighted) {
+          child.renderOrder = 0;
+          return;
+        }
         const original = child.material;
         child.userData.playgroundOriginalMaterial = original;
         child.userData.playgroundOriginalRenderOrder = child.renderOrder;
@@ -2964,14 +3325,16 @@
       });
       previewSelection.hidden = false;
       previewSelection.classList.remove('missing');
-      previewSelectionLabel.textContent = `高亮：${label} · ${meshCount} 个 Mesh`;
+      previewSelectionLabel.textContent = anchorVisible
+        ? `高亮：${label} · ${meshCount} 个 Mesh · 绿色=共享位置，青色=A，紫色=B`
+        : `高亮：${label} · ${meshCount} 个 Mesh`;
     }
 
     function highlightPreviewGraphNode(node, view) {
       highlightPreviewGraphNodes([node], view, node.label);
     }
 
-    function highlightPreviewGraphNodes(nodes, view, label = '') {
+    function highlightPreviewGraphNodes(nodes, view, label = '', edge = null) {
       const uniqueNodes = [...new Map(nodes.map((node) => [node.id, node])).values()];
       if (!uniqueNodes.length) {
         clearPreviewPartHighlight();
@@ -2981,6 +3344,7 @@
         nodes: uniqueNodes,
         view,
         label: label || uniqueNodes.map((node) => node.label).join(' + '),
+        edge,
       };
       applyPreviewPartHighlight();
     }
@@ -3090,7 +3454,7 @@
       const encodedSource = encodeURIComponent(sourceId);
       const autoOpen = graphState.view === 'parts';
       if (autoOpen) {
-        graphStatus.textContent = '模型已显示；Blender 5.0 正在验证世界坐标共享锚点和单向关系…';
+        graphStatus.textContent = '模型已显示；Blender 5.0 正在计算父子方向、接触和最近表面锚点候选…';
       }
       try {
         const response = await fetch(`/api/runtime-graph?source=${encodedSource}&model=${encoded}`);
@@ -3104,11 +3468,11 @@
         structureData.views.anchors = result;
         graphState.selectedEdge = null;
         graphState.anchorFocusNode = null;
-        graphState.anchorMode = result.edges?.some(isStrictAnchorEdge)
+        graphState.anchorMode = result.edges?.some(isDirectedAnchorEdge)
           ? 'confirmed'
           : (result.edges?.some((edge) => anchorEdgeMatches(edge, 'shared')) ? 'shared' : 'all');
         updateGraphTabs();
-        if (autoOpen && graphState.view === 'parts') {
+        if (autoOpen && graphState.view === 'parts' && result.edges?.length) {
           setGraphView('anchors');
         } else {
           renderGraph();
@@ -3119,7 +3483,15 @@
           || schema?.source !== sourceId
           || schema?.model !== modelId
         ) return;
-        if (graphState.view === 'parts') {
+        const fallback = structureData?.views?.anchors;
+        if (fallback?.runtime_pending) {
+          fallback.runtime_pending = false;
+          fallback.runtime_error = String(error.message || error);
+          for (const edge of fallback.edges || []) edge.runtime_pending = false;
+          updateGraphTabs();
+          renderGraph();
+          graphStatus.textContent = `已显示源码父子锚点图；Blender 运行验证失败：${fallback.runtime_error}`;
+        } else if (graphState.view === 'parts') {
           graphStatus.textContent = `静态父子树可用；运行时锚点分析失败：${String(error.message || error)}`;
         }
       }
@@ -3152,6 +3524,15 @@
       if (version === selectionVersion) loadRuntimeGraph(sourceId, modelId);
     }
 
+    function updateModelWatchHighlight() {
+      const isMustWatch = modelSelect.selectedOptions[0]?.dataset.mustWatch === 'true';
+      modelSelect.classList.toggle('must-watch-selected', isMustWatch);
+      modelSelect.setAttribute(
+        'aria-label',
+        isMustWatch ? '选择模型，当前为必看模型' : '选择模型',
+      );
+    }
+
     async function loadModelsForSource(sourceId, preferredLabel = '') {
       const version = ++selectionVersion;
       sourceSelect.disabled = true;
@@ -3166,13 +3547,21 @@
         for (const model of result.models) {
           const option = document.createElement('option');
           option.value = model.id;
-          option.textContent = model.label;
+          option.textContent = model.must_watch ? `★ ${model.label}` : model.label;
+          option.dataset.modelLabel = model.label;
+          option.dataset.mustWatch = String(Boolean(model.must_watch));
+          option.classList.toggle('must-watch-option', Boolean(model.must_watch));
+          if (model.must_watch) {
+            option.style.backgroundColor = '#3b321c';
+            option.style.color = '#ffe29a';
+          }
           modelSelect.append(option);
         }
         const preferred = result.models.find((model) => model.label === preferredLabel);
         const bird = result.models.find((model) => model.label === 'Bird_seed0');
         modelSelect.value = preferred?.id || bird?.id || result.models[0]?.id || '';
         if (!modelSelect.value) throw new Error('当前代码源没有可用模型');
+        updateModelWatchHighlight();
         await selectModel(modelSelect.value, sourceId);
       } finally {
         sourceSelect.disabled = false;
@@ -3185,6 +3574,7 @@
         const response = await fetch('/api/sources');
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || '读取代码源失败');
+        mustWatchLegend.textContent = `★ 必看 ${result.must_watch_count || 0}`;
         for (const source of result.sources) {
           const option = document.createElement('option');
           option.value = source.id;
@@ -3206,16 +3596,46 @@
     anchorControls.addEventListener('click', (event) => {
       const modeButton = event.target.closest('[data-anchor-mode]');
       if (!modeButton) return;
-      graphState.anchorMode = modeButton.dataset.anchorMode;
-      clearPreviewPartHighlight();
+      const nextMode = modeButton.dataset.anchorMode;
+      const rawView = structureData?.views?.anchors;
+      const selectedEdge = rawView?.edges?.find(
+        (edge) => anchorEdgeKey(edge) === graphState.selectedEdge
+      );
+      const selectedRemainsVisible = Boolean(
+        selectedEdge && anchorEdgeMatches(selectedEdge, nextMode)
+      );
+      const focusedNode = graphState.anchorFocusNode;
+      const focusRemainsVisible = Boolean(
+        !selectedEdge
+        && focusedNode
+        && rawView?.edges?.some(
+          (edge) => anchorEdgeMatches(edge, nextMode)
+            && (edge.parent === focusedNode || edge.child === focusedNode)
+        )
+      );
+
+      graphState.anchorMode = nextMode;
       graphState.selected = null;
-      graphState.anchorFocusNode = null;
-      graphState.selectedEdge = null;
-      graphDetail.textContent = graphState.anchorMode === 'shared'
-        ? '每一行都是一组共享锚点关系。绿色箭头表示确认父 → 子；无箭头的 A/B 表示方向未知。点端点可筛选涉及它的所有行。'
-        : (graphState.anchorMode === 'issues'
-          ? '每一行对照一组问题关系：对象 A — A 锚点坐标 — 错误原因 — B 锚点坐标 — 对象 B。点中间问题卡同时高亮 A/B；点端点只高亮并筛选该对象。'
-          : `${anchorModeLabel(graphState.anchorMode)}模式：点击节点聚焦一跳关系，或点击下方关系卡查看端点和锚点坐标。`);
+      if (selectedRemainsVisible) {
+        graphState.anchorFocusNode = null;
+        showAnchorEdgeDetail(selectedEdge);
+      } else if (focusRemainsVisible) {
+        graphState.selectedEdge = null;
+      } else {
+        clearPreviewPartHighlight();
+        graphState.anchorFocusNode = null;
+        graphState.selectedEdge = null;
+      }
+
+      if (!selectedRemainsVisible && selectedEdge && nextMode === 'shared') {
+        graphDetail.textContent = `${selectedEdge.parent} → ${selectedEdge.child}\n这条父子方向没有通过共享锚点验证，因此不会出现在“共享锚点”。请到“问题关系”查看接触、间距和容差。`;
+      } else if (!selectedRemainsVisible && !focusRemainsVisible) {
+        graphDetail.textContent = graphState.anchorMode === 'shared'
+          ? '共享锚点是父子方向的严格子集：还必须同时满足显式共享证据、几何接触和 A/B 锚点对齐。'
+          : (graphState.anchorMode === 'issues'
+            ? '这里保留没有通过共享锚点验证的关系。点中间问题卡同时高亮 A/B。'
+            : `${anchorModeLabel(graphState.anchorMode)}模式：点击节点聚焦一跳关系，或点击关系卡查看端点和锚点坐标。`);
+      }
       renderGraph();
       requestAnimationFrame(resetGraphPosition);
     });
@@ -3227,7 +3647,7 @@
       graphDetail.textContent = graphState.anchorMode === 'shared'
         ? '共享锚点总览：全部共享关系按独立横行排列，连线不会交叉。'
         : (graphState.anchorMode === 'issues'
-          ? '问题关系总览：全部错误按独立横行排列，直接对照 A/B 锚点坐标。'
+          ? '问题关系总览：全部错误按独立横行排列，直接对照 A/B 估算锚点坐标。'
           : `${anchorModeLabel(graphState.anchorMode)}总览：点击任一节点只看与它直接相连的关系。`);
       renderGraph();
       requestAnimationFrame(resetGraphPosition);
@@ -3342,16 +3762,18 @@
     });
 
     sourceSelect.addEventListener('change', () => {
-      const preferredLabel = modelSelect.selectedOptions[0]?.textContent || '';
+      const preferredLabel = modelSelect.selectedOptions[0]?.dataset.modelLabel || '';
       loadModelsForSource(sourceSelect.value, preferredLabel).catch((error) => {
         setStatus(String(error.message || error), 'error');
       });
     });
     modelSelect.addEventListener('change', () => {
+      updateModelWatchHighlight();
       selectModel(modelSelect.value, sourceSelect.value).catch((error) => {
         setStatus(String(error.message || error), 'error');
       });
     });
+    copySelectionButton.addEventListener('click', copyCurrentSelection);
     renderButton.addEventListener('click', requestRender);
     resetButton.addEventListener('click', () => {
       if (!schema) return;
@@ -3382,6 +3804,10 @@
     graphResizeObserver.observe(graphStage);
 
     function animate() {
+      const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.14;
+      for (const marker of previewAnchorOverlay.children) {
+        if (marker.userData.anchorPulse) marker.scale.setScalar(pulse);
+      }
       orbit.update();
       renderer.render(scene, camera);
       requestAnimationFrame(animate);

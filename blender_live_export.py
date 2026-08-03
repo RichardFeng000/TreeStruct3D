@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 import json
 import os
 import sys
@@ -20,6 +21,10 @@ from mathutils import Matrix, Vector
 
 _HIDDEN_OBJECT_POINTERS: set[int] = set()
 _SCALED_COMPONENT_KEYS: set[tuple[int, str]] = set()
+_SEMANTIC_SNAPSHOTS: dict[int, dict[str, object]] = {}
+
+_ATTACHMENT_CHILD_TOKENS = ("child", "dependent", "attached", "part")
+_ATTACHMENT_PARENT_TOKENS = ("parent", "target", "host", "support", "base", "body")
 
 
 def _arguments() -> argparse.Namespace:
@@ -447,6 +452,90 @@ class _PartVisibilityTransformer(ast.NodeTransformer):
         return node
 
 
+def _short_call_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _semantic_attachment_specs(tree: ast.Module) -> dict[str, dict[str, object]]:
+    """Find attachment helpers with an identifiable child and parent argument."""
+    specs: dict[str, dict[str, object]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        names = [argument.arg for argument in [*node.args.posonlyargs, *node.args.args]]
+        child = next(
+            (
+                name
+                for name in names
+                if any(token in name.lower() for token in _ATTACHMENT_CHILD_TOKENS)
+            ),
+            None,
+        )
+        parent = next(
+            (
+                name
+                for name in names
+                if any(token in name.lower() for token in _ATTACHMENT_PARENT_TOKENS)
+            ),
+            None,
+        )
+        if child is None or parent is None or child == parent:
+            continue
+        specs[node.name] = {"names": names, "child": child, "parent": parent}
+    return specs
+
+
+def _semantic_call_argument(
+    call: ast.Call,
+    names: list[str],
+    wanted: str,
+) -> ast.AST | None:
+    for keyword in call.keywords:
+        if keyword.arg == wanted:
+            return keyword.value
+    index = names.index(wanted)
+    return call.args[index] if index < len(call.args) else None
+
+
+class _SemanticAttachmentTransformer(ast.NodeTransformer):
+    """Snapshot semantic attachment endpoints after their authored placement call."""
+
+    def __init__(self, specs: dict[str, dict[str, object]]) -> None:
+        self.specs = specs
+
+    def visit_Expr(self, node: ast.Expr):
+        node = self.generic_visit(node)
+        if not isinstance(node.value, ast.Call):
+            return node
+        call = node.value
+        name = _short_call_name(call)
+        spec = self.specs.get(name or "")
+        if spec is None:
+            return node
+        names = spec["names"]
+        child = _semantic_call_argument(call, names, str(spec["child"]))
+        parent = _semantic_call_argument(call, names, str(spec["parent"]))
+        if child is None or parent is None:
+            return node
+        capture = ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="__codex_capture_semantic_pair__", ctx=ast.Load()),
+                args=[
+                    copy.deepcopy(child),
+                    copy.deepcopy(parent),
+                    ast.Constant(value=name or "attachment"),
+                    ast.Constant(value=int(getattr(node, "lineno", 0))),
+                ],
+                keywords=[],
+            )
+        )
+        return [node, ast.copy_location(capture, node)]
+
+
 def _override_ast(
     tree: ast.Module,
     overrides: dict[str, object],
@@ -518,6 +607,9 @@ def _override_ast(
     hidden_variables, hidden_creators = _hidden_part_targets(tree, overrides)
     if hidden_variables or hidden_creators:
         tree = _PartVisibilityTransformer(hidden_variables, hidden_creators).visit(tree)
+    attachment_specs = _semantic_attachment_specs(tree)
+    if attachment_specs:
+        tree = _SemanticAttachmentTransformer(attachment_specs).visit(tree)
     return ast.fix_missing_locations(tree)
 
 
@@ -688,6 +780,7 @@ def _execute_source(source: Path, params: dict[str, object], adapter: str):
         "__codex_hidden_snapshot__": _hidden_snapshot,
         "__codex_mark_new_objects_hidden__": _mark_new_objects_hidden,
         "__codex_join_visible__": _join_visible,
+        "__codex_capture_semantic_pair__": _capture_semantic_pair,
     }
     previous_cwd = Path.cwd()
     previous_argv = sys.argv[:]
@@ -877,6 +970,76 @@ def _walk_component_objects(value):
     yield from walk(value)
 
 
+def _snapshot_semantic_object(
+    obj: bpy.types.Object,
+    role: str,
+    helper: str,
+    line: int,
+) -> None:
+    if obj.type != "MESH" or obj.data is None:
+        return
+    pointer = obj.as_pointer()
+    if pointer in _SEMANTIC_SNAPSHOTS:
+        return
+    duplicate = obj.copy()
+    duplicate.data = obj.data.copy()
+    duplicate.animation_data_clear()
+    duplicate.name = f"__codex_semantic__{obj.name}"
+    duplicate.data.name = f"__codex_semantic_mesh__{obj.name}"
+    duplicate.matrix_world = obj.matrix_world.copy()
+    duplicate["codex_semantic_overlay"] = True
+    duplicate["codex_semantic_node_id"] = obj.name
+    duplicate["codex_semantic_role"] = role
+    duplicate["codex_attachment_helper"] = helper
+    duplicate["codex_attachment_line"] = int(line)
+    bpy.context.scene.collection.objects.link(duplicate)
+    _SEMANTIC_SNAPSHOTS[pointer] = {
+        "source_name": obj.name,
+        "source_data_pointer": obj.data.as_pointer(),
+        "source_vertex_count": len(obj.data.vertices),
+        "duplicate": duplicate,
+    }
+
+
+def _capture_semantic_pair(child, parent, helper: str, line: int) -> None:
+    """Preserve attachment endpoints if a later join destroys their identity."""
+    for obj in _walk_component_objects(parent):
+        _snapshot_semantic_object(obj, "parent", helper, line)
+    for obj in _walk_component_objects(child):
+        _snapshot_semantic_object(obj, "child", helper, line)
+
+
+def _remove_semantic_duplicate(snapshot: dict[str, object]) -> None:
+    duplicate = snapshot.get("duplicate")
+    if not isinstance(duplicate, bpy.types.Object):
+        return
+    data = duplicate.data
+    bpy.data.objects.remove(duplicate, do_unlink=True)
+    if data is not None and data.users == 0:
+        bpy.data.meshes.remove(data)
+
+
+def _finalize_semantic_snapshots() -> int:
+    """Keep only snapshots whose source object was deleted or changed by joining."""
+    current_by_pointer = {obj.as_pointer(): obj for obj in bpy.data.objects}
+    kept = 0
+    for pointer, snapshot in list(_SEMANTIC_SNAPSHOTS.items()):
+        source = current_by_pointer.get(pointer)
+        source_unchanged = bool(
+            source is not None
+            and source.type == "MESH"
+            and source.data is not None
+            and source.name == snapshot["source_name"]
+            and source.data.as_pointer() == snapshot["source_data_pointer"]
+            and len(source.data.vertices) == snapshot["source_vertex_count"]
+        )
+        if pointer in _HIDDEN_OBJECT_POINTERS or source_unchanged:
+            _remove_semantic_duplicate(snapshot)
+            continue
+        kept += 1
+    return kept
+
+
 def _mark_component_hidden(value, _label: str = ""):
     """Remember objects to omit while preserving them for later source operations."""
     for obj in _walk_component_objects(value):
@@ -1030,7 +1193,24 @@ def _ensure_materials(objects: list[bpy.types.Object]) -> None:
         "default": (0.32, 0.52, 0.76, 1.0),
     }
     materials: dict[str, bpy.types.Material] = {}
+    semantic_material: bpy.types.Material | None = None
     for obj in objects:
+        if bool(obj.get("codex_semantic_overlay")):
+            if semantic_material is None:
+                semantic_material = bpy.data.materials.new("codex_semantic_overlay")
+                semantic_material.diffuse_color = (1.0, 0.75, 0.18, 0.0)
+                semantic_material.use_nodes = True
+                principled = semantic_material.node_tree.nodes.get("Principled BSDF")
+                if principled is not None:
+                    principled.inputs["Base Color"].default_value = (1.0, 0.75, 0.18, 1.0)
+                    principled.inputs["Alpha"].default_value = 0.0
+                try:
+                    semantic_material.surface_render_method = "DITHERED"
+                except (AttributeError, TypeError, ValueError):
+                    pass
+            obj.data.materials.clear()
+            obj.data.materials.append(semantic_material)
+            continue
         if obj.data.materials:
             continue
         role = str(obj.get("bird_role") or "default")
@@ -1057,6 +1237,7 @@ def _export_glb(output: Path, objects: list[bpy.types.Object]) -> None:
         "use_selection": True,
         "export_apply": True,
         "export_yup": True,
+        "export_extras": True,
     }
     bpy.ops.export_scene.gltf(**kwargs)
 
@@ -1078,6 +1259,7 @@ def main() -> None:
         _apply_generic_part_scales(namespace, params)
         _apply_generic_part_visibility(namespace, params)
     _finalize_hidden_objects()
+    semantic_overlays = _finalize_semantic_snapshots()
     objects = _normalize_scene(params)
     if not objects:
         raise RuntimeError("脚本执行完成，但场景中没有可导出的 Mesh")
@@ -1089,6 +1271,7 @@ def main() -> None:
         "bytes": args.output.stat().st_size,
         "execution": "full_source_from_empty_scene",
         "execution_id": f"{os.getpid()}-{args.output.stat().st_mtime_ns}",
+        "semantic_overlays": semantic_overlays,
     }
     if adapter == "bird":
         report["source_trace"] = namespace.get("__codex_bird_source_trace__", {})

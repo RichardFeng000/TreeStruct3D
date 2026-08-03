@@ -37,8 +37,8 @@ DEFAULT_BLENDER = Path(
     "Blender-5.0.app/Contents/MacOS/Blender"
 )
 PINNED_BLENDER_VERSION = "5.0.0"
-RUNTIME_GRAPH_VERSION = "4-semantic-shared-anchor"
-RENDER_WORKER_VERSION = "8-guarded-full-source-execution"
+RUNTIME_GRAPH_VERSION = "7-preview-anchor-overlay"
+RENDER_WORKER_VERSION = "9-semantic-highlight-overlays"
 RUNTIME_GRAPH_PROBE = (
     APP_DIR.parent
     / "SR_F1_Structural_Metric"
@@ -344,6 +344,10 @@ class PlaygroundState:
             self.source_labels[source_id] = label
             self.source_roots[source_id] = root.resolve()
             self.models_by_source[source_id] = models
+        self.must_watch_labels = {
+            entry.label
+            for entry in self.models_by_source.get("gpt5_6_sol", {}).values()
+        }
         self.default_source = (
             "benchmark" if "benchmark" in self.models_by_source else next(iter(self.models_by_source), "")
         )
@@ -500,7 +504,10 @@ class PlaygroundState:
                 "evidence": [],
                 "group": "Blender 运行时零件",
                 "origin": node.get("origin"),
+                "center": node.get("center"),
                 "dimensions": node.get("dimensions"),
+                "bbox_min": node.get("bbox_min"),
+                "bbox_max": node.get("bbox_max"),
             }
             for node in raw_nodes
         ]
@@ -510,22 +517,61 @@ class PlaygroundState:
         for raw in report.get("edges", []):
             relation = str(raw.get("relation") or "UNOBSERVABLE")
             contact = bool(raw.get("contact"))
-            shared_anchor = bool(raw.get("shared_anchor"))
-            geometric_anchor_aligned = bool(
-                raw.get("geometric_anchor_aligned", shared_anchor)
-            )
-            directed = (
+            declarations = raw.get("declared_directions") or []
+            declared_directions = {
+                (str(item.get("parent")), str(item.get("child")))
+                for item in declarations
+                if item.get("parent") in node_ids
+                and item.get("child") in node_ids
+                and item.get("parent") != item.get("child")
+            }
+            raw_parent = raw.get("parent")
+            raw_child = raw.get("child")
+            runtime_direction = (
                 relation in {"DIRECTED", "DIRECTED_CODE"}
-                and contact
-                and shared_anchor
-                and raw.get("parent") in node_ids
-                and raw.get("child") in node_ids
+                and raw_parent in node_ids
+                and raw_child in node_ids
+                and raw_parent != raw_child
             )
-            parent = str(raw.get("parent") if directed else raw.get("node_a"))
-            child = str(raw.get("child") if directed else raw.get("node_b"))
+            if runtime_direction:
+                parent = str(raw_parent)
+                child = str(raw_child)
+                direction_source = (
+                    "runtime" if relation == "DIRECTED" else "code"
+                )
+            elif len(declared_directions) == 1:
+                parent, child = next(iter(declared_directions))
+                direction_source = "declared_parent"
+            else:
+                parent = str(raw.get("node_a"))
+                child = str(raw.get("node_b"))
+                direction_source = None
+            parent_child_known = direction_source is not None
+
+            # The Blender probe's A/B points are the closest pair among a
+            # bounded set of evaluated-mesh vertex samples.  They are useful
+            # attachment candidates, but proximity plus parenting does not
+            # prove that the source authored one persistent shared anchor.
+            # Reserve the green/shared state for an explicit anchor contract.
+            raw_shared_evidence = str(raw.get("shared_anchor_evidence") or "")
+            explicit_shared_evidence = raw_shared_evidence in {
+                "explicit_anchor_id",
+                "declared_world_anchor",
+                "authored_anchor_pair",
+            }
+            shared_anchor = bool(
+                raw.get("shared_anchor")
+                and explicit_shared_evidence
+                and contact
+            )
+            geometric_anchor_aligned = bool(
+                raw.get("geometric_anchor_aligned", False)
+            )
+            strict_shared_direction = bool(
+                runtime_direction and contact and shared_anchor
+            )
             if parent not in node_ids or child not in node_ids or parent == child:
                 continue
-            declarations = raw.get("declared_directions") or []
             line = next(
                 (
                     int(item.get("line") or 0)
@@ -540,15 +586,25 @@ class PlaygroundState:
                 "relation": relation,
                 "line": line,
                 "evidence": (
-                    "严格有向边：单向证据、几何接触与共享世界坐标锚点均通过"
-                    if directed
-                    else "运行时几何与锚点候选关系"
+                    "共享锚点：父子方向、几何接触和显式共享锚点证据均通过"
+                    if strict_shared_direction
+                    else (
+                        "父子方向已知；A/B 坐标来自最近 Mesh 顶点采样，属于非共享锚点候选"
+                        if parent_child_known
+                        else "运行时几何关系；A/B 坐标来自最近 Mesh 顶点采样"
+                    )
                 ),
-                "directed_verified": directed,
+                "directed_verified": runtime_direction,
+                "parent_child_known": parent_child_known,
+                "direction_source": direction_source,
                 "contact": contact,
                 "shared_anchor": shared_anchor,
                 "geometric_anchor_aligned": geometric_anchor_aligned,
-                "shared_anchor_evidence": raw.get("shared_anchor_evidence"),
+                "shared_anchor_evidence": (
+                    raw_shared_evidence if shared_anchor else None
+                ),
+                "anchor_estimated": not shared_anchor,
+                "anchor_method": "nearest_evaluated_mesh_vertex_samples",
                 "anchor_a": raw.get("anchor_a"),
                 "anchor_b": raw.get("anchor_b"),
                 "anchor_gap": raw.get("anchor_gap"),
@@ -557,7 +613,7 @@ class PlaygroundState:
                 "declared_directions": declarations,
             }
             edges.append(edge)
-            if directed:
+            if parent_child_known:
                 incoming.add(child)
         roots = sorted(node_ids - incoming) or sorted(node_ids)
         relation_counts: dict[str, int] = {}
@@ -568,8 +624,14 @@ class PlaygroundState:
             "nodes": len(nodes),
             "edges": len(edges),
             "relations": relation_counts,
-            "directed_edges": sum(bool(edge["directed_verified"]) for edge in edges),
+            "directed_edges": sum(bool(edge["parent_child_known"]) for edge in edges),
+            "runtime_directed_edges": sum(
+                bool(edge["directed_verified"]) for edge in edges
+            ),
             "shared_anchor_edges": sum(bool(edge["shared_anchor"]) for edge in edges),
+            "estimated_anchor_edges": sum(
+                bool(edge["anchor_estimated"]) for edge in edges
+            ),
             "geometric_anchor_candidates": sum(
                 bool(edge["geometric_anchor_aligned"]) for edge in edges
             ),
@@ -582,12 +644,33 @@ class PlaygroundState:
                 not bool(edge["geometric_anchor_aligned"]) for edge in edges
             ),
         }
+        valid_bounds = [
+            node
+            for node in raw_nodes
+            if isinstance(node.get("bbox_min"), list)
+            and len(node["bbox_min"]) == 3
+            and isinstance(node.get("bbox_max"), list)
+            and len(node["bbox_max"]) == 3
+        ]
+        source_bounds = None
+        if valid_bounds:
+            source_bounds = {
+                "min": [
+                    min(float(node["bbox_min"][axis]) for node in valid_bounds)
+                    for axis in range(3)
+                ],
+                "max": [
+                    max(float(node["bbox_max"][axis]) for node in valid_bounds)
+                    for axis in range(3)
+                ],
+            }
         return {
             "label": "运行时锚点关系图",
             "roots": roots,
             "nodes": nodes,
             "edges": edges,
             "summary": summary,
+            "source_bounds": source_bounds,
             "scene_extent": report.get("scene_extent"),
             "contact_threshold": report.get("contact_threshold"),
             "shared_anchor_tolerance": report.get("shared_anchor_tolerance"),
@@ -656,7 +739,7 @@ class PlaygroundState:
                     check=False,
                 )
             except subprocess.TimeoutExpired:
-                render_output.unlink(missing_ok=True)
+                raw_output.unlink(missing_ok=True)
                 raise
             if not raw_output.is_file():
                 details = "\n".join(
@@ -821,6 +904,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                 {
                     "sources": self.state.sources(),
                     "default": self.state.default_source,
+                    "must_watch_count": len(self.state.must_watch_labels),
                 }
             )
             return
@@ -832,10 +916,23 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                 self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
                 return
             models = [
-                {"id": entry.model_id, "label": entry.label}
+                {
+                    "id": entry.model_id,
+                    "label": entry.label,
+                    "must_watch": entry.label in self.state.must_watch_labels,
+                }
                 for entry in source_models.values()
             ]
-            self._json({"source": source_id, "models": models, "count": len(models)})
+            self._json(
+                {
+                    "source": source_id,
+                    "models": models,
+                    "count": len(models),
+                    "must_watch_count": sum(
+                        bool(model["must_watch"]) for model in models
+                    ),
+                }
+            )
             return
         if parsed.path == "/api/schema":
             query = urllib.parse.parse_qs(parsed.query)
