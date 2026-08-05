@@ -25,6 +25,7 @@ _SEMANTIC_SNAPSHOTS: dict[int, dict[str, object]] = {}
 
 _ATTACHMENT_CHILD_TOKENS = ("child", "dependent", "attached", "part")
 _ATTACHMENT_PARENT_TOKENS = ("parent", "target", "host", "support", "base", "body")
+_NATIVE_PART_PARAMS_NAME = "PART_PARAMS"
 
 
 def _arguments() -> argparse.Namespace:
@@ -541,6 +542,14 @@ def _override_ast(
     overrides: dict[str, object],
     remove_main_call: bool,
 ) -> ast.Module:
+    native_part_values: dict[tuple[str, str], object] = {}
+    for key, value in overrides.items():
+        if not key.startswith("part_param|"):
+            continue
+        fields = key.split("|", 2)
+        if len(fields) == 3 and fields[1] and fields[2]:
+            native_part_values[(fields[1], fields[2])] = value
+
     globals_map = {
         key.removeprefix("source_override:global:"): value
         for key, value in overrides.items()
@@ -557,9 +566,37 @@ def _override_ast(
             value = None
         return ast.copy_location(ast.Constant(value=value), original)
 
+    def dict_key(node: ast.AST) -> object:
+        try:
+            return ast.literal_eval(node)
+        except (ValueError, TypeError, SyntaxError):
+            return object()
+
+    def override_native_part_params(value: ast.AST) -> None:
+        if not isinstance(value, ast.Dict):
+            return
+        for part_key, part_value in zip(value.keys, value.values):
+            part_id = str(dict_key(part_key))
+            if not isinstance(part_value, ast.Dict):
+                continue
+            for index, (parameter_key, parameter_value) in enumerate(
+                zip(part_value.keys, part_value.values)
+            ):
+                parameter = str(dict_key(parameter_key))
+                replacement = native_part_values.get((part_id, parameter))
+                if replacement is None:
+                    continue
+                part_value.values[index] = constant(replacement, parameter_value)
+
     for node in tree.body:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(
+                isinstance(target, ast.Name)
+                and target.id == _NATIVE_PART_PARAMS_NAME
+                for target in targets
+            ):
+                override_native_part_params(node.value)
             for target in targets:
                 if isinstance(target, ast.Name) and target.id in globals_map:
                     node.value = constant(globals_map[target.id], node.value)
@@ -1270,6 +1307,11 @@ def main() -> None:
         "objects": len(objects),
         "bytes": args.output.stat().st_size,
         "execution": "full_source_from_empty_scene",
+        "parameter_mode": (
+            "native_rebuild"
+            if any(key.startswith("part_param|") for key in params)
+            else "source_default_or_legacy"
+        ),
         "execution_id": f"{os.getpid()}-{args.output.stat().st_mtime_ns}",
         "semantic_overlays": semantic_overlays,
     }

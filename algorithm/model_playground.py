@@ -43,7 +43,8 @@ DEFAULT_BLENDER = Path(
     "Blender-5.0.app/Contents/MacOS/Blender"
 )
 PINNED_BLENDER_VERSION = "5.0.0"
-RUNTIME_GRAPH_VERSION = "7-preview-anchor-overlay"
+RUNTIME_GRAPH_VERSION = "9-native-anchor-edges-only"
+NATIVE_PART_PARAMS_NAME = "PART_PARAMS"
 RENDER_WORKER_VERSION = "9-semantic-highlight-overlays"
 RUNTIME_GRAPH_PROBE = ALGORITHM_DIR / "runtime" / "blender_probe.py"
 DEFAULT_CACHE = APP_DIR / ".model_playground_cache"
@@ -76,6 +77,18 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--benchmark", type=Path, default=DEFAULT_BENCHMARK)
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        help=(
+            "extra dataset root, one model directory, or one canonical Python file; "
+            "it becomes the initially selected source"
+        ),
+    )
+    parser.add_argument(
+        "--dataset-label",
+        help="browser label for --dataset (defaults to the path name)",
+    )
     parser.add_argument("--blender", type=Path, default=DEFAULT_BLENDER)
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
     parser.add_argument("--open", action="store_true", help="open the browser")
@@ -84,9 +97,32 @@ def _arguments() -> argparse.Namespace:
 
 
 def _model_catalog(root: Path, source_id: str) -> dict[str, ModelEntry]:
-    """Catalog only each model folder's canonical ``<folder>.py`` script."""
+    """Catalog canonical model scripts from a dataset, model folder, or file."""
     root = root.resolve()
     entries: dict[str, ModelEntry] = {}
+
+    if root.is_file():
+        if root.suffix == ".py":
+            model_id = f"{root.stem}/{root.stem}"
+            entries[model_id] = ModelEntry(
+                source_id,
+                model_id,
+                root.stem,
+                root,
+            )
+        return entries
+
+    direct_source = root / f"{root.name}.py"
+    if direct_source.is_file():
+        model_id = f"{root.name}/{root.name}"
+        entries[model_id] = ModelEntry(
+            source_id,
+            model_id,
+            root.name,
+            direct_source.resolve(),
+        )
+        return entries
+
     for model_dir in sorted(path for path in root.glob("*") if path.is_dir()):
         source = model_dir / f"{model_dir.name}.py"
         if not source.is_file():
@@ -150,7 +186,12 @@ def _source_controls(source: Path) -> list[dict[str, Any]]:
             if value is None and not isinstance(value_node, ast.Constant):
                 continue
             for target in targets:
-                if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                if (
+                    isinstance(target, ast.Name)
+                    and not target.id.startswith("_")
+                    and target.id != NATIVE_PART_PARAMS_NAME
+                    and isinstance(value, (str, int, float, bool, type(None)))
+                ):
                     found[f"global:{target.id}"] = (value, target.id)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "main":
             positional = [*node.args.posonlyargs, *node.args.args]
@@ -179,6 +220,83 @@ def _source_controls(source: Path) -> list[dict[str, Any]]:
         else:
             control["type"] = "text"
         controls.append(control)
+    return controls
+
+
+def _native_part_params(source: Path) -> dict[str, dict[str, Any]]:
+    """Read Stage7's literal, category-neutral native parameter protocol."""
+
+    try:
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return {}
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(
+            isinstance(target, ast.Name) and target.id == NATIVE_PART_PARAMS_NAME
+            for target in targets
+        ):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError, SyntaxError):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        result: dict[str, dict[str, Any]] = {}
+        for raw_part_id, raw_params in value.items():
+            part_id = str(raw_part_id)
+            if not part_id or not isinstance(raw_params, dict):
+                continue
+            params = {
+                str(key): item
+                for key, item in raw_params.items()
+                if isinstance(item, (str, int, float, bool, type(None)))
+            }
+            if isinstance(params.get("scale"), (int, float)) and not isinstance(
+                params.get("scale"), bool
+            ):
+                result[part_id] = params
+        return result
+    return {}
+
+
+def _native_part_controls(source: Path) -> list[dict[str, Any]]:
+    """Expose source-native parameters that rebuild geometry before anchoring."""
+
+    controls: list[dict[str, Any]] = []
+    for part_id, params in _native_part_params(source).items():
+        for parameter, value in params.items():
+            control: dict[str, Any] = {
+                "id": f"part_param|{part_id}|{parameter}",
+                "label": f"{part_id} · {parameter}",
+                "group": f"原生部件参数 · {part_id}",
+                "value": value,
+                "node_id": part_id,
+                "parameter_mode": "native_rebuild",
+            }
+            if parameter == "scale" and isinstance(value, (int, float)):
+                control.update(
+                    type="range",
+                    min=0.25,
+                    max=3.0,
+                    step=0.05,
+                    visibility_id=f"part_object_visible|{part_id}|{part_id}",
+                    visibility_value=True,
+                    is_leaf=False,
+                )
+            elif isinstance(value, bool):
+                control["type"] = "checkbox"
+            elif isinstance(value, (int, float)):
+                low, high, step = _numeric_bounds(value)
+                control.update(type="number", min=low, max=high, step=step)
+            elif value is None:
+                control.update(type="text", value="")
+            else:
+                control["type"] = "text"
+            controls.append(control)
     return controls
 
 
@@ -265,7 +383,7 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
 
 
 def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Expose every analyzed parent/child node as a live uniform scale."""
+    """Expose legacy nodes as approximate post-construction uniform scales."""
     view = structure_data.get("views", {}).get("parts", {})
     nodes = view.get("nodes", [])
     edges = view.get("edges", [])
@@ -301,7 +419,7 @@ def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "id": control_id,
                 "label": f"{relation_label} · {label}",
-                "group": "代码参数 · 父子节点",
+                "group": "代码参数 · 父子节点（旧代码近似缩放）",
                 "type": "range",
                 "min": 0.25,
                 "max": 3.0,
@@ -329,16 +447,32 @@ def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
 
 class PlaygroundState:
     def __init__(self, args: argparse.Namespace):
-        source_specs = (
+        source_specs: list[tuple[str, str, Path]] = []
+        custom_models: dict[str, ModelEntry] = {}
+        if args.dataset is not None:
+            dataset_root = args.dataset.expanduser().resolve()
+            dataset_label = args.dataset_label or dataset_root.name
+            custom_models = _model_catalog(dataset_root, "dataset")
+            if not custom_models:
+                raise SystemExit(
+                    "指定的数据集没有可运行模型。目录需要包含 "
+                    f"<seed>/<seed>.py，或本身是带同名 Python 的 seed 目录：{dataset_root}"
+                )
+            source_specs.append(("dataset", dataset_label, dataset_root))
+        source_specs.extend((
             ("benchmark", "Benchmark 验证集", args.benchmark),
             ("stage1", "Stage 1 Output", DEFAULT_STAGE1_OUTPUT),
             ("gpt5_6_sol", "Stage 1 · GPT-5.6-sol", DEFAULT_STAGE1_GPT56_SOL),
-        )
+        ))
         self.source_labels: dict[str, str] = {}
         self.source_roots: dict[str, Path] = {}
         self.models_by_source: dict[str, dict[str, ModelEntry]] = {}
         for source_id, label, root in source_specs:
-            models = _model_catalog(root, source_id)
+            models = (
+                custom_models
+                if source_id == "dataset"
+                else _model_catalog(root, source_id)
+            )
             if not models:
                 continue
             self.source_labels[source_id] = label
@@ -349,7 +483,13 @@ class PlaygroundState:
             for entry in self.models_by_source.get("gpt5_6_sol", {}).values()
         }
         self.default_source = (
-            "benchmark" if "benchmark" in self.models_by_source else next(iter(self.models_by_source), "")
+            "dataset"
+            if "dataset" in self.models_by_source
+            else (
+                "benchmark"
+                if "benchmark" in self.models_by_source
+                else next(iter(self.models_by_source), "")
+            )
         )
         # Retain the original attribute for callers that mean the default source.
         self.models = self.models_by_source.get(self.default_source, {})
@@ -380,17 +520,26 @@ class PlaygroundState:
     def schema(self, entry: ModelEntry) -> dict[str, Any]:
         is_bird = entry.source_id == "benchmark" and entry.label == "Bird_seed0"
         controls = _runtime_controls(is_bird)
+        native_controls = [] if is_bird else _native_part_controls(entry.source)
         # Bird has a dedicated adapter with meaningful part controls.  Its two
         # simple globals are implementation switches already covered by that
         # adapter, so avoid showing duplicate/no-op fields in the UI.
         if not is_bird:
             controls.extend(_source_controls(entry.source))
-            controls.extend(_part_node_controls(self.structure(entry)))
+            if native_controls:
+                controls.extend(native_controls)
+            else:
+                controls.extend(_part_node_controls(self.structure(entry)))
         return {
             "source": entry.source_id,
             "model": entry.model_id,
             "label": entry.label,
             "adapter": "bird" if is_bird else "generic",
+            "parameter_mode": (
+                "native_rebuild"
+                if native_controls
+                else ("bird_native_adapter" if is_bird else "legacy_approx")
+            ),
             "controls": controls,
         }
 
@@ -453,7 +602,7 @@ class PlaygroundState:
     def structure(self, entry: ModelEntry) -> dict[str, Any]:
         """Return the definition, call, and complete parent-to-child trees."""
         modified = entry.source.stat().st_mtime_ns
-        cache_key = f"{entry.source_id}:{entry.model_id}"
+        cache_key = f"{entry.source_id}:{entry.model_id}:{entry.source}"
         cached = self.structure_cache.get(cache_key)
         if cached is not None and cached[0] == modified:
             return cached[1]
@@ -567,6 +716,7 @@ class PlaygroundState:
             geometric_anchor_aligned = bool(
                 raw.get("geometric_anchor_aligned", False)
             )
+            authored_anchor_observed = raw.get("authored_anchor_valid") is not None
             strict_shared_direction = bool(
                 runtime_direction and contact and shared_anchor
             )
@@ -603,12 +753,19 @@ class PlaygroundState:
                 "shared_anchor_evidence": (
                     raw_shared_evidence if shared_anchor else None
                 ),
-                "anchor_estimated": not shared_anchor,
-                "anchor_method": "nearest_evaluated_mesh_vertex_samples",
+                "anchor_estimated": not authored_anchor_observed,
+                "anchor_method": (
+                    "authored_local_mesh_vertices"
+                    if authored_anchor_observed
+                    else "nearest_evaluated_mesh_vertex_samples"
+                ),
                 "anchor_a": raw.get("anchor_a"),
                 "anchor_b": raw.get("anchor_b"),
                 "anchor_gap": raw.get("anchor_gap"),
                 "anchor_tolerance": raw.get("anchor_tolerance"),
+                "authored_anchor_valid": raw.get("authored_anchor_valid"),
+                "child_anchor_vertex_gap": raw.get("child_anchor_vertex_gap"),
+                "parent_anchor_vertex_gap": raw.get("parent_anchor_vertex_gap"),
                 "aabb_gap": raw.get("aabb_gap"),
                 "declared_directions": declarations,
             }
@@ -674,7 +831,104 @@ class PlaygroundState:
             "scene_extent": report.get("scene_extent"),
             "contact_threshold": report.get("contact_threshold"),
             "shared_anchor_tolerance": report.get("shared_anchor_tolerance"),
+            "native_part_params": report.get("native_part_params"),
         }
+
+    @staticmethod
+    def _apply_native_parameter_invariance(
+        view: dict[str, Any],
+        variants: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Downgrade shared edges unless parent and child scale probes pass."""
+
+        default_nodes = {
+            str(node.get("id")): node for node in view.get("nodes") or []
+        }
+        default_edges = list(view.get("edges") or [])
+        results: dict[str, dict[str, Any]] = {}
+        for part_id, variant in sorted(variants.items()):
+            variant_nodes = {
+                str(node.get("id")): node for node in variant.get("nodes") or []
+            }
+            before = default_nodes.get(part_id)
+            after = variant_nodes.get(part_id)
+            before_dims = [float(value) for value in (before or {}).get("dimensions") or []]
+            after_dims = [float(value) for value in (after or {}).get("dimensions") or []]
+            dimensions_changed = bool(
+                len(before_dims) == len(after_dims) == 3
+                and any(
+                    abs(current - original) > max(abs(original) * 0.05, 1e-5)
+                    for original, current in zip(before_dims, after_dims)
+                )
+            )
+            variant_edges = {
+                (str(edge.get("parent")), str(edge.get("child"))): edge
+                for edge in variant.get("edges") or []
+            }
+            affected = [
+                edge
+                for edge in default_edges
+                if edge.get("relation") == "DIRECTED"
+                and bool(edge.get("shared_anchor"))
+                and (
+                    edge.get("parent") == part_id
+                    or edge.get("child") == part_id
+                )
+            ]
+            # Only default, confirmed parent->child shared anchors belong to
+            # the invariance contract.  Incidental UNDIRECTED_CONTACT edges can
+            # appear or disappear when a part grows and must not veto a real
+            # authored attachment.
+            anchors_passed = all(
+                bool(
+                    variant_edges.get(
+                        (str(edge.get("parent")), str(edge.get("child"))),
+                        {},
+                    ).get("shared_anchor")
+                )
+                for edge in affected
+            )
+            results[part_id] = {
+                "part_id": part_id,
+                "passed": bool(dimensions_changed and anchors_passed),
+                "dimensions_changed": dimensions_changed,
+                "anchors_passed": anchors_passed,
+                "affected_edges": len(affected),
+            }
+
+        for edge in default_edges:
+            parent_result = results.get(str(edge.get("parent")), {})
+            child_result = results.get(str(edge.get("child")), {})
+            invariant = bool(
+                parent_result.get("passed") and child_result.get("passed")
+            )
+            edge["parameter_invariance"] = {
+                "passed": invariant,
+                "parent_scale_passed": bool(parent_result.get("passed")),
+                "child_scale_passed": bool(child_result.get("passed")),
+            }
+            if edge.get("shared_anchor") and not invariant:
+                edge["shared_anchor"] = False
+                edge["parameter_invariance_failed"] = True
+                edge["shared_anchor_evidence"] = None
+                edge["evidence"] = (
+                    "默认锚点成立，但父节点或子节点单独改变尺寸后失效"
+                )
+
+        summary = view.setdefault("summary", {})
+        summary["shared_anchor_edges"] = sum(
+            bool(edge.get("shared_anchor")) for edge in default_edges
+        )
+        summary["parameter_invariance_parts"] = len(results)
+        summary["parameter_invariance_passed_parts"] = sum(
+            bool(item.get("passed")) for item in results.values()
+        )
+        view["parameter_invariance"] = {
+            "mode": "native_rebuild",
+            "scale_factor": 1.35,
+            "results": list(results.values()),
+        }
+        return view
 
     def runtime_graph(self, entry: ModelEntry) -> dict[str, Any]:
         """Run the strict Blender-5 anchor/direction probe and cache its view."""
@@ -685,6 +939,7 @@ class PlaygroundState:
         payload = {
             "source": entry.source_id,
             "model": entry.model_id,
+            "source_path": str(entry.source),
             "source_mtime_ns": source_stat.st_mtime_ns,
             "source_size": source_stat.st_size,
             "probe_mtime_ns": probe_stat.st_mtime_ns,
@@ -726,6 +981,7 @@ class PlaygroundState:
             "--samples",
             "96",
         ]
+        native_parts = _native_part_params(entry.source)
         with self.render_lock:
             if output.is_file():
                 return json.loads(output.read_text(encoding="utf-8"))
@@ -754,6 +1010,53 @@ class PlaygroundState:
             if report.get("status") != "ok":
                 raise RuntimeError(str(report.get("error") or "运行时锚点分析失败"))
             view = self._runtime_graph_view(report)
+            if native_parts:
+                variants: dict[str, dict[str, Any]] = {}
+                for part_id in list(native_parts)[:32]:
+                    variant_digest = hashlib.sha256(
+                        f"{digest}:{part_id}:1.35".encode("utf-8")
+                    ).hexdigest()[:16]
+                    variant_output = self.cache / (
+                        f".{entry.label}-runtime-graph-{variant_digest}.raw.json"
+                    )
+                    variant_command = [
+                        *command,
+                        "--part-param-scale",
+                        f"{part_id}=1.35",
+                    ]
+                    output_index = variant_command.index("--output")
+                    variant_command[output_index + 1] = str(variant_output)
+                    try:
+                        variant_completed = subprocess.run(
+                            variant_command,
+                            cwd=entry.source.parent,
+                            text=True,
+                            capture_output=True,
+                            timeout=self.timeout,
+                            check=False,
+                        )
+                    except subprocess.TimeoutExpired:
+                        variants[part_id] = {"nodes": [], "edges": []}
+                        variant_output.unlink(missing_ok=True)
+                        continue
+                    if not variant_output.is_file():
+                        variants[part_id] = {"nodes": [], "edges": []}
+                        continue
+                    variant_report = json.loads(
+                        variant_output.read_text(encoding="utf-8")
+                    )
+                    variant_output.unlink(missing_ok=True)
+                    if variant_report.get("status") != "ok":
+                        variants[part_id] = {"nodes": [], "edges": []}
+                    else:
+                        variants[part_id] = self._runtime_graph_view(variant_report)
+                view = self._apply_native_parameter_invariance(view, variants)
+            else:
+                view["parameter_invariance"] = {
+                    "mode": "legacy_approx",
+                    "scale_factor": None,
+                    "results": [],
+                }
             output.write_text(
                 json.dumps(view, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
@@ -770,6 +1073,7 @@ class PlaygroundState:
         payload = {
             "source": entry.source_id,
             "model": entry.model_id,
+            "source_path": str(entry.source),
             "source_mtime_ns": source_stat.st_mtime_ns,
             "source_size": source_stat.st_size,
             "params": params,

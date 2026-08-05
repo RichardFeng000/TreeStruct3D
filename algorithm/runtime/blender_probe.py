@@ -49,7 +49,84 @@ def _arguments():
     parser.add_argument("--max-nodes", type=int, default=128)
     parser.add_argument("--max-edges", type=int, default=512)
     parser.add_argument("--samples", type=int, default=96)
+    parser.add_argument(
+        "--part-param-scale",
+        action="append",
+        default=[],
+        metavar="PART_ID=FACTOR",
+        help="Override one literal PART_PARAMS scale before source execution.",
+    )
     return parser.parse_args(argv)
+
+
+def _part_param_scale_overrides(values):
+    overrides = {}
+    for value in values:
+        part_id, separator, raw_factor = str(value).partition("=")
+        if not separator or not part_id:
+            raise ValueError(f"invalid --part-param-scale: {value!r}")
+        factor = float(raw_factor)
+        if not math.isfinite(factor) or factor <= 0:
+            raise ValueError(f"invalid PART_PARAMS scale: {value!r}")
+        overrides[part_id] = factor
+    return overrides
+
+
+def _native_part_params(tree):
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(
+            isinstance(target, ast.Name) and target.id == "PART_PARAMS"
+            for target in targets
+        ):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError, SyntaxError):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        return {
+            str(part_id): params
+            for part_id, params in value.items()
+            if isinstance(params, dict)
+            and isinstance(params.get("scale"), (int, float))
+            and not isinstance(params.get("scale"), bool)
+        }
+    return {}
+
+
+def _override_native_part_scales(tree, overrides):
+    if not overrides:
+        return
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(
+            isinstance(target, ast.Name) and target.id == "PART_PARAMS"
+            for target in targets
+        ) or not isinstance(node.value, ast.Dict):
+            continue
+        for part_key, part_value in zip(node.value.keys, node.value.values):
+            try:
+                part_id = str(ast.literal_eval(part_key))
+            except (ValueError, TypeError, SyntaxError):
+                continue
+            if part_id not in overrides or not isinstance(part_value, ast.Dict):
+                continue
+            for index, parameter_key in enumerate(part_value.keys):
+                try:
+                    parameter = ast.literal_eval(parameter_key)
+                except (ValueError, TypeError, SyntaxError):
+                    continue
+                if parameter == "scale":
+                    part_value.values[index] = ast.copy_location(
+                        ast.Constant(value=float(overrides[part_id])),
+                        part_value.values[index],
+                    )
 
 
 def _clear_scene(bpy):
@@ -256,6 +333,22 @@ def _attachment_specs(tree):
                     "raycast" in name or "anchor" in name
                     for name in called_names
                 ),
+                "child_anchor": next(
+                    (
+                        name
+                        for name in names
+                        if "child" in name.lower() and "anchor" in name.lower()
+                    ),
+                    None,
+                ),
+                "parent_anchor": next(
+                    (
+                        name
+                        for name in names
+                        if "parent" in name.lower() and "anchor" in name.lower()
+                    ),
+                    None,
+                ),
             }
     return specs
 
@@ -332,6 +425,24 @@ class _Instrumenter(ast.NodeTransformer):
                                     )
                                 ),
                                 ast.Constant(value=int(getattr(node, "lineno", 0))),
+                                (
+                                    copy.deepcopy(
+                                        _call_argument(call, names, spec["child_anchor"])
+                                    )
+                                    if spec.get("child_anchor")
+                                    and _call_argument(call, names, spec["child_anchor"])
+                                    is not None
+                                    else ast.Constant(value=None)
+                                ),
+                                (
+                                    copy.deepcopy(
+                                        _call_argument(call, names, spec["parent_anchor"])
+                                    )
+                                    if spec.get("parent_anchor")
+                                    and _call_argument(call, names, spec["parent_anchor"])
+                                    is not None
+                                    else ast.Constant(value=None)
+                                ),
                             ],
                             keywords=[],
                         )
@@ -417,9 +528,11 @@ class _Instrumenter(ast.NodeTransformer):
         return [node, *after] if after else node
 
 
-def _instrumented_code(path):
+def _instrumented_code(path, part_param_scales=None):
     source = Path(path).read_text(encoding="utf-8")
     tree = ast.parse(source, filename=path)
+    native_part_params = _native_part_params(tree)
+    _override_native_part_scales(tree, part_param_scales or {})
     specs = _attachment_specs(tree)
     method_links = _method_dataflow_links(tree)
     tree = _Instrumenter(specs, method_links).visit(tree)
@@ -448,7 +561,7 @@ def _instrumented_code(path):
         }
         for name, spec in sorted(specs.items())
     ]
-    return compile(tree, path, "exec"), public_specs
+    return compile(tree, path, "exec"), public_specs, native_part_params
 
 
 def _vector(value):
@@ -739,10 +852,17 @@ def _shared_anchor_verified(relation, *, contact, anchor_aligned, declared_links
         ":authored_anchor" in str(link.get("source") or "")
         for link in declared_links
     )
+    native_links = [
+        link for link in declared_links if link.get("native_parameter_protocol")
+    ]
+    native_anchor_valid = not native_links or any(
+        bool(link.get("authored_anchor_valid")) for link in native_links
+    )
     return bool(
         contact
         and anchor_aligned
         and authored
+        and native_anchor_valid
         and relation in SHARED_ANCHOR_RELATIONS
     )
 
@@ -775,6 +895,7 @@ def main():
             if dependency_root not in sys.path:
                 sys.path.insert(0, dependency_root)
         import bpy
+        from mathutils import Vector
 
         _clear_scene(bpy)
         random.seed(0)
@@ -816,25 +937,103 @@ def main():
             # pre-join parts without this expensive broad snapshot.
             return None
 
-        def record_link(child_value, parent_value, source, line):
+        def exact_anchor_endpoint(obj, local_anchor):
+            if local_anchor is None:
+                return None, None
+            try:
+                anchor_world = obj.matrix_world @ Vector(local_anchor)
+                evaluated = obj.evaluated_get(
+                    bpy.context.evaluated_depsgraph_get()
+                )
+                mesh = evaluated.to_mesh()
+                try:
+                    if not mesh.vertices:
+                        return _vector(anchor_world), None
+                    nearest_gap = min(
+                        (evaluated.matrix_world @ vertex.co - anchor_world).length
+                        for vertex in mesh.vertices
+                    )
+                    return _vector(anchor_world), float(nearest_gap)
+                finally:
+                    evaluated.to_mesh_clear()
+            except Exception:
+                return None, None
+
+        part_param_scales = _part_param_scale_overrides(args.part_param_scale)
+
+        def record_link(
+            child_value,
+            parent_value,
+            source,
+            line,
+            child_anchor_local=None,
+            parent_anchor_local=None,
+        ):
             child = _unwrap_object(child_value, bpy)
             parent = _unwrap_object(parent_value, bpy)
             if child is None or parent is None or child == parent:
+                return
+            # A ``child.parent = parent`` statement can occur halfway through
+            # an attachment helper, before matrix_parent_inverse and the final
+            # aligned matrix_world are restored.  Recording geometry at that
+            # transient point cached a double-transformed nested child.  Keep
+            # the direction evidence, but defer all geometry observation until
+            # the complete attachment call (or the final scene scan) finishes.
+            if str(source) == "parent_assignment":
+                declared_links.append(
+                    {
+                        "parent": parent.name,
+                        "child": child.name,
+                        "source": "parent_assignment",
+                        "line": int(line),
+                    }
+                )
                 return
             child_observation = remember(child)
             parent_observation = remember(parent)
             if child_observation is None or parent_observation is None:
                 return
+            child_anchor_world, child_vertex_gap = exact_anchor_endpoint(
+                child, child_anchor_local
+            )
+            parent_anchor_world, parent_vertex_gap = exact_anchor_endpoint(
+                parent, parent_anchor_local
+            )
+            exact_gap = (
+                _distance(child_anchor_world, parent_anchor_world)
+                if child_anchor_world is not None and parent_anchor_world is not None
+                else None
+            )
+            exact_tolerance = 1e-5
+            authored_anchor_valid = bool(
+                exact_gap is not None
+                and exact_gap <= exact_tolerance
+                and child_vertex_gap is not None
+                and child_vertex_gap <= exact_tolerance
+                and parent_vertex_gap is not None
+                and parent_vertex_gap <= exact_tolerance
+            )
             declared_links.append(
                 {
                     "parent": parent.name,
                     "child": child.name,
                     "source": str(source),
                     "line": int(line),
+                    "native_parameter_protocol": bool(native_part_params),
+                    "child_anchor_world": child_anchor_world,
+                    "parent_anchor_world": parent_anchor_world,
+                    "authored_anchor_gap": exact_gap,
+                    "child_anchor_vertex_gap": child_vertex_gap,
+                    "parent_anchor_vertex_gap": parent_vertex_gap,
+                    "authored_anchor_tolerance": exact_tolerance,
+                    "authored_anchor_valid": authored_anchor_valid,
                 }
             )
 
-        code, attachment_helpers = _instrumented_code(args.script)
+        code, attachment_helpers, native_part_params = _instrumented_code(
+            args.script,
+            part_param_scales,
+        )
         namespace = {
             "__name__": "__main__",
             "__file__": args.script,
@@ -981,6 +1180,44 @@ def main():
                 "contact": _aabb_gap(first, second) <= threshold,
             }
 
+        # Native Stage7 attachments expose their exact authored endpoints.
+        # Prefer those over nearest-surface estimates and require both local
+        # endpoints to remain real evaluated Mesh vertices after parameter
+        # changes.
+        for pair, links in declared_by_pair.items():
+            exact = next(
+                (
+                    link
+                    for link in links
+                    if link.get("child_anchor_world") is not None
+                    and link.get("parent_anchor_world") is not None
+                ),
+                None,
+            )
+            if exact is None or pair not in candidates:
+                continue
+            if pair[0] == exact["parent"]:
+                anchor_a = exact["parent_anchor_world"]
+                anchor_b = exact["child_anchor_world"]
+            else:
+                anchor_a = exact["child_anchor_world"]
+                anchor_b = exact["parent_anchor_world"]
+            candidate = candidates[pair]
+            candidate.update(
+                anchor_a=anchor_a,
+                anchor_b=anchor_b,
+                anchor_gap=exact.get("authored_anchor_gap"),
+                anchor_tolerance=exact.get("authored_anchor_tolerance", 1e-5),
+                geometric_anchor_aligned=bool(
+                    exact.get("authored_anchor_gap") is not None
+                    and exact.get("authored_anchor_gap")
+                    <= exact.get("authored_anchor_tolerance", 1e-5)
+                ),
+                authored_anchor_valid=bool(exact.get("authored_anchor_valid")),
+                child_anchor_vertex_gap=exact.get("child_anchor_vertex_gap"),
+                parent_anchor_vertex_gap=exact.get("parent_anchor_vertex_gap"),
+            )
+
         ranked_pairs = sorted(
             candidates,
             key=lambda pair: (
@@ -1047,6 +1284,11 @@ def main():
             "status": "ok",
             "script": args.script,
             "attachment_helpers": attachment_helpers,
+            "native_part_params": {
+                "enabled": bool(native_part_params),
+                "part_ids": sorted(native_part_params),
+                "scale_overrides": part_param_scales,
+            },
             "scene_extent": extent,
             "contact_threshold": threshold,
             "shared_anchor_tolerance": anchor_threshold,

@@ -16,6 +16,16 @@ cd /Users/fengruiding/Downloads/3d_code/validation_test
 ./run_model_playground.sh
 ```
 
+临时加载任意数据集目录或单个 seed 目录：
+
+```bash
+bash run_dataset.sh stage1_output
+bash run_dataset.sh stage7_output/Chameleon_seed0
+```
+
+既可以加载整个 `stage7_output`，也可以加载其中一个带同名 Python 的 seed 目录；
+启动后该临时数据源会成为网页默认选择。
+
 浏览器会打开 `http://127.0.0.1:8765/`。顶部先选择代码源，再选择模型；左侧修改参数，中间显示零件父子树、定义树或调用节点图，右侧可以拖动旋转、滚轮缩放。参数停止变化约半秒后，服务会调用本地 Blender、导出 GLB 并刷新预览。
 
 右侧预览使用 Three.js 的 Y-up 坐标系，初次加载采用从模型上方观察的标准斜视角。“居中”只重新对准模型中心并调整距离，会保留用户当前手动旋转后的观察方向；窄屏时会同时依据水平和垂直视野计算距离，避免横向裁切。

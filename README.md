@@ -39,8 +39,34 @@ cd /Users/fengruiding/Downloads/3d_code/validation_test
 ./run_model_playground.sh
 ```
 
-两个启动脚本都会调用 `algorithm/model_playground.py`。前端由本地服务从
+指定一个数据集或单个 seed，并让前端启动后直接选中它：
+
+```bash
+bash run_dataset.sh stage1_output
+bash run_dataset.sh stage7_output
+bash run_dataset.sh Chameleon_seed0
+```
+
+参数也可以是完整路径，例如：
+
+```bash
+bash run_dataset.sh \
+  /Users/fengruiding/Downloads/3d_code/stage_results/stage7_output/Chameleon_seed0
+```
+
+脚本会依次识别当前路径、`datasets/`、`stage_results/` 和
+`stage_results/stage7_output/`。既可以传整个 `stage7_output`，也可以只传其中一个
+seed 文件夹；启动后该数据源会被直接选中。目录缺少同名 Python 时会明确报错，
+不会退回到其他数据源。已有服务占用 8765 时，脚本会自动选择下一个空闲端口。
+
+这些启动脚本都会调用 `algorithm/model_playground.py`。前端由本地服务从
 `frontend/` 提供，不能直接双击 HTML。项目仍固定使用 Blender 5.0。
+
+Stage7 新代码使用顶层字面量 `PART_PARAMS` 作为原生参数协议。网页只修改这些
+源参数，然后从空场景完整执行代码，让几何和共享锚点一起重算。旧代码没有该
+协议时仍可预览，但部件滑块会明确显示为“旧代码近似缩放”，不能作为共享锚点
+随参数变化的证明。运行时验证会分别放大父节点和子节点；三种执行都通过后，
+关系才会显示为共享锚点。
 
 运行时父子和共享锚点分析所需的 `blender_probe.py` 已包含在
 `algorithm/runtime/`，不再依赖外部 `SR_F1_Structural_Metric` 目录。

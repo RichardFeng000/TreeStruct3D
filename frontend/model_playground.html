@@ -1889,6 +1889,11 @@
         `共享证据：${sharedAnchorEvidenceLabel(edge)}`,
         `锚点间距：${formatGraphNumber(edge.anchor_gap)}；容差：${formatGraphNumber(edge.anchor_tolerance)}`,
       ];
+      if (edge.parameter_invariance) {
+        lines.push(
+          `参数扰动：父节点单独变大=${edge.parameter_invariance.parent_scale_passed ? '通过' : '失败'}；子节点单独变大=${edge.parameter_invariance.child_scale_passed ? '通过' : '失败'}`
+        );
+      }
       if (edge.anchor_a?.length === 3 && edge.anchor_b?.length === 3) {
         lines.push(
           `A 世界坐标：(${edge.anchor_a.map((value) => formatGraphNumber(value)).join(', ')})`,
@@ -1911,6 +1916,7 @@
 
     function anchorIssueLabel(edge) {
       if (edge.runtime_pending) return '代码父子关系已识别；等待 Blender 计算 A/B 锚点';
+      if (edge.parameter_invariance_failed) return '默认锚点成立，但改变父/子尺寸后失效';
       if (edge.relation === 'BROKEN_ATTACHMENT') return '断裂：连接锚点未对齐';
       if (isDirectedAnchorEdge(edge) && edge.contact && !edge.shared_anchor) {
         return '父子关系成立；A/B 是估算锚点，未共享';
@@ -1924,9 +1930,17 @@
     }
 
     function anchorMethodLabel(edge) {
+      if (edge.shared_anchor && edge.parameter_invariance?.passed) {
+        return '源码显式共享锚点；Blender 5.0 已分别放大父节点和子节点并重新核验';
+      }
       if (edge.shared_anchor) return '源码显式共享锚点，并由 Blender 5.0 核验';
       if (edge.anchor_method === 'static_source_attachment_pending_runtime') {
         return '已从源码识别父子调用；A/B 世界坐标和接触状态正在由 Blender 5.0 计算';
+      }
+      if (edge.anchor_method === 'authored_local_mesh_vertices') {
+        return edge.authored_anchor_valid
+          ? '源码父/子局部锚点均对应真实 Mesh 顶点，并在世界坐标重合'
+          : '源码传入了局部锚点，但参数变化后至少一个端点不再对应真实 Mesh 顶点';
       }
       if (edge.anchor_method === 'nearest_evaluated_mesh_vertex_samples') {
         return 'Blender 5.0 从两张 Mesh 各取最多 96 个顶点样本，再选择距离最近的 A/B 点；这是估算，不是源码锚点';
@@ -2982,7 +2996,10 @@
         for (const control of groupControls) section.append(makeControl(control));
         controlsHost.append(section);
       }
-      panelTitle.textContent = `${schema.label} 参数`;
+      const parameterMode = schema.parameter_mode === 'native_rebuild'
+        ? '原生参数重建'
+        : (schema.parameter_mode === 'legacy_approx' ? '旧代码近似缩放' : '参数');
+      panelTitle.textContent = `${schema.label} · ${parameterMode}`;
     }
 
     function scheduleRender() {
@@ -3211,8 +3228,9 @@
         depthTest: false,
         depthWrite: false,
       });
+      material.toneMapped = false;
       const marker = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 20, 14),
+        new THREE.SphereGeometry(radius, 28, 20),
         material
       );
       marker.position.copy(position);
@@ -3244,26 +3262,28 @@
       if (!pointA || !pointB || !currentModel) return false;
       const modelBox = new THREE.Box3().setFromObject(currentModel);
       const size = modelBox.getSize(new THREE.Vector3());
-      const radius = Math.max(size.length() * 0.008, 0.008);
+      const radius = Math.max(size.length() * 0.01, 0.008);
       const midpoint = pointA.clone().add(pointB).multiplyScalar(0.5);
       const nodeById = new Map((view?.nodes || []).map((node) => [node.id, node]));
       const parentCenter = runtimePointToPreview(nodeById.get(edge.parent)?.center);
       const childCenter = runtimePointToPreview(nodeById.get(edge.child)?.center);
 
-      addPreviewAnchorLine(parentCenter, midpoint, 0x48d8ff);
-      addPreviewAnchorLine(midpoint, childCenter, 0xd77cff);
-      addPreviewAnchorLine(pointA, pointB, edge.shared_anchor ? 0x4ff5a6 : 0xff746f);
-      if (parentCenter) addPreviewAnchorSphere(parentCenter, radius * 0.62, 0x48d8ff, { opacity: 0.9 });
-      if (childCenter) addPreviewAnchorSphere(childCenter, radius * 0.62, 0xd77cff, { opacity: 0.9 });
-      addPreviewAnchorSphere(pointA, radius * 0.82, 0x48d8ff);
-      addPreviewAnchorSphere(pointB, radius * 0.82, 0xd77cff);
-      const mainColor = edge.shared_anchor ? 0x43f59b : 0xff746f;
-      addPreviewAnchorSphere(midpoint, radius * 1.38, mainColor, { pulse: true });
-      addPreviewAnchorSphere(midpoint, radius * 2.35, mainColor, {
-        opacity: 0.2,
-        pulse: true,
-        renderOrder: 19,
-      });
+      if (edge.shared_anchor) {
+        // A confirmed shared anchor is one world-space position. Display exactly
+        // one sphere there; do not overlay endpoint markers, halos, or guide lines.
+        addPreviewAnchorSphere(midpoint, radius, 0x00ff66, {
+          renderOrder: 22,
+        });
+      } else {
+        addPreviewAnchorLine(parentCenter, midpoint, 0x48d8ff);
+        addPreviewAnchorLine(midpoint, childCenter, 0xd77cff);
+        addPreviewAnchorLine(pointA, pointB, 0xff746f);
+        if (parentCenter) addPreviewAnchorSphere(parentCenter, radius * 0.36, 0x48d8ff, { opacity: 0.9 });
+        if (childCenter) addPreviewAnchorSphere(childCenter, radius * 0.36, 0xd77cff, { opacity: 0.9 });
+        addPreviewAnchorSphere(pointA, radius * 0.7, 0x48d8ff);
+        addPreviewAnchorSphere(pointB, radius * 0.7, 0xd77cff);
+        addPreviewAnchorSphere(midpoint, radius * 0.82, 0xff746f, { pulse: true });
+      }
       return true;
     }
 
@@ -3301,7 +3321,9 @@
         previewSelection.hidden = false;
         previewSelection.classList.toggle('missing', !anchorVisible);
         previewSelectionLabel.textContent = anchorVisible
-          ? `${edge.shared_anchor ? '共享锚点' : '锚点对'}：${label} · 绿色=共享位置，青色=A，紫色=B`
+          ? (edge.shared_anchor
+            ? `共享锚点：${label} · 黄色=父子零件；绿色球=双方共享的世界坐标`
+            : `锚点对：${label} · 青色球=A，紫色球=B，红色球=两点中间`)
           : `未找到“${label}”对应的独立 Mesh`;
         return;
       }
@@ -3326,7 +3348,9 @@
       previewSelection.hidden = false;
       previewSelection.classList.remove('missing');
       previewSelectionLabel.textContent = anchorVisible
-        ? `高亮：${label} · ${meshCount} 个 Mesh · 绿色=共享位置，青色=A，紫色=B`
+        ? (edge.shared_anchor
+          ? `高亮：${label} · ${meshCount} 个 Mesh · 黄色=父子零件；绿色球=共享锚点世界坐标`
+          : `高亮：${label} · ${meshCount} 个 Mesh · 青色球=A，紫色球=B`)
         : `高亮：${label} · ${meshCount} 个 Mesh`;
     }
 
@@ -3437,7 +3461,12 @@
         if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
         await loadGLB(result.url, version);
         const size = (result.bytes / 1024 / 1024).toFixed(2);
-        setStatus(`预览已更新 · Blender 源代码完整重建 ${result.seconds} 秒 · ${size} MB`, 'success');
+        const modeLabel = schema.parameter_mode === 'native_rebuild'
+          ? '原生参数 → 重建几何 → 重算锚点'
+          : (schema.parameter_mode === 'legacy_approx'
+            ? '旧代码近似缩放（不保证锚点随尺寸更新）'
+            : '完整重建');
+        setStatus(`预览已更新 · ${modeLabel} · Blender ${result.seconds} 秒 · ${size} MB`, 'success');
       } catch (error) {
         setStatus(String(error.message || error), 'error');
       } finally {
