@@ -9,13 +9,15 @@ stage7_output_dir="$stage_results_dir/stage7_output"
 
 usage() {
   printf '%s\n' \
-    "用法：bash run_dataset.sh <数据集名|目录|单个seed目录> [服务端参数]" \
+    "用法：bash run_dataset.sh <数据集名|目录|单个seed目录> [...] [-- 服务端参数]" \
     "" \
     "示例：" \
     "  bash run_dataset.sh stage1_output" \
     "  bash run_dataset.sh stage7_output" \
+    "  bash run_dataset.sh stage7_output stage7.1_output" \
     "  bash run_dataset.sh Chameleon_seed0" \
-    "  bash run_dataset.sh /完整路径/stage7_output/Chameleon_seed0"
+    "  bash run_dataset.sh /完整路径/stage7_output/Chameleon_seed0" \
+    "  bash run_dataset.sh stage7_output stage7.1_output -- --render-timeout 120"
 }
 
 if [[ $# -lt 1 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
@@ -24,33 +26,47 @@ if [[ $# -lt 1 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
   exit 2
 fi
 
-selector="$1"
-shift
-
-dataset_path=""
-if [[ -e "$selector" ]]; then
-  dataset_path="$selector"
-elif [[ -e "$script_dir/datasets/$selector" ]]; then
-  dataset_path="$script_dir/datasets/$selector"
-elif [[ -e "$stage_results_dir/$selector" ]]; then
-  dataset_path="$stage_results_dir/$selector"
-elif [[ -e "$stage7_output_dir/$selector" ]]; then
-  dataset_path="$stage7_output_dir/$selector"
-else
-  printf '错误：找不到数据集或 seed：%s\n' "$selector" >&2
-  printf '已检查 validation_test/datasets、stage_results 和 stage7_output。\n' >&2
+selectors=()
+while [[ $# -gt 0 ]] && [[ "$1" != "--" ]] && [[ "$1" != --* ]]; do
+  selectors+=("$1")
+  shift
+done
+if [[ $# -gt 0 ]] && [[ "$1" == "--" ]]; then
+  shift
+fi
+if [[ ${#selectors[@]} -eq 0 ]]; then
+  usage
   exit 2
 fi
 
-if [[ -d "$dataset_path" ]]; then
-  dataset_path="$(cd -- "$dataset_path" && pwd -P)"
-elif [[ -f "$dataset_path" ]]; then
-  dataset_parent="$(cd -- "$(dirname -- "$dataset_path")" && pwd -P)"
-  dataset_path="$dataset_parent/$(basename -- "$dataset_path")"
-else
-  printf '错误：目标不是普通文件或目录：%s\n' "$dataset_path" >&2
-  exit 2
-fi
+dataset_paths=()
+for selector in "${selectors[@]}"; do
+  dataset_path=""
+  if [[ -e "$selector" ]]; then
+    dataset_path="$selector"
+  elif [[ -e "$script_dir/datasets/$selector" ]]; then
+    dataset_path="$script_dir/datasets/$selector"
+  elif [[ -e "$stage_results_dir/$selector" ]]; then
+    dataset_path="$stage_results_dir/$selector"
+  elif [[ -e "$stage7_output_dir/$selector" ]]; then
+    dataset_path="$stage7_output_dir/$selector"
+  else
+    printf '错误：找不到数据集或 seed：%s\n' "$selector" >&2
+    printf '已检查 validation_test/datasets、stage_results 和 stage7_output。\n' >&2
+    exit 2
+  fi
+
+  if [[ -d "$dataset_path" ]]; then
+    dataset_path="$(cd -- "$dataset_path" && pwd -P)"
+  elif [[ -f "$dataset_path" ]]; then
+    dataset_parent="$(cd -- "$(dirname -- "$dataset_path")" && pwd -P)"
+    dataset_path="$dataset_parent/$(basename -- "$dataset_path")"
+  else
+    printf '错误：目标不是普通文件或目录：%s\n' "$dataset_path" >&2
+    exit 2
+  fi
+  dataset_paths+=("$dataset_path")
+done
 
 if ! command -v python3 >/dev/null 2>&1; then
   printf '错误：找不到 python3。\n' >&2
@@ -70,18 +86,25 @@ else
   done
 fi
 
-dataset_label="${MODEL_PLAYGROUND_DATASET_LABEL:-$(basename -- "$dataset_path")}"
 args=(
   --host 127.0.0.1
   --port "$port"
-  --dataset "$dataset_path"
-  --dataset-label "$dataset_label"
 )
+for index in "${!dataset_paths[@]}"; do
+  dataset_path="${dataset_paths[$index]}"
+  dataset_label="$(basename -- "$dataset_path")"
+  if [[ "$index" == "0" ]] && [[ -n "${MODEL_PLAYGROUND_DATASET_LABEL:-}" ]]; then
+    dataset_label="$MODEL_PLAYGROUND_DATASET_LABEL"
+  fi
+  args+=(--dataset "$dataset_path" --dataset-label "$dataset_label")
+done
 if [[ "${MODEL_PLAYGROUND_OPEN:-1}" != "0" ]]; then
   args+=(--open)
 fi
 
-printf '数据集：%s\n' "$dataset_path"
+for dataset_path in "${dataset_paths[@]}"; do
+  printf '数据集：%s\n' "$dataset_path"
+done
 printf '启动前端：http://127.0.0.1:%s/\n' "$port"
 cd "$script_dir"
 exec python3 algorithm/model_playground.py "${args[@]}" "$@"

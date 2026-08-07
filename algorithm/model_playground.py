@@ -80,14 +80,20 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         type=Path,
+        action="append",
         help=(
             "extra dataset root, one model directory, or one canonical Python file; "
-            "it becomes the initially selected source"
+            "repeat the option to expose multiple sources; the first becomes "
+            "the initially selected source"
         ),
     )
     parser.add_argument(
         "--dataset-label",
-        help="browser label for --dataset (defaults to the path name)",
+        action="append",
+        help=(
+            "browser label for the matching --dataset (defaults to the path name); "
+            "repeat in the same order as --dataset"
+        ),
     )
     parser.add_argument("--blender", type=Path, default=DEFAULT_BLENDER)
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
@@ -448,17 +454,39 @@ def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
 class PlaygroundState:
     def __init__(self, args: argparse.Namespace):
         source_specs: list[tuple[str, str, Path]] = []
-        custom_models: dict[str, ModelEntry] = {}
-        if args.dataset is not None:
-            dataset_root = args.dataset.expanduser().resolve()
-            dataset_label = args.dataset_label or dataset_root.name
-            custom_models = _model_catalog(dataset_root, "dataset")
+        custom_catalogs: dict[str, dict[str, ModelEntry]] = {}
+        dataset_values = getattr(args, "dataset", None)
+        if dataset_values is None:
+            dataset_roots: list[Path] = []
+        elif isinstance(dataset_values, (str, Path)):
+            dataset_roots = [Path(dataset_values)]
+        else:
+            dataset_roots = [Path(value) for value in dataset_values]
+        label_values = getattr(args, "dataset_label", None)
+        if label_values is None:
+            dataset_labels: list[str | None] = []
+        elif isinstance(label_values, str):
+            dataset_labels = [label_values]
+        else:
+            dataset_labels = list(label_values)
+
+        for index, dataset_value in enumerate(dataset_roots):
+            dataset_root = dataset_value.expanduser().resolve()
+            source_id = "dataset" if index == 0 else f"dataset_{index + 1}"
+            label_override = (
+                dataset_labels[index]
+                if index < len(dataset_labels)
+                else None
+            )
+            dataset_label = label_override or dataset_root.name
+            custom_models = _model_catalog(dataset_root, source_id)
             if not custom_models:
                 raise SystemExit(
                     "指定的数据集没有可运行模型。目录需要包含 "
                     f"<seed>/<seed>.py，或本身是带同名 Python 的 seed 目录：{dataset_root}"
                 )
-            source_specs.append(("dataset", dataset_label, dataset_root))
+            custom_catalogs[source_id] = custom_models
+            source_specs.append((source_id, dataset_label, dataset_root))
         source_specs.extend((
             ("benchmark", "Benchmark 验证集", args.benchmark),
             ("stage1", "Stage 1 Output", DEFAULT_STAGE1_OUTPUT),
@@ -468,11 +496,7 @@ class PlaygroundState:
         self.source_roots: dict[str, Path] = {}
         self.models_by_source: dict[str, dict[str, ModelEntry]] = {}
         for source_id, label, root in source_specs:
-            models = (
-                custom_models
-                if source_id == "dataset"
-                else _model_catalog(root, source_id)
-            )
+            models = custom_catalogs.get(source_id) or _model_catalog(root, source_id)
             if not models:
                 continue
             self.source_labels[source_id] = label

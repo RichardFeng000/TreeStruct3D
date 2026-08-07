@@ -47,6 +47,13 @@ bash run_dataset.sh stage7_output
 bash run_dataset.sh Chameleon_seed0
 ```
 
+也可以同时加载多个数据集，它们会作为独立代码源出现在同一个前端下拉框中，
+第一个数据集默认选中：
+
+```bash
+bash run_dataset.sh stage7_output stage7.1_output
+```
+
 参数也可以是完整路径，例如：
 
 ```bash
@@ -55,8 +62,8 @@ bash run_dataset.sh \
 ```
 
 脚本会依次识别当前路径、`datasets/`、`stage_results/` 和
-`stage_results/stage7_output/`。既可以传整个 `stage7_output`，也可以只传其中一个
-seed 文件夹；启动后该数据源会被直接选中。目录缺少同名 Python 时会明确报错，
+`stage_results/stage7_output/`。既可以传整个输出目录、同时传多个输出目录，也可以
+只传其中一个 seed 文件夹；启动后第一个数据源会被直接选中。目录缺少同名 Python 时会明确报错，
 不会退回到其他数据源。已有服务占用 8765 时，脚本会自动选择下一个空闲端口。
 
 这些启动脚本都会调用 `algorithm/model_playground.py`。前端由本地服务从
