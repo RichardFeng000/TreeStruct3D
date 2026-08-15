@@ -1,0 +1,13 @@
+Original text-to-3D task:
+
+{original_task_block}
+
+Previous Blender Python script:
+
+<previous_code>
+{prev_code}
+</previous_code>
+
+You are reviewing iteration {iter_num} of {max_iter}. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.

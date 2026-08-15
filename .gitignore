@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Local credentials and generated artifacts.
+config.local.yaml
+configs/*.yaml
+outputs/
+logs/

@@ -1,0 +1,144 @@
+# Archived Stage 7 Additional Instructions: Explicit Part Hierarchy and Authored Shared Anchors
+
+This file is archived and is not loaded by the extraction or generation flow.
+
+Construct the requested object as a coherent assembly whose structural
+relationships are explicit in the Blender Python code. Apply these rules to
+all object categories without assuming any category-specific anatomy,
+orientation, or dimensions. Do not describe the plan in the response; encode
+it directly in the emitted Python.
+
+## 1. Build an explicit parent-to-child part hierarchy
+
+- Decompose the object into meaningful named components before construction.
+- Choose a structural root from support and dependency semantics, not merely
+  from which mesh has the largest volume.
+- Except when the prompt explicitly requests separate unconnected objects,
+  every significant non-root component must have one primary construction
+  parent. Additional support contacts may be recorded separately, but they
+  must not create an accidental dependency cycle.
+- A parent is the component whose current geometry or transform determines an
+  attachment location. A child is the component placed from that information.
+- Construct and attach in root-to-leaf order. A child may become the parent of
+  another component only after its own transform has been finalized.
+- Keep semantic components identifiable with stable Blender object names until
+  all attachments have been computed and verified. If meshes are joined at the
+  end, do so only after their relationships are established.
+
+## 2. Author attachments with paired anchor frames
+
+For every primary parent-to-child relation, author an explicit attachment
+contract containing:
+
+1. a parent anchor derived from the parent's current geometry;
+2. a child anchor derived from the child's current geometry;
+3. a stable anchor identifier; and
+4. code that transforms the child so the two anchor frames coincide.
+
+An anchor should be a local coordinate frame when orientation matters, or a
+local point plus normal/tangent information when a full frame is unnecessary.
+Convert anchors to world space only during attachment. Align both position and
+orientation when the interface has a meaningful direction.
+
+Prefer a clearly named helper with explicit `child` and `parent` parameters,
+such as the following conceptual pattern:
+
+    def attach_child_to_parent(
+        child,
+        parent,
+        parent_anchor_fn,
+        child_anchor_fn,
+        anchor_id,
+    ):
+        parent_world_frame = parent_anchor_fn(parent)
+        child_local_frame = child_anchor_fn(child)
+        child.matrix_world = parent_world_frame @ child_local_frame.inverted()
+        child["attachment_parent"] = parent.name
+        child["attachment_anchor_id"] = anchor_id
+
+The exact implementation may differ, but data derived from `parent` must drive
+a transform or geometry mutation of `child`. Do not move the parent from data
+derived only from the child unless the requested object genuinely requires a
+coupled constraint.
+
+## 3. Distinguish direction, contact, and shared-anchor evidence
+
+Treat the following as separate properties:
+
+- **Parent-to-child direction:** parent data causes child placement or the code
+  explicitly assigns the child to the parent.
+- **Contact:** the evaluated surfaces meet within a scale-relative tolerance
+  without a visible gap or unintended deep intersection.
+- **Shared anchor:** an authored parent anchor and authored child anchor denote
+  the same intended interface and coincide in world space after placement.
+
+Call an attachment a shared anchor only when all three properties are
+satisfied. None of these alone proves a shared anchor:
+
+- two meshes being close or touching;
+- two nearest sampled mesh vertices having similar coordinates;
+- a Blender parenting assignment without an authored interface;
+- two objects sharing an origin;
+- a Boolean operation or a final mesh join; or
+- a guessed fixed world-space offset that happens to look correct once.
+
+Nearest-surface queries may be used to compute an authored anchor on the
+current parent geometry, but a nearest-point measurement performed only after
+construction is diagnostic evidence, not the attachment contract itself.
+
+## 4. Make parameter changes propagate through anchors
+
+- Create or resize each component before computing attachments that depend on
+  it.
+- Derive anchors from current dimensions, local geometry, skeleton samples, or
+  surface queries. Do not cache stale world-space anchor coordinates from an
+  earlier size.
+- After any parameter change, a fresh execution of the full script must
+  recreate the components and recompute every downstream anchor in
+  root-to-leaf order.
+- Changing a parent must move its children through recomputed anchors. Changing
+  an intermediate component must preserve its parent interface while updating
+  anchors used by its descendants. Changing only a child must update its own
+  local anchor so it remains attached.
+- Do not repair parameter changes by translating completed meshes to their
+  nearest surfaces after generation. Correct placement must arise from the
+  authored construction logic.
+
+## 5. Verify each connection before finalization
+
+For every primary attachment, verify that:
+
+- parent and child are distinct named components;
+- the intended parent-to-child direction is unambiguous in code;
+- the two authored world anchor frames agree within a tolerance proportional
+  to the full scene extent;
+- the attachment surfaces make contact;
+- the child is not visibly floating and does not deeply penetrate the parent;
+  and
+- descendants remain connected after reasonable parameter changes.
+
+If a connection cannot be proven, keep it classified as an unverified contact
+or proximity candidate and improve the construction. Do not label it a shared
+anchor merely to satisfy the hierarchy.
+
+## Neutral example
+
+Consider an abstract assembly with three components:
+
+    base_unit -> link_part -> end_unit
+
+`base_unit` is the structural root. Build it using its current dimensions and
+compute an authored surface anchor named `base_to_link`. Build `link_part`,
+compute its local start anchor, and attach it as the child of `base_unit` by
+aligning those two frames. Only after that placement is final, compute the
+current far-end anchor of `link_part`. Build `end_unit`, compute its local
+connection anchor, and attach it to that far-end frame with anchor identifier
+`link_to_end`.
+
+If the height of `base_unit` changes, `base_to_link` is recomputed and both
+downstream components move with it. If the length of `link_part` changes, its
+start remains attached to `base_unit` while `link_to_end` is recomputed and
+`end_unit` moves to the new endpoint. If only `end_unit` changes size, its
+local connection anchor is recomputed so the same interface remains aligned.
+At no point is contact inferred solely from proximity, and no completed part
+is moved by a post-hoc nearest-mesh correction.

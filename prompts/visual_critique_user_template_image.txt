@@ -1,0 +1,9 @@
+Previous Blender Python script:
+
+<previous_code>
+{prev_code}
+</previous_code>
+
+You are reviewing iteration {iter_num} of {max_iter}. The first attached images are the original reference images, and the final attached images are the current rendered views of the script output.
+
+Compare the rendered output against the reference images. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
