@@ -1,4 +1,4 @@
-# CCS 最初 Idea 与 Stage7 路线复盘
+# CCS 最初 Idea 与 TreeStruct3D 路线复盘
 
 日期：2026-08-06  
 原始文件日期：2026-07-28  
@@ -6,15 +6,15 @@
 
 ## 结论
 
-最初的 CCS idea 不是 Stage7 的一个早期、较弱版本。恰恰相反：**它是比当前 Stage7 更完整、更可辩护的研究问题定义。**
+最初的 CCS idea 不是 TreeStruct3D 的一个早期、较弱版本。恰恰相反：**它是比当前 TreeStruct3D 更完整、更可辩护的研究问题定义。**
 
-Stage7 把 CCS 中的一部分思想产品化为生成协议和 validator：层级、共享锚点、参数化重建和扰动检查。但在这个过程中，它把原本“与实现方式尽量解耦的行为评价”收窄成“必须生成指定 ID、`PART_PARAMS` 和 authored-anchor helper 的协议符合性检查”。这造成了当前最严重的 metric circularity：Stage7 自己要求一种代码格式，再用只识别这种格式的指标证明 Stage7 更好。
+TreeStruct3D 把 CCS 中的一部分思想产品化为生成协议和 validator：层级、共享锚点、参数化重建和扰动检查。但在这个过程中，它把原本“与实现方式尽量解耦的行为评价”收窄成“必须生成指定 ID、`PART_PARAMS` 和 authored-anchor helper 的协议符合性检查”。这造成了当前最严重的 metric circularity：TreeStruct3D 自己要求一种代码格式，再用只识别这种格式的指标证明 TreeStruct3D 更好。
 
 因此，推荐关系应当反过来：
 
-> **CCS 是论文的研究主线和独立 benchmark；Stage7 是一个试图提高 CCS 的被评方法。**
+> **CCS 是论文的研究主线和独立 benchmark；TreeStruct3D 是一个试图提高 CCS 的被评方法。**
 
-而不是把 CCS 当作 Stage7 的内部 validator。
+而不是把 CCS 当作 TreeStruct3D 的内部 validator。
 
 ## 1. 原始 CCS 真正有价值的地方
 
@@ -41,7 +41,7 @@ Stage7 把 CCS 中的一部分思想产品化为生成协议和 validator：层�
 - ground truth 只标注父子语义关系、连接区域和扰动对象；
 - 不规定函数名和具体实现方式。
 
-这是原始 idea 最成熟的一点，也正是当前 Stage7 validator 丢失最多的一点。
+这是原始 idea 最成熟的一点，也正是当前 TreeStruct3D validator 丢失最多的一点。
 
 ### 1.3 它把静态解释和运行验证结合起来
 
@@ -52,11 +52,11 @@ Stage7 把 CCS 中的一部分思想产品化为生成协议和 validator：层�
 - 默认几何用于检查接触、穿透和局部连续；
 - 最差扰动进入总分，避免平均值掩盖灾难性失败。
 
-这种 code provenance + runtime behavior 的双证据设计，比 Stage7 目前只检查声明锚点世界坐标相等更完整。
+这种 code provenance + runtime behavior 的双证据设计，比 TreeStruct3D 目前只检查声明锚点世界坐标相等更完整。
 
-## 2. CCS 到 Stage7 的演化
+## 2. CCS 到 TreeStruct3D 的演化
 
-| 原始 CCS | Stage7 当前实现 | 结果 |
+| 原始 CCS | TreeStruct3D 当前实现 | 结果 |
 |---|---|---|
 | 评价任意实现的父子依赖 | 要求生成特定 blueprint 和 part IDs | 自动化更容易，但协议依赖增强 |
 | 共享锚点或等价参数派生均可得分 | 主要奖励 authored shared-anchor contract | 判据更硬，但会漏掉等价正确实现 |
@@ -66,9 +66,9 @@ Stage7 把 CCS 中的一部分思想产品化为生成协议和 validator：层�
 | GT 不规定被测代码实现 | blueprint/`PART_PARAMS` 与生成协议绑定 | 出现 metric circularity |
 | CCS 是评价体系 | validator 同时是生成约束和成功指标 | 方法与指标未独立 |
 
-Stage7 的优势是已经把一部分思想做成可运行 pipeline；它的缺陷不是方向错，而是把独立评价器和特定生成协议混在了一起。
+TreeStruct3D 的优势是已经把一部分思想做成可运行 pipeline；它的缺陷不是方向错，而是把独立评价器和特定生成协议混在了一起。
 
-## 3. 为什么原始 CCS 比当前 Stage7 更适合作为论文中心
+## 3. 为什么原始 CCS 比当前 TreeStruct3D 更适合作为论文中心
 
 在 2026 年已有文献背景下，以下宽主张都比较拥挤：
 
@@ -77,13 +77,13 @@ Stage7 的优势是已经把一部分思想做成可运行 pipeline；它的缺�
 - executable tests 和反馈修复：[CADTests](https://arxiv.org/abs/2605.07807)；
 - 参数扰动评价 parametric integrity：[CADEngBench](https://openreview.net/pdf?id=hIKrX5XpuN)。
 
-所以 Stage7 若作为“又一个结构规划与修复 pipeline”，差异不够大。
+所以 TreeStruct3D 若作为“又一个结构规划与修复 pipeline”，差异不够大。
 
 CCS 更好的切口不是声称首次使用参数扰动，而是研究：
 
 > **现有 text-to-3D code 模型的静态视觉/几何正确性，是否能够预测其编辑后的构造一致性？如何在开放类别、不同编码风格下，对每条语义父子关系进行 code-plus-runtime 的动态评价？**
 
-这个问题可以产生独立 benchmark、指标有效性研究、模型横向结论和新的 failure taxonomy。即使 Stage7 最终没有显著提升，CCS benchmark 本身仍可能形成论文贡献；这比把整篇论文押在 Stage7 repair 成功率上更稳。
+这个问题可以产生独立 benchmark、指标有效性研究、模型横向结论和新的 failure taxonomy。即使 TreeStruct3D 最终没有显著提升，CCS benchmark 本身仍可能形成论文贡献；这比把整篇论文押在 TreeStruct3D repair 成功率上更稳。
 
 ## 4. 推荐的新论文结构
 
@@ -96,14 +96,14 @@ CCS 更好的切口不是声称首次使用参数扰动，而是研究：
 1. **任务定义**：区分 default-state geometry validity 与 edit-time construction coherence；
 2. **CCS benchmark**：开放类别对象的语义父子关系、连接区域和安全参数扰动标注；
 3. **混合评价器**：静态因果/数据流证据加 Blender 黑盒扰动结果，输出 relation-level 状态与 evidence coverage；
-4. **系统研究**：比较多个模型和生成方法，并用 Stage7 作为一个提高 CCS 的方法或 case study。
+4. **系统研究**：比较多个模型和生成方法，并用 TreeStruct3D 作为一个提高 CCS 的方法或 case study。
 
 最有价值的实验结论应当是以下一种或多种：
 
 - 视觉分数高并不代表扰动后结构稳定；
 - 默认接触率高并不代表存在正确的参数传播；
 - 不同模型可能具有相近视觉质量，却有显著不同的 CCS；
-- Stage7 可以提高动态构造一致性，同时量化它对视觉质量、代码长度和成本的影响。
+- TreeStruct3D 可以提高动态构造一致性，同时量化它对视觉质量、代码长度和成本的影响。
 
 ## 5. 原始 CCS 仍需修正的地方
 
@@ -128,24 +128,23 @@ CCS 更好的切口不是声称首次使用参数扰动，而是研究：
 3. 由 3 名标注者独立判断每条关系在默认与扰动后的状态；
 4. 测量各 CCS 子项与人评的一致性、precision/recall、错误类型；
 5. 再扩展到至少 100 类别、3 seeds、3 个生成模型；
-6. 最后比较 direct generation 与 Stage7 的动态 CCS 增益。
+6. 最后比较 direct generation 与 TreeStruct3D 的动态 CCS 增益。
 
 如果第 4 步不能可靠区分真实传播和投机通过，先不要扩大生成实验；评价器本身是整篇论文的地基。
 
 ## 7. 最终判断
 
-- 原始 idea 的研究价值：**高于当前 Stage7 pipeline 叙事**；
+- 原始 idea 的研究价值：**高于当前 TreeStruct3D pipeline 叙事**；
 - 当前公开文献下的宽口径 novelty：中等，不能声称首次 executable test 或 parameter perturbation；
 - 窄口径 novelty：**开放类别 text-to-3D 程序的 relation-level、code-plus-runtime 动态构造一致性 benchmark**，具有继续深挖价值；
-- 最优组织方式：**CCS 是主线，Stage7 是方法/应用，不是反过来。**
+- 最优组织方式：**CCS 是主线，TreeStruct3D 是方法/应用，不是反过来。**
 
 ## 8. 文件核验
 
 用户提供的微信临时文件与仓库中的以下文件完全相同：
 
-`/Users/fengruiding/Downloads/3d_code/SR_F1_Structural_Metric/CCS_REFERENCE_STYLE_SCORING_SYSTEM.md`
+`CCS_REFERENCE_STYLE_SCORING_SYSTEM.md`（原始研究笔记）
 
 两者 SHA-256：
 
 `0452a6aff4e1d627662eec005a4da7ee5bd0d825a4d3ceb7220f81ed6e661459`
-

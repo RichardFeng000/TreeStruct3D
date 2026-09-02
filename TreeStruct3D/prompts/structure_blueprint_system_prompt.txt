@@ -16,7 +16,7 @@ Return exactly one JSON object and no Markdown fences or prose. It must follow
 this schema:
 
 {
-  "schema_version": "stage7-structure-blueprint/v2",
+  "schema_version": "treestruct3d.structure-blueprint/v2",
   "object_name": "short neutral name",
   "assembly_intent": "single_connected_assembly",
   "coordinate_frame": {

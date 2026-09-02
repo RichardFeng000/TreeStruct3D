@@ -6,7 +6,7 @@ import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from run_stage7 import (
+from generate_3d import (
     AmbiguousRemoteResultError,
     API_FORMAT_GEMINI_GENERATE_CONTENT,
     API_FORMAT_LMSTUDIO,
@@ -192,8 +192,8 @@ class ApiFormatTest(unittest.TestCase):
                 self.assertEqual(saved["status"], "queued")
                 return self.json_http_response(completed)
 
-            with mock.patch("run_stage7._REQUEST_URLOPEN_OVERRIDE", side_effect=urlopen), mock.patch(
-                "run_stage7.time.sleep"
+            with mock.patch("generate_3d._REQUEST_URLOPEN_OVERRIDE", side_effect=urlopen), mock.patch(
+                "generate_3d.time.sleep"
             ):
                 response = call_model_api(
                     api_url="https://api.openai.com/v1/responses",
@@ -237,8 +237,8 @@ class ApiFormatTest(unittest.TestCase):
                 self.json_http_response(completed),
             ]
             with mock.patch(
-                "run_stage7._REQUEST_URLOPEN_OVERRIDE", side_effect=first_responses
-            ), mock.patch("run_stage7.time.sleep"):
+                "generate_3d._REQUEST_URLOPEN_OVERRIDE", side_effect=first_responses
+            ), mock.patch("generate_3d.time.sleep"):
                 call_model_api(
                     api_url="https://api.openai.com/v1/responses",
                     api_key="test-key",
@@ -251,7 +251,7 @@ class ApiFormatTest(unittest.TestCase):
                 )
 
             with mock.patch(
-                "run_stage7._REQUEST_URLOPEN_OVERRIDE",
+                "generate_3d._REQUEST_URLOPEN_OVERRIDE",
                 return_value=self.json_http_response(completed),
             ) as urlopen:
                 resumed = call_model_api(
@@ -280,8 +280,8 @@ class ApiFormatTest(unittest.TestCase):
                 self.json_http_response(completed),
             ]
             with mock.patch(
-                "run_stage7._REQUEST_URLOPEN_OVERRIDE", side_effect=outcomes
-            ) as urlopen, mock.patch("run_stage7.time.sleep"):
+                "generate_3d._REQUEST_URLOPEN_OVERRIDE", side_effect=outcomes
+            ) as urlopen, mock.patch("generate_3d.time.sleep"):
                 response = call_model_api(
                     api_url="https://api.openai.com/v1/responses",
                     api_key="test-key",
@@ -305,7 +305,7 @@ class ApiFormatTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             state_path = Path(temporary) / "response.background.json"
             with mock.patch(
-                "run_stage7._REQUEST_URLOPEN_OVERRIDE",
+                "generate_3d._REQUEST_URLOPEN_OVERRIDE",
                 return_value=self.json_http_response(failed),
             ) as urlopen:
                 with self.assertRaisesRegex(BackgroundResponseError, "status=failed"):
@@ -335,7 +335,7 @@ class ApiFormatTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             response_path = Path(temporary) / "response_initial.json"
             with mock.patch(
-                "run_stage7.call_model_api",
+                "generate_3d.call_model_api",
                 return_value={"id": "resp_test", "status": "completed"},
             ) as call:
                 call_configured_model_api(
@@ -384,7 +384,7 @@ class ApiFormatTest(unittest.TestCase):
 
     def test_remote_disconnect_is_not_retried_after_unknown_billing(self):
         with mock.patch(
-            "run_stage7.urllib.request.urlopen",
+            "generate_3d.urllib.request.urlopen",
             side_effect=http.client.RemoteDisconnected("closed"),
         ):
             with self.assertRaisesRegex(
@@ -410,7 +410,7 @@ class ApiFormatTest(unittest.TestCase):
             "api_retries": 5,
         }
         error = AmbiguousRemoteResultError("unknown billed result")
-        with mock.patch("run_stage7.call_model_api", side_effect=error) as call:
+        with mock.patch("generate_3d.call_model_api", side_effect=error) as call:
             with self.assertRaises(AmbiguousRemoteResultError):
                 call_code(config, "system", "user", timeout=1)
         call.assert_called_once()

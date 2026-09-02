@@ -1,4 +1,5 @@
 from pathlib import Path
+import copy
 import sys
 import tempfile
 import unittest
@@ -143,6 +144,72 @@ class NativePartParameterTest(unittest.TestCase):
         )
         self.assertTrue(nearby["passed"])
         self.assertEqual(nearby["affected_edges"], 0)
+
+    def test_parameter_invariance_maps_repeated_instances_to_part_id(self):
+        view = {
+            "nodes": [
+                {
+                    "id": "root",
+                    "part_id": "root",
+                    "dimensions": [1.0, 1.0, 1.0],
+                },
+                {
+                    "id": "leaf",
+                    "part_id": "leaf",
+                    "dimensions": [0.5, 0.5, 0.5],
+                },
+                {
+                    "id": "leaf.001",
+                    "part_id": "leaf",
+                    "dimensions": [0.5, 0.5, 0.5],
+                },
+            ],
+            "edges": [
+                {
+                    "parent": "root",
+                    "child": child,
+                    "relation": "DIRECTED",
+                    "shared_anchor": True,
+                }
+                for child in ("leaf", "leaf.001")
+            ],
+            "summary": {"shared_anchor_edges": 2},
+        }
+        variants = {
+            "root": {
+                "nodes": [
+                    {**node, "dimensions": [1.35, 1.35, 1.35]}
+                    if node["id"] == "root"
+                    else copy.deepcopy(node)
+                    for node in view["nodes"]
+                ],
+                "edges": copy.deepcopy(view["edges"]),
+            },
+            "leaf": {
+                "nodes": [
+                    {**node, "dimensions": [0.675, 0.675, 0.675]}
+                    if node["part_id"] == "leaf"
+                    else copy.deepcopy(node)
+                    for node in view["nodes"]
+                ],
+                "edges": copy.deepcopy(view["edges"]),
+            },
+        }
+
+        result = model_playground.PlaygroundState._apply_native_parameter_invariance(
+            view,
+            variants,
+        )
+
+        self.assertEqual(result["summary"]["shared_anchor_edges"], 2)
+        self.assertTrue(all(edge["shared_anchor"] for edge in result["edges"]))
+        leaf = next(
+            item
+            for item in result["parameter_invariance"]["results"]
+            if item["part_id"] == "leaf"
+        )
+        self.assertTrue(leaf["passed"])
+        self.assertEqual(leaf["instances"], 2)
 
 
 if __name__ == "__main__":

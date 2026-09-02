@@ -1,7 +1,7 @@
-"""Run validation_test's Blender probe and score structural attachments.
+"""Run the TreeStruct3D Blender probe and score structural attachments.
 
 The probe remains the source of truth for runtime observations.  This module
-only turns its detailed JSON into a deterministic Stage 7 gate and a compact
+only turns its detailed JSON into a deterministic TreeStruct3D gate and a compact
 repair report; it does not infer shared anchors from visual proximity.
 """
 
@@ -23,7 +23,7 @@ EXPLICIT_SHARED_EVIDENCE = {
 
 
 def native_part_parameter_ids(script: Path) -> list[str]:
-    """Return concrete ids from the literal Stage7 PART_PARAMS protocol."""
+    """Return concrete IDs from TreeStruct3D's literal PART_PARAMS protocol."""
 
     try:
         tree = ast.parse(script.read_text(encoding="utf-8"), filename=str(script))
@@ -286,7 +286,7 @@ def score_structure_report(
     expected_part_count: int | None = None,
     expected_attachment_count: int | None = None,
 ) -> dict[str, Any]:
-    """Score one raw validation_test probe report on a 0--100 scale.
+    """Score one raw structural-validator report on a 0--100 scale.
 
     A high numeric score alone is not sufficient.  Any missing authored shared
     anchor, broken declared attachment, multiple parent, multiple root, or
@@ -294,9 +294,9 @@ def score_structure_report(
     """
 
     if report.get("status") != "ok":
-        message = str(report.get("error") or "validation_test probe failed")
+        message = str(report.get("error") or "structural validation probe failed")
         return {
-            "schema_version": "stage7-structural-score/v1",
+            "schema_version": "treestruct3d.structural-score/v1",
             "passed": False,
             "score": 0.0,
             "minimum_score": float(minimum_score),
@@ -600,7 +600,7 @@ def score_structure_report(
 
     passed = bool(total >= minimum_score and not issues)
     return {
-        "schema_version": "stage7-structural-score/v1",
+        "schema_version": "treestruct3d.structural-score/v1",
         "passed": passed,
         "score": total,
         "minimum_score": float(minimum_score),
@@ -660,12 +660,12 @@ def run_validation_probe(
     samples: int = 96,
     part_param_scales: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """Execute validation_test's strict runtime probe in Blender 5.0."""
+    """Execute the strict structural validation probe in Blender 5.0."""
 
     if not probe.is_file():
         return {
             "status": "error",
-            "error": f"validation_test probe does not exist: {probe}",
+            "error": f"structural validation probe does not exist: {probe}",
         }
     if not blender.is_file():
         return {"status": "error", "error": f"Blender does not exist: {blender}"}
@@ -709,7 +709,7 @@ def run_validation_probe(
     except subprocess.TimeoutExpired:
         return {
             "status": "error",
-            "error": f"validation_test probe exceeded {timeout}s",
+            "error": f"structural validation probe exceeded {timeout}s",
         }
     if not output.is_file():
         tail = "\n".join(
@@ -718,7 +718,7 @@ def run_validation_probe(
         return {
             "status": "error",
             "error": (
-                "validation_test probe did not write a report "
+                "structural validation probe did not write a report "
                 f"(Blender exit {completed.returncode})\n{tail}"
             ),
         }
@@ -727,7 +727,7 @@ def run_validation_probe(
     except (OSError, json.JSONDecodeError) as exc:
         return {
             "status": "error",
-            "error": f"invalid validation_test report: {type(exc).__name__}: {exc}",
+            "error": f"invalid structural validation report: {type(exc).__name__}: {exc}",
         }
 
 
@@ -738,7 +738,7 @@ def score_markdown(score: dict[str, Any]) -> str:
     components = score.get("components") or {}
     parameter_invariance = score.get("parameter_invariance") or {}
     lines = [
-        "# Stage 7 父子关系与共享锚点验证",
+        "# TreeStruct3D 父子关系与共享锚点验证",
         "",
         f"- 结果：{'通过' if score.get('passed') else '失败'}",
         f"- 总分：{score.get('score', 0)} / 100",

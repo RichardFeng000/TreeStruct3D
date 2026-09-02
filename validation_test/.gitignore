@@ -2,4 +2,10 @@
 __pycache__/
 *.py[cod]
 .model_playground_cache/
+.venv/
+.pytest_cache/
+.coverage
 
+# Local review state; force-add only for an intentional annotation release.
+failed_cases.json
+problem_classifications.json

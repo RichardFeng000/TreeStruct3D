@@ -14,7 +14,7 @@ data was selected at.
 Two-mode script:
 
     1. Orchestrator (normal Python): discover instances under
-       `results/<model>/<inst>/` and spawn a Blender subprocess per
+       `outputs/<model>/<inst>/` and spawn a Blender subprocess per
        generated `.py` file.
     2. Blender mode (with `--blender-render`): runs inside Blender,
        executes the generated script, sets up its own camera + lights,
@@ -28,11 +28,11 @@ Per-instance log fields (written into `<inst>/renders/render_log.json`):
     latency_s, error, ...
 
 Usage:
-    # Render all 212 instances of one model
-    python eval/utils/render.py --model gemini-3-flash-preview
+    # Render every instance produced for one model
+    python -m treestruct3d.render --model gemini-3-flash-preview
 
     # A subset for testing
-    python eval/utils/render.py --model gemini-3-flash-preview \\
+    python -m treestruct3d.render --model gemini-3-flash-preview \\
         --instances ArmChair_seed0 BeverageFridge_seed0
 """
 
@@ -307,17 +307,36 @@ if "--blender-render" in _BL_ARGV:
 # ╚══════════════════════════════════════════════════════════════════╝
 import argparse
 import json
+import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-EVAL_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_RESULTS_ROOT = EVAL_ROOT / "results"
-DEFAULT_BLENDER = (
-    "/Users/fengruiding/Downloads/3d_code/tools/"
-    "Blender-5.0.app/Contents/MacOS/Blender"
-)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "outputs"
+
+
+def discover_default_blender() -> str:
+    configured = os.environ.get("TREESTRUCT3D_BLENDER")
+    if configured:
+        return configured
+    candidates = [
+        PROJECT_ROOT.parent
+        / "tools"
+        / "Blender-5.0.app"
+        / "Contents"
+        / "MacOS"
+        / "Blender",
+        Path("/Applications/Blender.app/Contents/MacOS/Blender"),
+    ]
+    executable = shutil.which("blender")
+    if executable:
+        candidates.append(Path(executable))
+    return str(next((path for path in candidates if path.is_file()), candidates[0]))
+
+
+DEFAULT_BLENDER = discover_default_blender()
 
 
 def parse_cli():
@@ -407,7 +426,15 @@ def render_one(args, this_script: Path, instance_dir: Path):
 
 def main():
     args = parse_cli()
-    args.blender = DEFAULT_BLENDER
+    blender = Path(args.blender).expanduser()
+    if blender.parent == Path(".") and shutil.which(args.blender):
+        blender = Path(shutil.which(args.blender) or args.blender)
+    args.blender = str(blender.resolve())
+    if not Path(args.blender).is_file():
+        raise SystemExit(
+            "Blender executable does not exist: "
+            f"{args.blender}. Pass --blender or set TREESTRUCT3D_BLENDER."
+        )
     model_dir = args.results_root / args.model
     if not model_dir.exists():
         raise SystemExit(f"No such model dir: {model_dir}")

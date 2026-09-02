@@ -27,7 +27,7 @@ def make_box(part_id, length):
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
     obj = bpy.data.objects.new(part_id, mesh)
-    obj["stage7_part_id"] = part_id
+    obj["treestruct3d_part_id"] = part_id
     bpy.context.scene.collection.objects.link(obj)
     return obj
 

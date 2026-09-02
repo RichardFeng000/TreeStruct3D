@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import argparse
 import ast
+import csv
 import hashlib
 import json
 import mimetypes
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -38,17 +40,64 @@ DATASETS_DIR = APP_DIR / "datasets"
 DEFAULT_BENCHMARK = DATASETS_DIR / "benchmark" / "categories"
 DEFAULT_STAGE1_OUTPUT = DATASETS_DIR / "stage1_output"
 DEFAULT_STAGE1_GPT56_SOL = DATASETS_DIR / "stage1_output_openai5.6sol"
-DEFAULT_BLENDER = Path(
-    "/Users/fengruiding/Downloads/3d_code/tools/"
-    "Blender-5.0.app/Contents/MacOS/Blender"
-)
+
+
+def discover_default_blender() -> Path:
+    """Resolve Blender without embedding a contributor's checkout path."""
+
+    configured = os.environ.get("TREESTRUCT3D_BLENDER")
+    if configured:
+        return Path(configured).expanduser()
+    candidates = [
+        APP_DIR.parent
+        / "tools"
+        / "Blender-5.0.app"
+        / "Contents"
+        / "MacOS"
+        / "Blender",
+        Path("/Applications/Blender.app/Contents/MacOS/Blender"),
+    ]
+    executable = shutil.which("blender")
+    if executable:
+        candidates.append(Path(executable))
+    return next((path for path in candidates if path.is_file()), candidates[0])
+
+
+DEFAULT_BLENDER = discover_default_blender()
 PINNED_BLENDER_VERSION = "5.0.0"
-RUNTIME_GRAPH_VERSION = "9-native-anchor-edges-only"
+RUNTIME_GRAPH_VERSION = "10-instance-aware-live-nodes"
 NATIVE_PART_PARAMS_NAME = "PART_PARAMS"
 RENDER_WORKER_VERSION = "9-semantic-highlight-overlays"
 RUNTIME_GRAPH_PROBE = ALGORITHM_DIR / "runtime" / "blender_probe.py"
 DEFAULT_CACHE = APP_DIR / ".model_playground_cache"
 MAX_REQUEST_BYTES = 256 * 1024
+FAILED_CASES_FILENAME = "failed_cases.json"
+FAILED_CASES_VERSION = 1
+PROBLEM_CLASSIFICATIONS_FILENAME = "problem_classifications.json"
+PROBLEM_CLASSIFICATIONS_VERSION = 1
+PROBLEM_RESOLUTIONS = {"minor_fix", "regenerate", "needs_review"}
+PROBLEM_ISSUES = {
+    "missing_shared_anchor",
+    "structure_extract",
+    "wrong_hierarchy",
+    "geometry_visual",
+    "missing_or_disconnected",
+    "runtime_error",
+    "other",
+}
+STRUCTURAL_CHECK_PER_SEED = (
+    APP_DIR.parent
+    / "Experiments"
+    / "section5_5"
+    / "structural_check_curve"
+    / "per_seed.csv"
+)
+VALIDATION_MODEL_BY_DATASET = {
+    "gpt5.5": "GPT-5.5",
+    "gpt5.6_sol": "GPT-5.6 Sol",
+    "gemeni_3.1_pro": "Gemini 3.1 Pro",
+    "gemini_3.5_flash": "Gemini 3.5 Flash",
+}
 
 BIRD_PART_CREATORS = {
     "body": "create_nurbs_body",
@@ -68,6 +117,27 @@ class ModelEntry:
     model_id: str
     label: str
     source: Path
+
+
+def _load_validation_turns(
+    path: Path = STRUCTURAL_CHECK_PER_SEED,
+) -> dict[tuple[str, str], int]:
+    """Load the per-case first structural-validation pass used by Figure 3."""
+    turns: dict[tuple[str, str], int] = {}
+    try:
+        with path.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                model = (row.get("model") or "").strip()
+                seed = (row.get("seed") or "").strip()
+                try:
+                    turn = int(row.get("first_pass_check") or "")
+                except ValueError:
+                    continue
+                if model and seed and turn > 0:
+                    turns[(model, seed)] = turn
+    except OSError:
+        pass
+    return turns
 
 
 def _arguments() -> argparse.Namespace:
@@ -230,7 +300,7 @@ def _source_controls(source: Path) -> list[dict[str, Any]]:
 
 
 def _native_part_params(source: Path) -> dict[str, dict[str, Any]]:
-    """Read Stage7's literal, category-neutral native parameter protocol."""
+    """Read TreeStruct3D's literal, category-neutral parameter protocol."""
 
     try:
         tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
@@ -517,16 +587,18 @@ class PlaygroundState:
         )
         # Retain the original attribute for callers that mean the default source.
         self.models = self.models_by_source.get(self.default_source, {})
-        # This workspace is Blender 5.0-only.  Keep the CLI flag for backward
-        # compatibility, but deliberately pin every render to the verified
-        # local 5.0 executable so environment/config drift cannot select 4.x.
-        self.blender = DEFAULT_BLENDER.resolve()
+        # Runtime semantics remain pinned to Blender 5.0, while the executable
+        # location stays portable across contributor machines.
+        self.blender = args.blender.expanduser().resolve()
         self.cache = args.cache_dir.expanduser().resolve()
         self.timeout = args.render_timeout
         self.cache.mkdir(parents=True, exist_ok=True)
         self.render_lock = threading.Lock()
         self.structure_lock = threading.Lock()
+        self.failed_cases_lock = threading.RLock()
+        self.problem_classifications_lock = threading.RLock()
         self.structure_cache: dict[str, tuple[int, dict[str, Any]]] = {}
+        self.validation_turns = _load_validation_turns()
 
     def sources(self) -> list[dict[str, Any]]:
         return [
@@ -540,6 +612,215 @@ class PlaygroundState:
 
     def source_models(self, source_id: str | None) -> dict[str, ModelEntry] | None:
         return self.models_by_source.get(source_id or self.default_source)
+
+    def validation_turn(self, source_id: str, seed: str) -> int | None:
+        root = self.source_roots.get(source_id)
+        if root is None:
+            return None
+        figure_model = VALIDATION_MODEL_BY_DATASET.get(root.name)
+        if figure_model is None:
+            return None
+        return self.validation_turns.get((figure_model, seed))
+
+    def failed_cases_path(self, source_id: str) -> Path:
+        root = self.source_roots.get(source_id)
+        if root is None:
+            raise ValueError("未知代码源")
+        directory = root if root.is_dir() else root.parent
+        return directory / FAILED_CASES_FILENAME
+
+    def failed_models(self, source_id: str) -> set[str]:
+        """Read model ids marked as failed for one dataset source."""
+        path = self.failed_cases_path(source_id)
+        with self.failed_cases_lock:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                return set()
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"失败案例文件不是有效 JSON：{path}: {exc}") from exc
+
+        if isinstance(payload, list):
+            values = payload
+        elif isinstance(payload, dict):
+            values = payload.get("failed_cases", payload.get("failed_models", []))
+        else:
+            raise ValueError(f"失败案例文件格式无效：{path}")
+        if not isinstance(values, list) or not all(
+            isinstance(value, str) for value in values
+        ):
+            raise ValueError(f"失败案例文件中的 failed_cases 必须是字符串列表：{path}")
+        return set(values)
+
+    def set_model_failed(
+        self,
+        source_id: str,
+        model_id: str,
+        failed: bool,
+    ) -> dict[str, Any]:
+        models = self.source_models(source_id)
+        if models is None:
+            raise ValueError("未知代码源")
+        if model_id not in models:
+            raise ValueError("未知模型")
+
+        path = self.failed_cases_path(source_id)
+        with self.failed_cases_lock:
+            failed_models = self.failed_models(source_id)
+            if failed:
+                failed_models.add(model_id)
+            else:
+                failed_models.discard(model_id)
+            payload = {
+                "version": FAILED_CASES_VERSION,
+                "dataset": self.source_labels[source_id],
+                "failed_cases": sorted(failed_models),
+            }
+            temporary = path.with_name(
+                f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                temporary.write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                temporary.replace(path)
+            finally:
+                temporary.unlink(missing_ok=True)
+
+        return {
+            "source": source_id,
+            "model": model_id,
+            "failed": failed,
+            "failed_count": len(failed_models),
+            "failed_cases": sorted(failed_models),
+            "file": str(path),
+        }
+
+    def problem_classifications_path(self, source_id: str) -> Path:
+        root = self.source_roots.get(source_id)
+        if root is None:
+            raise ValueError("未知代码源")
+        directory = root if root.is_dir() else root.parent
+        return directory / PROBLEM_CLASSIFICATIONS_FILENAME
+
+    def problem_classifications(self, source_id: str) -> dict[str, dict[str, Any]]:
+        path = self.problem_classifications_path(source_id)
+        with self.problem_classifications_lock:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                return {}
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"问题分类文件不是有效 JSON：{path}: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"问题分类文件格式无效：{path}")
+        cases = payload.get("cases", {})
+        if not isinstance(cases, dict):
+            raise ValueError(f"问题分类文件中的 cases 必须是对象：{path}")
+        return {
+            model_id: record
+            for model_id, record in cases.items()
+            if isinstance(model_id, str) and isinstance(record, dict)
+        }
+
+    @staticmethod
+    def _problem_record_classified(record: dict[str, Any]) -> bool:
+        return bool(record.get("resolution") or record.get("issues") or record.get("notes"))
+
+    def problem_cases_payload(self, source_id: str) -> dict[str, Any]:
+        models = self.source_models(source_id)
+        if models is None:
+            raise ValueError("未知代码源")
+        failed_models = self.failed_models(source_id)
+        classifications = self.problem_classifications(source_id)
+        cases = []
+        for entry in models.values():
+            if entry.model_id not in failed_models:
+                continue
+            renders_dir = entry.source.parent / "renders"
+            renders = [
+                f"/api/case-render?source={urllib.parse.quote(source_id)}"
+                f"&model={urllib.parse.quote(entry.model_id)}"
+                f"&name={urllib.parse.quote(path.name)}"
+                for path in sorted(renders_dir.glob("Image_*.png"))
+                if path.is_file()
+            ]
+            record = classifications.get(entry.model_id, {})
+            cases.append(
+                {
+                    "id": entry.model_id,
+                    "label": entry.label,
+                    "renders": renders,
+                    "classification": record,
+                    "classified": self._problem_record_classified(record),
+                }
+            )
+        return {
+            "source": source_id,
+            "dataset": self.source_labels[source_id],
+            "cases": cases,
+            "failed_count": len(cases),
+            "classified_count": sum(bool(case["classified"]) for case in cases),
+            "file": str(self.problem_classifications_path(source_id)),
+        }
+
+    def set_problem_classification(
+        self,
+        source_id: str,
+        model_id: str,
+        resolution: str,
+        issues: list[str],
+        notes: str,
+    ) -> dict[str, Any]:
+        models = self.source_models(source_id)
+        if models is None:
+            raise ValueError("未知代码源")
+        if model_id not in models:
+            raise ValueError("未知模型")
+        if model_id not in self.failed_models(source_id):
+            raise ValueError("只能分类已标记为失败的案例")
+        if resolution and resolution not in PROBLEM_RESOLUTIONS:
+            raise ValueError("处理结论无效")
+        if any(issue not in PROBLEM_ISSUES for issue in issues):
+            raise ValueError("问题类型无效")
+        if len(notes) > 8000:
+            raise ValueError("备注不能超过 8000 个字符")
+
+        path = self.problem_classifications_path(source_id)
+        with self.problem_classifications_lock:
+            classifications = self.problem_classifications(source_id)
+            record = {
+                "resolution": resolution,
+                "issues": sorted(set(issues)),
+                "notes": notes,
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+            if resolution or issues or notes:
+                classifications[model_id] = record
+            else:
+                classifications.pop(model_id, None)
+                record = {}
+            payload = {
+                "version": PROBLEM_CLASSIFICATIONS_VERSION,
+                "dataset": self.source_labels[source_id],
+                "cases": dict(sorted(classifications.items())),
+            }
+            temporary = path.with_name(
+                f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                temporary.write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                temporary.replace(path)
+            finally:
+                temporary.unlink(missing_ok=True)
+
+        response = self.problem_cases_payload(source_id)
+        response.update({"model": model_id, "classification": record})
+        return response
 
     def schema(self, entry: ModelEntry) -> dict[str, Any]:
         is_bird = entry.source_id == "benchmark" and entry.label == "Bird_seed0"
@@ -669,6 +950,7 @@ class PlaygroundState:
             {
                 "id": str(node["id"]),
                 "label": str(node["id"]),
+                "part_id": str(node.get("part_id") or node["id"]),
                 "kind": "runtime_part",
                 "line": 0,
                 "end_line": 0,
@@ -788,6 +1070,13 @@ class PlaygroundState:
                 "anchor_gap": raw.get("anchor_gap"),
                 "anchor_tolerance": raw.get("anchor_tolerance"),
                 "authored_anchor_valid": raw.get("authored_anchor_valid"),
+                "authored_anchor_count": raw.get("authored_anchor_count"),
+                "authored_anchor_valid_count": raw.get(
+                    "authored_anchor_valid_count"
+                ),
+                "authored_anchor_all_valid": raw.get(
+                    "authored_anchor_all_valid"
+                ),
                 "child_anchor_vertex_gap": raw.get("child_anchor_vertex_gap"),
                 "parent_anchor_vertex_gap": raw.get("parent_anchor_vertex_gap"),
                 "aabb_gap": raw.get("aabb_gap"),
@@ -868,21 +1157,53 @@ class PlaygroundState:
         default_nodes = {
             str(node.get("id")): node for node in view.get("nodes") or []
         }
+        default_part_by_node = {
+            node_id: str(node.get("part_id") or node_id)
+            for node_id, node in default_nodes.items()
+        }
         default_edges = list(view.get("edges") or [])
         results: dict[str, dict[str, Any]] = {}
         for part_id, variant in sorted(variants.items()):
             variant_nodes = {
                 str(node.get("id")): node for node in variant.get("nodes") or []
             }
-            before = default_nodes.get(part_id)
-            after = variant_nodes.get(part_id)
-            before_dims = [float(value) for value in (before or {}).get("dimensions") or []]
-            after_dims = [float(value) for value in (after or {}).get("dimensions") or []]
+            before_instances = {
+                node_id: node
+                for node_id, node in default_nodes.items()
+                if default_part_by_node.get(node_id) == part_id
+            }
+            after_instances = {
+                node_id: node
+                for node_id, node in variant_nodes.items()
+                if str(node.get("part_id") or node_id) == part_id
+            }
+
+            def instance_dimensions_changed(node_id: str) -> bool:
+                before = before_instances.get(node_id)
+                after = after_instances.get(node_id)
+                before_dims = [
+                    float(value)
+                    for value in (before or {}).get("dimensions") or []
+                ]
+                after_dims = [
+                    float(value)
+                    for value in (after or {}).get("dimensions") or []
+                ]
+                return bool(
+                    len(before_dims) == len(after_dims) == 3
+                    and any(
+                        abs(current - original)
+                        > max(abs(original) * 0.05, 1e-5)
+                        for original, current in zip(before_dims, after_dims)
+                    )
+                )
+
             dimensions_changed = bool(
-                len(before_dims) == len(after_dims) == 3
-                and any(
-                    abs(current - original) > max(abs(original) * 0.05, 1e-5)
-                    for original, current in zip(before_dims, after_dims)
+                before_instances
+                and set(before_instances) == set(after_instances)
+                and all(
+                    instance_dimensions_changed(node_id)
+                    for node_id in before_instances
                 )
             )
             variant_edges = {
@@ -895,8 +1216,8 @@ class PlaygroundState:
                 if edge.get("relation") == "DIRECTED"
                 and bool(edge.get("shared_anchor"))
                 and (
-                    edge.get("parent") == part_id
-                    or edge.get("child") == part_id
+                    default_part_by_node.get(str(edge.get("parent"))) == part_id
+                    or default_part_by_node.get(str(edge.get("child"))) == part_id
                 )
             ]
             # Only default, confirmed parent->child shared anchors belong to
@@ -918,11 +1239,18 @@ class PlaygroundState:
                 "dimensions_changed": dimensions_changed,
                 "anchors_passed": anchors_passed,
                 "affected_edges": len(affected),
+                "instances": len(before_instances),
             }
 
         for edge in default_edges:
-            parent_result = results.get(str(edge.get("parent")), {})
-            child_result = results.get(str(edge.get("child")), {})
+            parent_result = results.get(
+                default_part_by_node.get(str(edge.get("parent")), ""),
+                {},
+            )
+            child_result = results.get(
+                default_part_by_node.get(str(edge.get("child")), ""),
+                {},
+            )
             invariant = bool(
                 parent_result.get("passed") and child_result.get("passed")
             )
@@ -1246,11 +1574,24 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             if source_models is None:
                 self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
                 return
+            try:
+                failed_models = self.state.failed_models(source_id)
+            except (OSError, ValueError) as exc:
+                self._json(
+                    {"error": str(exc)},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
             models = [
                 {
                     "id": entry.model_id,
                     "label": entry.label,
                     "must_watch": entry.label in self.state.must_watch_labels,
+                    "failed": entry.model_id in failed_models,
+                    "validation_turn": self.state.validation_turn(
+                        source_id,
+                        entry.label,
+                    ),
                 }
                 for entry in source_models.values()
             ]
@@ -1262,8 +1603,66 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                     "must_watch_count": sum(
                         bool(model["must_watch"]) for model in models
                     ),
+                    "failed_count": sum(bool(model["failed"]) for model in models),
+                    "failed_cases_file": str(
+                        self.state.failed_cases_path(source_id)
+                    ),
                 }
             )
+            return
+        if parsed.path == "/api/failures":
+            query = urllib.parse.parse_qs(parsed.query)
+            source_id = (query.get("source") or [self.state.default_source])[0]
+            if self.state.source_models(source_id) is None:
+                self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
+                return
+            try:
+                failed_models = self.state.failed_models(source_id)
+                self._json(
+                    {
+                        "source": source_id,
+                        "failed_cases": sorted(failed_models),
+                        "failed_count": len(failed_models),
+                        "file": str(self.state.failed_cases_path(source_id)),
+                    }
+                )
+            except (OSError, ValueError) as exc:
+                self._json(
+                    {"error": str(exc)},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            return
+        if parsed.path == "/api/problem-classifications":
+            query = urllib.parse.parse_qs(parsed.query)
+            source_id = (query.get("source") or [self.state.default_source])[0]
+            try:
+                self._json(self.state.problem_cases_payload(source_id))
+            except (OSError, ValueError) as exc:
+                self._json(
+                    {"error": str(exc)},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            return
+        if parsed.path == "/api/case-render":
+            query = urllib.parse.parse_qs(parsed.query)
+            entry = self._entry(
+                (query.get("source") or [None])[0],
+                (query.get("model") or [None])[0],
+            )
+            name = (query.get("name") or [""])[0]
+            if (
+                entry is None
+                or not name
+                or Path(name).name != name
+                or Path(name).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}
+            ):
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            path = entry.source.parent / "renders" / name
+            if not path.is_file():
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self._file(path)
             return
         if parsed.path == "/api/schema":
             query = urllib.parse.parse_qs(parsed.query)
@@ -1340,7 +1739,12 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
-        if urllib.parse.urlsplit(self.path).path != "/api/render":
+        request_path = urllib.parse.urlsplit(self.path).path
+        if request_path not in {
+            "/api/render",
+            "/api/failures",
+            "/api/problem-classifications",
+        }:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         try:
@@ -1352,6 +1756,45 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             return
         try:
             request = json.loads(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(request, dict):
+                raise ValueError("请求必须是 JSON 对象")
+            if request_path == "/api/failures":
+                source_id = request.get("source")
+                model_id = request.get("model")
+                failed = request.get("failed")
+                if (
+                    not isinstance(source_id, str)
+                    or not isinstance(model_id, str)
+                    or not isinstance(failed, bool)
+                ):
+                    raise ValueError("代码源、模型或失败状态无效")
+                result = self.state.set_model_failed(source_id, model_id, failed)
+                self._json(result)
+                return
+            if request_path == "/api/problem-classifications":
+                source_id = request.get("source")
+                model_id = request.get("model")
+                resolution = request.get("resolution", "")
+                issues = request.get("issues", [])
+                notes = request.get("notes", "")
+                if (
+                    not isinstance(source_id, str)
+                    or not isinstance(model_id, str)
+                    or not isinstance(resolution, str)
+                    or not isinstance(issues, list)
+                    or not all(isinstance(issue, str) for issue in issues)
+                    or not isinstance(notes, str)
+                ):
+                    raise ValueError("问题分类请求无效")
+                result = self.state.set_problem_classification(
+                    source_id,
+                    model_id,
+                    resolution,
+                    issues,
+                    notes.strip(),
+                )
+                self._json(result)
+                return
             entry = self._entry(request.get("source"), request.get("model"))
             params = request.get("params", {})
             if entry is None or not isinstance(params, dict):

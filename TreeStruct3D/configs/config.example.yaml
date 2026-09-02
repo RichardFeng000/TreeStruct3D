@@ -1,0 +1,14 @@
+# Copy this file to config.local.yaml and keep credentials out of Git.
+api_format: lmstudio_responses
+api_url: http://127.0.0.1:1234/api/v1/chat
+api_key: ${TREESTRUCT3D_API_KEY}
+model: your-model-id
+max_output_tokens: 8192
+
+# Optional phase-specific overrides.
+# structure_max_output_tokens: 8192
+# structure_reasoning_effort: high
+# code_max_output_tokens: 32768
+# code_reasoning_effort: low
+# structure_repair_max_output_tokens: 32768
+# structure_repair_reasoning_effort: high

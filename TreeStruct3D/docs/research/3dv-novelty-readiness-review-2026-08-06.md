@@ -1,18 +1,18 @@
-# Stage7：3DV 2027 投稿就绪度与创新性检索审计
+# TreeStruct3D：3DV 2027 投稿就绪度与创新性检索审计
 
-日期：2026-08-06  
-审计对象：`/Users/fengruiding/Downloads/3d_code/Stage7` 及其现有 Stage 7 输出  
+日期：2026-08-06
+审计对象：TreeStruct3D 仓库及当时保存的实验输出
 结论等级：**当前不建议以 full paper 状态投稿 3DV 2027；主题适配，但创新主张与实验证据均未达到主会标准。**
 
 ## 1. 一句话结论
 
-Stage7 的研究问题是好的：让 LLM 生成的开放类别 Blender 程序不仅“看起来连着”，而且在部件参数变化后仍保持表面连接与层级一致性。这个方向符合 3DV。但是，当前系统最显眼的两个上层创新——“先生成层级结构蓝图再生成代码”和“用可执行几何测试反馈修复”——已经被 2025–2026 年工作大范围覆盖；尚可能成立的窄创新是：
+TreeStruct3D 的研究问题是好的：让 LLM 生成的开放类别 Blender 程序不仅“看起来连着”，而且在部件参数变化后仍保持表面连接与层级一致性。这个方向符合 3DV。但是，当前系统最显眼的两个上层创新——“先生成层级结构蓝图再生成代码”和“用可执行几何测试反馈修复”——已经被 2025–2026 年工作大范围覆盖；尚可能成立的窄创新是：
 
 > **针对开放类别 Blender mesh 程序，定义并验证“部件参数变化后的真实表面连接完整性”。**
 
 目前代码还没有真正证明这项性质，原因是验证器允许“辅助圆盘/孤立顶点/脱离主体的小几何岛”充当锚点，旧结果又早于当前更严格的 validator。现有实验只有 3 个最新类别、单 seed、少量模型，没有独立视觉指标、人评、强基线、消融、统计显著性和验证器有效性研究。因此当前更像一个有潜力的研究原型，不是已经完成的 3DV paper。
 
-## 2. Stage7 实际贡献拆解
+## 2. TreeStruct3D 实际贡献拆解
 
 当前实现包含以下组件：
 
@@ -28,7 +28,7 @@ Stage7 的研究问题是好的：让 LLM 生成的开放类别 Blender 程序�
 
 ## 3. 全网检索后的逐项创新判断
 
-| Stage7 候选主张 | 最接近工作 | 判断 | 当前可否声称“首次” |
+| TreeStruct3D 候选主张 | 最接近工作 | 判断 | 当前可否声称“首次” |
 |---|---|---:|---:|
 | 文本先转层级部件/约束图，再规划 Blender 代码 | [Graph-CAD](https://arxiv.org/abs/2604.10075)、[HierCAD](https://arxiv.org/abs/2607.11339)、[LAM](https://openreview.net/forum?id=OQIMv0WBig) | 高度重合 | **否** |
 | 用 parent-child attachment/port/mate 表示装配关系 | [AssemCAD](https://arxiv.org/abs/2607.05123)、Graph-CAD | 高度重合 | **否** |
@@ -42,15 +42,15 @@ Stage7 的研究问题是好的：让 LLM 生成的开放类别 Blender 程序�
 
 #### Graph-CAD（ICLR 2026）
 
-[Graph-CAD](https://arxiv.org/abs/2604.10075) 已经把自然语言转为包含部件、组件和显式几何约束的层级 decomposition graph，再生成 action plan 和 `bpy` 程序；它还提供约 12K 数据、1.4K 类别、280 个评测样本、几何一致性指标及消融。它与 Stage7 “结构蓝图 → Blender 代码”的前半段几乎同题，因此这一层不能再作为主要 novelty。
+[Graph-CAD](https://arxiv.org/abs/2604.10075) 已经把自然语言转为包含部件、组件和显式几何约束的层级 decomposition graph，再生成 action plan 和 `bpy` 程序；它还提供约 12K 数据、1.4K 类别、280 个评测样本、几何一致性指标及消融。它与 TreeStruct3D “结构蓝图 → Blender 代码”的前半段几乎同题，因此这一层不能再作为主要 novelty。
 
 #### AssemCAD（2026-07）
 
-[AssemCAD](https://arxiv.org/abs/2607.05123) 使用 typed parts、由真实 B-Rep 几何支持的 ports、可执行 mates、封闭式变换求解、确定性多层验证和有界 LLM repair。它与 Stage7 的 paired anchors、装配关系、几何验证和修复高度相邻。Stage7 的剩余区别主要在：开放类别/有机形状、Blender mesh，以及对编辑后锚点的动态重算。
+[AssemCAD](https://arxiv.org/abs/2607.05123) 使用 typed parts、由真实 B-Rep 几何支持的 ports、可执行 mates、封闭式变换求解、确定性多层验证和有界 LLM repair。它与 TreeStruct3D 的 paired anchors、装配关系、几何验证和修复高度相邻。TreeStruct3D 的剩余区别主要在：开放类别/有机形状、Blender mesh，以及对编辑后锚点的动态重算。
 
 #### CADTests 与 CADEngBench
 
-[CADTests](https://arxiv.org/abs/2605.07807) 已经系统研究“可执行几何/拓扑测试 → 失败日志 → planner 修复”，并用 mutation analysis 和 human study 验证测试质量。[CADEngBench](https://openreview.net/pdf?id=hIKrX5XpuN) 则把 parameter perturbation robustness 用于评价 CAD 程序的 parametric integrity。Stage7 可以把这两者结合到“attachment integrity”，但不能声称发明了 executable test 或 parameter perturbation。
+[CADTests](https://arxiv.org/abs/2605.07807) 已经系统研究“可执行几何/拓扑测试 → 失败日志 → planner 修复”，并用 mutation analysis 和 human study 验证测试质量。[CADEngBench](https://openreview.net/pdf?id=hIKrX5XpuN) 则把 parameter perturbation robustness 用于评价 CAD 程序的 parametric integrity。TreeStruct3D 可以把这两者结合到“attachment integrity”，但不能声称发明了 executable test 或 parameter perturbation。
 
 ## 4. 当前实验审计
 
@@ -68,7 +68,7 @@ Stage7 的研究问题是好的：让 LLM 生成的开放类别 Blender 程序�
 
 #### A. 结果与当前代码版本不一致
 
-Stage7 当前仓库只有两个提交，最新的严格验证逻辑仍是未提交改动。现有结构分数文件缺少新版 validator 的字段，说明保存的 100 分是在旧规则下得到的。
+TreeStruct3D 当前仓库只有两个提交，最新的严格验证逻辑仍是未提交改动。现有结构分数文件缺少新版 validator 的字段，说明保存的 100 分是在旧规则下得到的。
 
 将旧结果按当前 `PART_PARAMS`/blueprint ID 规则做静态一致性复核：
 
@@ -93,11 +93,11 @@ Stage7 当前仓库只有两个提交，最新的严格验证逻辑仍是未提�
 - 不是专门添加的隐藏小圆盘、孤立顶点或分离 mesh island；
 - 在视觉上或拓扑上真的连接了两个主体。
 
-项目内的 `analysis_reports/stage71_anchor_surface_analysis/anchor_surface_analysis.md` 已经观察到 `add_disc` 式辅助锚点；GPT Lobster 脚本也包含类似结构。也就是说，当前指标可能把“为了通过测试而添加的几何”误判为真实连接。这会成为审稿人最强的攻击点。
+项目内当时的锚点表面分析报告已经观察到 `add_disc` 式辅助锚点；GPT Lobster 脚本也包含类似结构。也就是说，当前指标可能把“为了通过测试而添加的几何”误判为真实连接。这会成为审稿人最强的攻击点。
 
 #### C. 指标与方法协议循环定义
 
-Stage7 明确要求生成 `stage7_part_id`、`PART_PARAMS` 和 anchor helper；普通 3DCodeBench baseline 没有这些注解，因此即便几何上连接良好，也无法在 Stage7 指标上得分。若直接报告“Stage7 共享锚点率远高于 baseline”，只能证明它更遵守自己的输出协议，不能证明它生成了更好的 3D 结构。
+TreeStruct3D 明确要求生成 `treestruct3d_part_id`、`PART_PARAMS` 和 anchor helper；普通 3DCodeBench baseline 没有这些注解，因此即便几何上连接良好，也无法在 TreeStruct3D 指标上得分。若直接报告“TreeStruct3D 共享锚点率远高于 baseline”，只能证明它更遵守自己的输出协议，不能证明它生成了更好的 3D 结构。
 
 需要增加与表示无关的外部指标，例如连通分量、接触面积/间隙、GCS、独立编辑成功率和人工几何判断。
 
@@ -168,7 +168,7 @@ Stage7 明确要求生成 `stage7_part_id`、`PART_PARAMS` 和 anchor helper；�
 3. `+ anchor contract only`；
 4. `+ blueprint + anchor contract`，无 validator repair；
 5. `+ static validator repair`；
-6. `+ parameter-invariance validator repair`（完整 Stage7）；
+6. `+ parameter-invariance validator repair`（完整 TreeStruct3D）；
 7. 去掉父端扰动、去掉子端扰动、去掉真实表面限制等关键消融。
 
 ### 7.3 数据规模与指标
@@ -176,7 +176,7 @@ Stage7 明确要求生成 `stage7_part_id`、`PART_PARAMS` 和 anchor helper；�
 - 强版本：覆盖 3DCodeBench 全部 212 类别；最低可辩护版本：至少 100 类别；
 - 每类别至少 3 seeds，至少 3 个有代表性的闭源/开源模型；
 - 报告 executability、视觉质量、静态接触、连通分量/浮空率、dynamic attachment survival、编辑任务成功率；
-- 视觉指标与人类 pairwise preference 必须独立于 Stage7 协议；
+- 视觉指标与人类 pairwise preference 必须独立于 TreeStruct3D 协议；
 - 二值结果使用 paired bootstrap 或 McNemar 类检验，并报告置信区间；
 - 报告 token、运行时间、修复次数和失败类型分布。
 
@@ -218,4 +218,3 @@ Stage7 明确要求生成 `stage7_part_id`、`PART_PARAMS` 和 anchor helper；�
 - [CADCodeVerify](https://openreview.net/forum?id=BLWaTeucYX)
 - [3D-GPT](https://openreview.net/forum?id=n04Dbq4Y8J)
 - [3DV 2027 Call for Papers](https://3dvconf.github.io/2027/call-for-papers/)
-

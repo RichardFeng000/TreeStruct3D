@@ -643,6 +643,57 @@ def _deterministic_spatial_samples(points, sample_limit):
     return [ordered[index] for index in selected]
 
 
+def _substantial_vertex_indices(mesh):
+    """Exclude tiny disconnected proof patches from authored anchors.
+
+    Generated assets may legitimately contain several repeated components in
+    one semantic Mesh.  Keep components with both a meaningful vertex count
+    and surface area relative to the largest component, while rejecting tiny
+    standalone discs/quads added only to manufacture an anchor vertex.
+    """
+    count = len(mesh.vertices)
+    if count == 0:
+        return set()
+    parents = list(range(count))
+
+    def find(index):
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(first, second):
+        root_a = find(int(first))
+        root_b = find(int(second))
+        if root_a != root_b:
+            parents[root_b] = root_a
+
+    for edge in mesh.edges:
+        union(edge.vertices[0], edge.vertices[1])
+    sizes = {}
+    for index in range(count):
+        root = find(index)
+        sizes[root] = sizes.get(root, 0) + 1
+    areas = {root: 0.0 for root in sizes}
+    for polygon in mesh.polygons:
+        vertices = list(polygon.vertices)
+        if not vertices:
+            continue
+        areas[find(int(vertices[0]))] = (
+            areas.get(find(int(vertices[0])), 0.0) + float(polygon.area)
+        )
+    largest = max(sizes.values(), default=0)
+    largest_area = max(areas.values(), default=0.0)
+    minimum_vertices = max(3, int(math.ceil(largest * 0.25)))
+    minimum_area = largest_area * 0.05
+    return {
+        index
+        for index in range(count)
+        if sizes.get(find(index), 0) >= minimum_vertices
+        and (largest_area <= 1e-12 or areas.get(find(index), 0.0) >= minimum_area)
+    }
+
+
 def _unwrap_object(value, bpy):
     if isinstance(value, bpy.types.Object):
         return value
@@ -675,6 +726,11 @@ def _observe_object(obj, depsgraph, sample_limit):
                 properties[str(key)] = value
         return {
             "id": obj.name,
+            "part_id": str(
+                properties.get("treestruct3d_part_id")
+                or properties.get("stage7_part_id")
+                or obj.name
+            ),
             "object_type": obj.type,
             "vertex_count": count,
             "bbox_min": lower,
@@ -853,9 +909,15 @@ def _shared_anchor_verified(relation, *, contact, anchor_aligned, declared_links
         for link in declared_links
     )
     native_links = [
-        link for link in declared_links if link.get("native_parameter_protocol")
+        link
+        for link in declared_links
+        if link.get("native_parameter_protocol")
+        and ":authored_anchor" in str(link.get("source") or "")
     ]
-    native_anchor_valid = not native_links or any(
+    # A repeated template can emit several anchors between the same two
+    # Blender objects (for example Bed's four legs in one Mesh).  Every
+    # authored instance must survive, not merely one convenient representative.
+    native_anchor_valid = not native_links or all(
         bool(link.get("authored_anchor_valid")) for link in native_links
     )
     return bool(
@@ -949,9 +1011,15 @@ def main():
                 try:
                     if not mesh.vertices:
                         return _vector(anchor_world), None
+                    eligible = _substantial_vertex_indices(mesh)
+                    if not eligible:
+                        return _vector(anchor_world), None
                     nearest_gap = min(
-                        (evaluated.matrix_world @ vertex.co - anchor_world).length
-                        for vertex in mesh.vertices
+                        (
+                            evaluated.matrix_world @ mesh.vertices[index].co
+                            - anchor_world
+                        ).length
+                        for index in eligible
                     )
                     return _vector(anchor_world), float(nearest_gap)
                 finally:
@@ -1087,9 +1155,24 @@ def main():
                         }
                     )
 
+        def anchor_signature(value):
+            if not isinstance(value, (list, tuple)) or len(value) != 3:
+                return None
+            try:
+                return tuple(round(float(item), 9) for item in value)
+            except (TypeError, ValueError):
+                return None
+
         deduplicated_links = {}
         for link in declared_links:
-            key = (link["parent"], link["child"], link["source"], link["line"])
+            key = (
+                link["parent"],
+                link["child"],
+                link["source"],
+                link["line"],
+                anchor_signature(link.get("parent_anchor_world")),
+                anchor_signature(link.get("child_anchor_world")),
+            )
             deduplicated_links[key] = link
         declared_links = list(deduplicated_links.values())
 
@@ -1098,6 +1181,10 @@ def main():
             for link in declared_links
             for endpoint in (link["parent"], link["child"])
             if endpoint in registry
+            and (
+                endpoint in final_objects
+                or bool(registry[endpoint].get("properties"))
+            )
         }
         semantic_ids.update(
             node_id
@@ -1180,22 +1267,20 @@ def main():
                 "contact": _aabb_gap(first, second) <= threshold,
             }
 
-        # Native Stage7 attachments expose their exact authored endpoints.
+        # Native TreeStruct3D attachments expose their exact authored endpoints.
         # Prefer those over nearest-surface estimates and require both local
         # endpoints to remain real evaluated Mesh vertices after parameter
         # changes.
         for pair, links in declared_by_pair.items():
-            exact = next(
-                (
-                    link
-                    for link in links
-                    if link.get("child_anchor_world") is not None
-                    and link.get("parent_anchor_world") is not None
-                ),
-                None,
-            )
-            if exact is None or pair not in candidates:
+            exact_links = [
+                link
+                for link in links
+                if link.get("child_anchor_world") is not None
+                and link.get("parent_anchor_world") is not None
+            ]
+            if not exact_links or pair not in candidates:
                 continue
+            exact = exact_links[0]
             if pair[0] == exact["parent"]:
                 anchor_a = exact["parent_anchor_world"]
                 anchor_b = exact["child_anchor_world"]
@@ -1203,19 +1288,50 @@ def main():
                 anchor_a = exact["child_anchor_world"]
                 anchor_b = exact["parent_anchor_world"]
             candidate = candidates[pair]
+            all_exact_valid = all(
+                bool(link.get("authored_anchor_valid"))
+                for link in exact_links
+            )
+            exact_gaps = [
+                float(link["authored_anchor_gap"])
+                for link in exact_links
+                if link.get("authored_anchor_gap") is not None
+            ]
+            child_vertex_gaps = [
+                float(link["child_anchor_vertex_gap"])
+                for link in exact_links
+                if link.get("child_anchor_vertex_gap") is not None
+            ]
+            parent_vertex_gaps = [
+                float(link["parent_anchor_vertex_gap"])
+                for link in exact_links
+                if link.get("parent_anchor_vertex_gap") is not None
+            ]
             candidate.update(
                 anchor_a=anchor_a,
                 anchor_b=anchor_b,
-                anchor_gap=exact.get("authored_anchor_gap"),
+                anchor_gap=max(exact_gaps) if exact_gaps else None,
                 anchor_tolerance=exact.get("authored_anchor_tolerance", 1e-5),
                 geometric_anchor_aligned=bool(
-                    exact.get("authored_anchor_gap") is not None
-                    and exact.get("authored_anchor_gap")
-                    <= exact.get("authored_anchor_tolerance", 1e-5)
+                    exact_gaps
+                    and all(
+                        gap <= exact.get("authored_anchor_tolerance", 1e-5)
+                        for gap in exact_gaps
+                    )
                 ),
-                authored_anchor_valid=bool(exact.get("authored_anchor_valid")),
-                child_anchor_vertex_gap=exact.get("child_anchor_vertex_gap"),
-                parent_anchor_vertex_gap=exact.get("parent_anchor_vertex_gap"),
+                authored_anchor_valid=all_exact_valid,
+                authored_anchor_count=len(exact_links),
+                authored_anchor_valid_count=sum(
+                    bool(link.get("authored_anchor_valid"))
+                    for link in exact_links
+                ),
+                authored_anchor_all_valid=all_exact_valid,
+                child_anchor_vertex_gap=(
+                    max(child_vertex_gaps) if child_vertex_gaps else None
+                ),
+                parent_anchor_vertex_gap=(
+                    max(parent_vertex_gaps) if parent_vertex_gaps else None
+                ),
             )
 
         ranked_pairs = sorted(

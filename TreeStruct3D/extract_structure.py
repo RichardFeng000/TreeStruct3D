@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract structure blueprints from benchmark text without generating code."""
+"""Extract TreeStruct3D structure blueprints without generating Blender code."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.structure_extraction import (
+from treestruct3d.structure_extraction import (
     blueprint_markdown,
     extract_json_object,
     validate_blueprint,
 )
-from run_stage7 import (
+from generate_3d import (
     AmbiguousRemoteResultError,
     API_FORMAT_LMSTUDIO,
     DEFAULT_CONFIG,
@@ -35,7 +35,7 @@ from run_stage7 import (
 DEFAULT_EXTRACTION_PROMPT = (
     REPO_ROOT
     / "prompts"
-    / "structure_extraction_surface_attachment_system_prompt.txt"
+    / "structure_blueprint_system_prompt.txt"
 )
 DEFAULT_EXTRACTION_OUTPUT = DEFAULT_OUTPUT_DIR
 
@@ -47,19 +47,34 @@ def parse_args() -> argparse.Namespace:
             "from 3DCodeBench text prompts. This does not generate Blender code."
         )
     )
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG,
+        help="Provider and model configuration (default: config.local.yaml).",
+    )
     parser.add_argument(
         "--model",
         default=None,
         help="Override the extraction model; use the strongest available planner.",
     )
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_EXTRACTION_OUTPUT)
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=DEFAULT_DATA_DIR,
+        help="Directory containing 3DCodeBench instance directories.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_EXTRACTION_OUTPUT,
+        help="Root directory for structure-blueprint artifacts.",
+    )
     parser.add_argument(
         "--output-prefix",
         default="",
         help=(
-            "Prefix for the Stage 7 result seed directory, for example "
+            "Prefix for the result instance directory, for example "
             "kimi_k3_. Extraction files are stored only under "
             "<output-dir>/<prefix><instance>/structure_extraction/."
         ),
@@ -68,7 +83,7 @@ def parse_args() -> argparse.Namespace:
         "--output-suffix",
         default="",
         help=(
-            "Suffix for the Stage 7 result seed directory, for example (1). "
+            "Suffix for the result instance directory, for example (1). "
             "Use the same suffix for extraction and generation."
         ),
     )
@@ -86,13 +101,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--instances", nargs="*", default=None)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
+        "--api-timeout",
         "--timeout",
+        dest="timeout",
         type=int,
         default=0,
-        help="Model API timeout in seconds; 0 means no client-side time limit.",
+        help=(
+            "Total model API wall-clock timeout in seconds; 0 means no "
+            "client-side limit. The old --timeout spelling remains accepted."
+        ),
     )
-    parser.add_argument("--retries", type=int, default=2)
-    parser.add_argument("--sleep", type=float, default=0.0)
+    parser.add_argument(
+        "--extraction-retries",
+        "--retries",
+        dest="retries",
+        type=int,
+        default=2,
+        help=(
+            "Retries after a safely retryable API error or invalid blueprint. "
+            "The old --retries spelling remains accepted."
+        ),
+    )
+    parser.add_argument(
+        "--request-delay",
+        "--sleep",
+        dest="sleep",
+        type=float,
+        default=0.0,
+        help=(
+            "Delay in seconds between completed instances. The old --sleep "
+            "spelling remains accepted."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -189,7 +229,7 @@ def extract_one(
     retries: int,
 ) -> tuple[dict | None, dict]:
     log = {
-        "schema_version": "stage7-structure-extraction-log/v1",
+        "schema_version": "treestruct3d.structure-extraction-log/v1",
         "instance": instance,
         "model": config["model"],
         "api_format": config.get("api_format", API_FORMAT_LMSTUDIO),
@@ -277,7 +317,7 @@ def extraction_output_dir(
 
 
 def write_seed_catalog(out_dir: Path, instance: str, blueprint: dict) -> None:
-    """Write the RAG-ready record beside the extraction that produced it."""
+    """Write a machine-readable catalog record beside its source extraction."""
 
     record = {"instance": instance, "blueprint": blueprint}
     (out_dir / "structure_catalog.jsonl").write_text(
@@ -303,7 +343,7 @@ def main() -> None:
     instances = iter_instances(args.data_dir, args.instances)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "schema_version": "stage7-structure-extraction-manifest/v1",
+        "schema_version": "treestruct3d.structure-extraction-manifest/v1",
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(
             timespec="seconds"
         ),

@@ -2,7 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from core.structural_validation import (
+from treestruct3d.structural_validation import (
     apply_parameter_invariance_gate,
     native_part_parameter_ids,
     score_structure_report,

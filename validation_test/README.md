@@ -1,81 +1,122 @@
-# Validation Test
+# TreeStruct3D Structural Validation Toolkit
 
-这个项目把网页视觉层和 Blender Python 转换算法分开维护，同时保留根目录的一键启动方式。
+This directory contains TreeStruct3D's structural validation and interactive
+inspection component. It analyzes generated Blender Python programs, executes
+runtime probes, exports GLB previews, and visualizes part hierarchies and shared
+anchors in a local browser interface.
 
-## 目录结构
+`validation_test/` is retained as a compatibility path. It is not a separate
+product or Git repository; in documentation, its public name is the
+**TreeStruct3D Structural Validation Toolkit**. See the
+[repository overview](../README.md) for the complete generation-and-validation
+workflow.
+
+## Capabilities
+
+- Static analysis of Python definitions, calls, and candidate part relations
+- Blender runtime observation of semantic parts and parent-child attachments
+- Contact and geometry-derived shared-anchor checks
+- Independent parent and child parameter perturbations through `PART_PARAMS`
+- Local Three.js preview with part highlighting and structure overlays
+- Multi-dataset comparison, failed-case marking, and issue classification
+
+## Layout
 
 ```text
 validation_test/
-├── frontend/                    # 网页界面、树图、锚点图、Three.js 预览
-│   ├── model_playground.html
-│   ├── interactive_tree_template.html
-│   └── vendor/
-├── algorithm/                   # Blender Python 解析、执行、GLB 导出和关系分析
-│   ├── model_playground.py      # 本地 API 服务与任务调度
-│   ├── blender_live_export.py   # Blender 5.0 内执行源码并导出 GLB
-│   ├── code_structure_tree.py   # 定义树、调用图、零件父子树静态分析
-│   ├── runtime/                 # 本地运行时父子/共享锚点 Blender probe
-│   └── achieve/                 # 网页不依赖的审计与 QA 工具
-├── datasets/                    # 三个统一管理的数据源
-│   ├── benchmark/               # Benchmark 验证集
-│   ├── stage1_output/           # Stage 1 Output
-│   └── stage1_output_openai5.6sol/ # Stage 1 GPT-5.6-sol
-├── achieve/                     # 与正常运行无关的旧输出和审计报告
-│   ├── audit_reports/
-│   └── Bird_seed0_structure_tree/
-└── *.sh                         # 用户入口脚本
+├── frontend/                 browser interface and vendored Three.js modules
+├── algorithm/                analysis, local service, and Blender export code
+│   ├── runtime/              self-contained Blender structural probe
+│   └── archive/              inactive audit and QA utilities
+├── datasets/                 committed evaluation sources and assets
+├── tests/                    offline regression tests
+├── archive/                  historical reports and inspection artifacts
+└── *.sh                      command-line launchers
 ```
 
-## 启动
+The committed image, PDF, Blender, and GLB assets are managed with Git LFS.
+
+## Requirements
+
+- Python 3.9 or newer
+- Blender 5.0 for live previews and runtime probes
+- A modern browser
+- Node.js only for the frontend JavaScript regression test
+
+Blender is resolved in this order:
+
+1. `TREESTRUCT3D_BLENDER`
+2. the monorepo's local `tools/Blender-5.0.app` installation
+3. the standard macOS Blender application path
+4. `blender` on `PATH`
+
+## Launch the inspector
+
+From the repository root:
 
 ```bash
-cd /Users/fengruiding/Downloads/3d_code/validation_test
-./start_model_playground.sh
+./validation_test/start_model_playground.sh
 ```
 
-也可以使用：
+Or launch the component directly:
 
 ```bash
+cd validation_test
 ./run_model_playground.sh
 ```
 
-指定一个数据集或单个 seed，并让前端启动后直接选中它：
+To inspect one or more explicit datasets or TreeStruct3D output directories:
 
 ```bash
-bash run_dataset.sh stage1_output
-bash run_dataset.sh stage7_output
-bash run_dataset.sh Chameleon_seed0
+./validation_test/run_dataset.sh TreeStruct3D/outputs
+./validation_test/run_dataset.sh \
+  TreeStruct3D/outputs/first_run \
+  TreeStruct3D/outputs/second_run
 ```
 
-也可以同时加载多个数据集，它们会作为独立代码源出现在同一个前端下拉框中，
-第一个数据集默认选中：
+Arguments may be dataset directories, individual seed directories, canonical
+Python files, or names found under `validation_test/datasets/` and
+`TreeStruct3D/outputs/`. The first selected dataset becomes the initial browser
+source.
+
+The service binds to `127.0.0.1` and starts at port `8765`. If that port is in
+use, `run_dataset.sh` selects the next free port through `8799`.
+
+## Generated-program protocol
+
+TreeStruct3D programs expose editable values through the module-level literal
+dictionary `PART_PARAMS`. The inspector changes those source values, executes
+the complete program from an empty Blender scene, and then re-evaluates the
+geometry and attachments.
+
+Generated Mesh objects use the custom property `treestruct3d_part_id` for
+semantic identity. The validator still reads the pre-release
+`stage7_part_id` property so historical artifacts remain inspectable, but new
+programs and fixtures must use `treestruct3d_part_id`.
+
+A shared anchor passes only when its authored parent and child endpoints remain
+real evaluated Mesh samples and stay aligned in the default run, the parent
+perturbation, and the child perturbation. Visual proximity alone is not accepted
+as shared-anchor evidence.
+
+## Review annotations
+
+The browser can mark the current model as a failed case. Marks are stored in
+`failed_cases.json` inside the selected dataset. The issue-classification panel
+stores review decisions in `problem_classifications.json` in the same location.
+These files belong to the reviewed dataset and should be committed only when
+they are intended release annotations.
+
+## Tests
+
+From the repository root:
 
 ```bash
-bash run_dataset.sh stage7_output stage7.1_output
+(cd validation_test && python -m unittest discover -s tests -v)
 ```
 
-参数也可以是完整路径，例如：
+The unit suite does not start Blender. Runtime checks are separate and require
+an explicit Blender 5.0 installation.
 
-```bash
-bash run_dataset.sh \
-  /Users/fengruiding/Downloads/3d_code/stage_results/stage7_output/Chameleon_seed0
-```
-
-脚本会依次识别当前路径、`datasets/`、`stage_results/` 和
-`stage_results/stage7_output/`。既可以传整个输出目录、同时传多个输出目录，也可以
-只传其中一个 seed 文件夹；启动后第一个数据源会被直接选中。目录缺少同名 Python 时会明确报错，
-不会退回到其他数据源。已有服务占用 8765 时，脚本会自动选择下一个空闲端口。
-
-这些启动脚本都会调用 `algorithm/model_playground.py`。前端由本地服务从
-`frontend/` 提供，不能直接双击 HTML。项目仍固定使用 Blender 5.0。
-
-Stage7 新代码使用顶层字面量 `PART_PARAMS` 作为原生参数协议。网页只修改这些
-源参数，然后从空场景完整执行代码，让几何和共享锚点一起重算。旧代码没有该
-协议时仍可预览，但部件滑块会明确显示为“旧代码近似缩放”，不能作为共享锚点
-随参数变化的证明。运行时验证会分别放大父节点和子节点；三种执行都通过后，
-关系才会显示为共享锚点。
-
-运行时父子和共享锚点分析所需的 `blender_probe.py` 已包含在
-`algorithm/runtime/`，不再依赖外部 `SR_F1_Structural_Metric` 目录。
-
-详细功能说明见 [MODEL_PLAYGROUND.md](MODEL_PLAYGROUND.md)。
+More interface details are documented in
+[MODEL_PLAYGROUND.md](MODEL_PLAYGROUND.md).

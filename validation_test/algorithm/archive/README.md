@@ -1,4 +1,4 @@
-# Achieve
+# Archived audit utilities
 
 这里保存正常网页启动和模型生成流程不依赖的手动检查工具：
 
@@ -7,4 +7,4 @@
 - `audit_glb_geometry.py`：读取 GLB 并输出几何统计。
 - `qa_render_glb.py`：把 GLB 渲染为 PNG 供人工检查。
 
-核心运行代码仍在上一级 `algorithm/`。移动这些文件不会改变网页算法。
+核心运行代码仍在上一级 `algorithm/`。这些工具不属于稳定的公开接口。

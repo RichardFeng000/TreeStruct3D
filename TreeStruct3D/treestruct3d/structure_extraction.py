@@ -8,7 +8,9 @@ from collections import Counter
 from typing import Any
 
 
-SCHEMA_VERSION = "stage7-structure-blueprint/v2"
+SCHEMA_VERSION = "treestruct3d.structure-blueprint/v2"
+LEGACY_SCHEMA_VERSIONS = frozenset({"stage7-structure-blueprint/v2"})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({SCHEMA_VERSION, *LEGACY_SCHEMA_VERSIONS})
 PART_ROLES = {"root", "structural", "attached", "detail"}
 IMPORTANCE_LEVELS = {"primary", "secondary", "detail"}
 CONNECTION_TYPES = {
@@ -70,7 +72,7 @@ def validate_blueprint(blueprint: dict[str, Any]) -> list[str]:
     """Return deterministic schema and graph errors for one blueprint."""
 
     errors: list[str] = []
-    if blueprint.get("schema_version") != SCHEMA_VERSION:
+    if blueprint.get("schema_version") not in SUPPORTED_SCHEMA_VERSIONS:
         errors.append(f"schema_version must equal {SCHEMA_VERSION}")
     _required_string(blueprint.get("object_name"), "object_name", errors)
     if blueprint.get("assembly_intent") != "single_connected_assembly":

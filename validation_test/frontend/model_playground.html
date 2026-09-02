@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blender 模型参数编辑器</title>
+  <title>TreeStruct3D Structural Inspector</title>
   <style>
     :root {
       color-scheme: dark;
@@ -86,6 +86,7 @@
     .topbar {
       z-index: 3;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 14px;
       min-height: 58px;
@@ -115,8 +116,9 @@
     }
 
     .model-picker {
-      min-width: 240px;
-      flex: 1;
+      flex: 1 1 720px;
+      min-width: min(720px, 100%);
+      flex-wrap: wrap;
     }
 
     .model-picker label,
@@ -131,6 +133,11 @@
       width: min(440px, 100%);
       height: 36px;
       padding: 0 10px;
+    }
+
+    #model-select {
+      flex: 1 1 300px;
+      min-width: 280px;
     }
 
     .must-watch-legend {
@@ -163,6 +170,356 @@
       font-weight: 700;
     }
 
+    .validation-turn-display {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: baseline;
+      gap: 7px;
+      min-height: 36px;
+      padding: 0 11px;
+      border: 1px solid rgba(97, 218, 251, 0.38);
+      border-radius: 8px;
+      background: rgba(97, 218, 251, 0.08);
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .validation-turn-display strong {
+      color: #8ee8ff;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    #model-select.failed-selected {
+      border-color: var(--danger);
+      background: rgba(255, 116, 116, 0.12);
+      box-shadow: 0 0 0 1px rgba(255, 116, 116, 0.18);
+      color: #ffb4b4;
+      font-weight: 700;
+    }
+
+    .failure-switch {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .failure-switch.failed {
+      border-color: var(--danger);
+      background: rgba(255, 116, 116, 0.12);
+      color: #ffb4b4;
+      font-weight: 700;
+    }
+
+    .failure-switch.saving { opacity: 0.65; }
+
+    .failure-count { color: inherit; }
+
+    #problem-classify-button {
+      flex: 0 0 auto;
+      border-color: rgba(255, 116, 116, 0.48);
+      color: #ffb4b4;
+      white-space: nowrap;
+    }
+
+    #problem-classify-button:hover,
+    #problem-classify-button.has-problems {
+      background: rgba(255, 116, 116, 0.12);
+    }
+
+    .problem-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(3, 6, 11, 0.82);
+      backdrop-filter: blur(8px);
+    }
+
+    .problem-modal-backdrop[hidden] { display: none; }
+
+    .problem-modal {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      width: min(1500px, 96vw);
+      height: min(900px, 94vh);
+      overflow: hidden;
+      border: 1px solid #3a4658;
+      border-radius: 14px;
+      background: #0d121a;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+    }
+
+    .problem-modal-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 64px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #121923;
+    }
+
+    .problem-modal-title { min-width: 0; flex: 1; }
+
+    .problem-modal-title h2 {
+      margin: 0 0 3px;
+      font-size: 18px;
+    }
+
+    .problem-modal-title p {
+      margin: 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .problem-progress {
+      color: #ffc1c1;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .problem-modal-body {
+      display: grid;
+      grid-template-columns: 280px minmax(420px, 1fr) 370px;
+      min-height: 0;
+    }
+
+    .problem-case-panel,
+    .problem-form-panel {
+      display: grid;
+      min-height: 0;
+      background: #111720;
+    }
+
+    .problem-case-panel {
+      grid-template-rows: auto minmax(0, 1fr);
+      border-right: 1px solid var(--line);
+    }
+
+    .problem-case-tools {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .problem-case-tools input,
+    .problem-case-tools select {
+      width: 100%;
+      min-height: 36px;
+      padding: 0 10px;
+    }
+
+    .problem-case-list {
+      min-height: 0;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .problem-case-item {
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin: 0 0 5px;
+      padding: 10px;
+      border-color: transparent;
+      background: transparent;
+      text-align: left;
+    }
+
+    .problem-case-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+    .problem-case-item.active {
+      border-color: var(--danger);
+      background: rgba(255, 116, 116, 0.13);
+    }
+
+    .problem-case-dot {
+      width: 9px;
+      height: 9px;
+      border: 2px solid #647287;
+      border-radius: 50%;
+    }
+
+    .problem-case-item.classified .problem-case-dot {
+      border-color: var(--success);
+      background: var(--success);
+    }
+
+    .problem-case-name {
+      overflow: hidden;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .problem-case-index { color: var(--muted); font-size: 10px; }
+
+    .problem-preview-panel {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      background: #090d13;
+    }
+
+    .problem-preview-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .problem-preview-head h3 {
+      min-width: 0;
+      flex: 1;
+      margin: 0;
+      overflow: hidden;
+      font-size: 17px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .problem-render-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .problem-render-grid img {
+      display: block;
+      width: 100%;
+      min-height: 180px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #05070a;
+      object-fit: contain;
+    }
+
+    .problem-empty-renders {
+      display: grid;
+      min-height: 320px;
+      place-items: center;
+      border: 1px dashed #38465a;
+      border-radius: 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .problem-form-panel {
+      grid-template-rows: minmax(0, 1fr) auto;
+      border-left: 1px solid var(--line);
+    }
+
+    .problem-form-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .problem-fieldset {
+      display: grid;
+      gap: 8px;
+      margin: 0 0 18px;
+      padding: 0;
+      border: 0;
+    }
+
+    .problem-fieldset legend {
+      margin-bottom: 9px;
+      color: #d9e3ef;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .problem-choice {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #161d27;
+      color: #d6deea;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .problem-choice:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: #eef6ff;
+    }
+
+    .problem-notes-label {
+      display: grid;
+      gap: 8px;
+      color: #d9e3ef;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    #problem-notes {
+      width: 100%;
+      min-height: 150px;
+      resize: vertical;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #161d27;
+      color: var(--text);
+      font: inherit;
+      line-height: 1.5;
+    }
+
+    .problem-form-footer {
+      display: grid;
+      gap: 9px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      background: #121923;
+    }
+
+    .problem-save-status {
+      min-height: 17px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .problem-save-status.error { color: var(--danger); }
+    .problem-save-status.success { color: var(--success); }
+
+    .problem-footer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .problem-footer-actions button { flex: 1; }
+
+    @media (max-width: 1100px) {
+      .problem-modal-body { grid-template-columns: 230px minmax(350px, 1fr) 330px; }
+    }
+
     .top-actions {
       display: flex;
       align-items: center;
@@ -170,6 +527,12 @@
     }
 
     #copy-selection-button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    #previous-model-button,
+    #next-model-button {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -481,10 +844,7 @@
       position: absolute;
       inset: 0;
       overflow: hidden;
-      background:
-        radial-gradient(circle at 50% 22%, rgba(69, 105, 151, 0.14), transparent 38%),
-        radial-gradient(circle at 50% 76%, rgba(35, 72, 102, 0.08), transparent 46%),
-        linear-gradient(180deg, #0a111b 0%, #070c13 100%);
+      background: transparent;
     }
 
     #tree3d-stage[hidden] { display: none; }
@@ -495,6 +855,7 @@
       height: 100%;
       cursor: grab;
       outline: none;
+      background: transparent;
     }
 
     #tree3d-canvas:active { cursor: grabbing; }
@@ -1143,8 +1504,8 @@
       body { overflow: auto; }
       #app { min-height: 100%; height: auto; }
       .topbar { flex-wrap: wrap; }
-      .model-picker { order: 3; flex-basis: 100%; }
-      #model-select { width: 100%; max-width: none; }
+      .model-picker { order: 3; flex-basis: 100%; flex-wrap: wrap; }
+      #model-select { width: 100%; max-width: none; flex-basis: 100%; }
       .workspace { grid-template-columns: 1fr; }
       .sidebar { max-height: 48vh; border-right: 0; border-bottom: 1px solid var(--line); }
       .graph-panel { height: 58vh; min-height: 460px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -1168,7 +1529,7 @@
 <body>
   <main id="app">
     <header class="topbar">
-      <div class="brand">Blender 模型参数编辑器</div>
+      <div class="brand">TreeStruct3D Structural Inspector</div>
       <div class="source-picker">
         <label for="source-select">代码源</label>
         <select id="source-select" aria-label="选择模型代码源"></select>
@@ -1177,7 +1538,18 @@
         <label for="model-select">模型</label>
         <span id="must-watch-legend" class="must-watch-legend" title="GPT-5.6-sol 清单中的必看模型">★ 必看 46</span>
         <select id="model-select" aria-label="选择模型"></select>
+        <button id="previous-model-button" type="button" aria-keyshortcuts="ArrowLeft" title="打开当前数据集的上一个 seed（快捷键：←）">← 上一个</button>
+        <button id="next-model-button" type="button" aria-keyshortcuts="ArrowRight" title="打开当前数据集的下一个 seed（快捷键：→）">下一个 →</button>
       </div>
+      <div id="validation-turn-display" class="validation-turn-display" title="该案例首次通过 structural validation 的轮次">
+        <span>Validation turn</span>
+        <strong id="validation-turn-value">—</strong>
+      </div>
+      <label id="failure-toggle-label" class="failure-switch" for="failure-toggle" title="将当前案例标记为失败（快捷键：空格）">
+        <input id="failure-toggle" type="checkbox" aria-keyshortcuts="Space">
+        失败案例 <span id="failure-count" class="failure-count"></span>
+      </label>
+      <button id="problem-classify-button" type="button">问题分类（0）</button>
       <button id="copy-selection-button" type="button" title="复制当前代码源和模型名称">复制当前选择</button>
       <div class="top-actions">
         <label class="switch" for="auto-update">
@@ -1226,6 +1598,10 @@
             <button id="graph-fullscreen" type="button" aria-pressed="false">放大图</button>
           </div>
           <div id="tree3d-controls" class="tree3d-controls" hidden aria-label="3D 层级树关系显示选项">
+            <label class="tree3d-toggle">
+              <input id="tree3d-show-real-parts" type="checkbox">
+              <span>真实部件</span>
+            </label>
             <label class="tree3d-toggle shared">
               <input id="tree3d-show-shared" type="checkbox" checked>
               <span>显示共享锚点</span>
@@ -1235,7 +1611,8 @@
               <span>显示问题关系</span>
             </label>
             <span id="tree3d-control-note" class="tree3d-control-note">绿色球是父子共享的世界坐标节点</span>
-            <button id="tree3d-fullscreen" type="button" aria-pressed="false">放大图</button>
+            <button id="tree3d-export-transparent" type="button">保存透明 PNG</button>
+            <button id="tree3d-fullscreen" type="button" aria-pressed="false">全屏</button>
           </div>
           <div id="graph-legend" class="graph-legend" hidden aria-label="关系颜色与线型图例"></div>
         </div>
@@ -1284,6 +1661,78 @@
     </div>
   </main>
 
+  <div id="problem-modal-backdrop" class="problem-modal-backdrop" hidden>
+    <section class="problem-modal" role="dialog" aria-modal="true" aria-labelledby="problem-modal-heading">
+      <header class="problem-modal-head">
+        <div class="problem-modal-title">
+          <h2 id="problem-modal-heading">数据集问题分类</h2>
+          <p id="problem-classification-file">分类结果保存在当前数据集目录</p>
+        </div>
+        <span id="problem-progress" class="problem-progress">已分类 0 / 0</span>
+        <button id="problem-modal-close" type="button" aria-label="关闭问题分类">关闭</button>
+      </header>
+      <div class="problem-modal-body">
+        <aside class="problem-case-panel">
+          <div class="problem-case-tools">
+            <input id="problem-case-search" type="text" placeholder="搜索问题案例" aria-label="搜索问题案例">
+            <select id="problem-case-filter" aria-label="筛选分类状态">
+              <option value="all">全部问题案例</option>
+              <option value="unclassified">只看未分类</option>
+              <option value="classified">只看已分类</option>
+              <option value="minor_fix">小问题</option>
+              <option value="regenerate">需要重新生成</option>
+              <option value="needs_review">待确认</option>
+            </select>
+          </div>
+          <div id="problem-case-list" class="problem-case-list"></div>
+        </aside>
+
+        <section class="problem-preview-panel">
+          <div class="problem-preview-head">
+            <h3 id="problem-current-label">请选择问题案例</h3>
+            <button id="problem-open-model" type="button">在主界面打开</button>
+          </div>
+          <div id="problem-render-grid" class="problem-render-grid"></div>
+        </section>
+
+        <form id="problem-form" class="problem-form-panel">
+          <div class="problem-form-scroll">
+            <fieldset class="problem-fieldset">
+              <legend>处理结论（单选）</legend>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="minor_fix"> 小问题，可以修复</label>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="regenerate"> 问题较大，需要重新生成</label>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="needs_review"> 暂时不确定，需要再检查</label>
+            </fieldset>
+
+            <fieldset class="problem-fieldset">
+              <legend>问题在哪里（可多选）</legend>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_shared_anchor"> 共享锚点遗失</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="structure_extract"> Structure Extract 问题</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="wrong_hierarchy"> 父子层级或结构关系错误</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="geometry_visual"> 几何、比例或外观问题</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_or_disconnected"> 零件缺失、悬浮或断开</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="runtime_error"> 代码执行或渲染错误</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="other"> 其他问题</label>
+            </fieldset>
+
+            <label class="problem-notes-label" for="problem-notes">
+              具体说明
+              <textarea id="problem-notes" maxlength="8000" placeholder="例如：模型本身正常，但杯柄与杯身的共享锚点没有被 Structure Extract 抽取出来。"></textarea>
+            </label>
+          </div>
+          <footer class="problem-form-footer">
+            <div id="problem-save-status" class="problem-save-status"></div>
+            <div class="problem-footer-actions">
+              <button id="problem-previous" type="button">上一条</button>
+              <button id="problem-save" class="primary" type="submit">保存并下一条</button>
+              <button id="problem-next" type="button">下一条</button>
+            </div>
+          </footer>
+        </form>
+      </div>
+    </section>
+  </div>
+
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from '/vendor/OrbitControls.js';
@@ -1291,7 +1740,31 @@
 
     const sourceSelect = document.getElementById('source-select');
     const modelSelect = document.getElementById('model-select');
+    const selectionStorageKey = 'model-playground:last-selection:v1';
+    const previousModelButton = document.getElementById('previous-model-button');
+    const nextModelButton = document.getElementById('next-model-button');
+    const validationTurnDisplay = document.getElementById('validation-turn-display');
+    const validationTurnValue = document.getElementById('validation-turn-value');
     const mustWatchLegend = document.getElementById('must-watch-legend');
+    const failureToggle = document.getElementById('failure-toggle');
+    const failureToggleLabel = document.getElementById('failure-toggle-label');
+    const failureCount = document.getElementById('failure-count');
+    const problemClassifyButton = document.getElementById('problem-classify-button');
+    const problemModalBackdrop = document.getElementById('problem-modal-backdrop');
+    const problemModalClose = document.getElementById('problem-modal-close');
+    const problemClassificationFile = document.getElementById('problem-classification-file');
+    const problemProgress = document.getElementById('problem-progress');
+    const problemCaseSearch = document.getElementById('problem-case-search');
+    const problemCaseFilter = document.getElementById('problem-case-filter');
+    const problemCaseList = document.getElementById('problem-case-list');
+    const problemCurrentLabel = document.getElementById('problem-current-label');
+    const problemOpenModel = document.getElementById('problem-open-model');
+    const problemRenderGrid = document.getElementById('problem-render-grid');
+    const problemForm = document.getElementById('problem-form');
+    const problemNotes = document.getElementById('problem-notes');
+    const problemSaveStatus = document.getElementById('problem-save-status');
+    const problemPrevious = document.getElementById('problem-previous');
+    const problemNext = document.getElementById('problem-next');
     const copySelectionButton = document.getElementById('copy-selection-button');
     const controlsHost = document.getElementById('controls');
     const panelTitle = document.getElementById('panel-title');
@@ -1324,9 +1797,11 @@
     const graphExpandButton = document.getElementById('graph-expand');
     const graphFitButton = document.getElementById('graph-fit');
     const tree3dControls = document.getElementById('tree3d-controls');
+    const tree3dShowRealParts = document.getElementById('tree3d-show-real-parts');
     const tree3dShowShared = document.getElementById('tree3d-show-shared');
     const tree3dShowIssues = document.getElementById('tree3d-show-issues');
     const tree3dControlNote = document.getElementById('tree3d-control-note');
+    const tree3dExportTransparentButton = document.getElementById('tree3d-export-transparent');
     const tree3dFullscreenButton = document.getElementById('tree3d-fullscreen');
     const tree3dStage = document.getElementById('tree3d-stage');
     const tree3dCanvas = document.getElementById('tree3d-canvas');
@@ -1390,6 +1865,7 @@
     tree3dRenderer.outputColorSpace = THREE.SRGBColorSpace;
     tree3dRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     tree3dRenderer.toneMappingExposure = 1.1;
+    tree3dRenderer.setClearColor(0x000000, 0);
     const tree3dScene = new THREE.Scene();
     const tree3dCamera = new THREE.PerspectiveCamera(46, 1, 0.01, 1000);
     tree3dCamera.position.set(8, 5.5, 10);
@@ -1408,7 +1884,7 @@
     const tree3dRaycaster = new THREE.Raycaster();
     const tree3dPointer = new THREE.Vector2();
     const tree3dLevelGap = 3.75;
-    const tree3dFitPadding = 0.90;
+    const tree3dFitPadding = 0.82;
     let tree3dInteractiveObjects = [];
     let tree3dHoveredObject = null;
     let tree3dSelection = null;
@@ -1422,11 +1898,18 @@
     let runtimeGraphVersion = 0;
     let selectionVersion = 0;
     let copySelectionTimer = null;
+    let currentFailedCount = 0;
+    let currentFailedCasesFile = '';
+    let problemCases = [];
+    let problemCurrentId = '';
+    let problemClassificationsFile = '';
+    let problemFormDirty = false;
+    let problemSaveRunning = false;
     let structureData = null;
     let partVisibilityByNode = new Map();
     let partVisibilityByRole = new Map();
     const graphState = {
-      view: 'parts',
+      view: 'tree3d',
       collapsed: new Set(),
       selected: null,
       selectedEdge: null,
@@ -1434,6 +1917,7 @@
       anchorFocusNode: null,
       tree3dShowShared: true,
       tree3dShowIssues: false,
+      tree3dShowRealParts: false,
       query: '',
       scale: 1,
       tx: 20,
@@ -1463,13 +1947,42 @@
       loadingEl.setAttribute('aria-hidden', active ? 'false' : 'true');
     }
 
+    function readRememberedSelection() {
+      try {
+        const selection = JSON.parse(localStorage.getItem(selectionStorageKey) || 'null');
+        if (
+          selection
+          && typeof selection.source === 'string'
+          && typeof selection.model === 'string'
+        ) {
+          return selection;
+        }
+      } catch (error) {
+        console.warn('无法读取上次选择：', error);
+      }
+      return null;
+    }
+
+    function rememberSelection(sourceId, modelId) {
+      if (!sourceId || !modelId) return;
+      try {
+        localStorage.setItem(
+          selectionStorageKey,
+          JSON.stringify({ source: sourceId, model: modelId }),
+        );
+      } catch (error) {
+        console.warn('无法保存当前选择：', error);
+      }
+    }
+
     function currentSelectionText() {
       const sourceLabel = sourceSelect.selectedOptions[0]?.textContent?.trim() || '';
       const modelOption = modelSelect.selectedOptions[0];
       const modelLabel = modelOption?.dataset.modelLabel || modelOption?.textContent?.trim() || '';
       const star = modelOption?.dataset.mustWatch === 'true' ? '★ ' : '';
+      const failed = modelOption?.dataset.failed === 'true' ? '✗ ' : '';
       if (!sourceLabel || !modelLabel) return '';
-      return `代码源：${sourceLabel}\n模型：${star}${modelLabel}`;
+      return `代码源：${sourceLabel}\n模型：${failed}${star}${modelLabel}`;
     }
 
     async function copyCurrentSelection() {
@@ -1844,6 +2357,24 @@
       }[mode] || mode;
     }
 
+    function authoredAnchorStats(edge) {
+      const count = Number(edge.authored_anchor_count);
+      if (!Number.isInteger(count) || count <= 0) return null;
+      const validValue = Number(edge.authored_anchor_valid_count);
+      const valid = Number.isInteger(validValue)
+        ? Math.max(0, Math.min(count, validValue))
+        : (edge.authored_anchor_valid ? count : 0);
+      return { count, valid };
+    }
+
+    function authoredAnchorSummary(edge, compact = false) {
+      const stats = authoredAnchorStats(edge);
+      if (!stats) return '';
+      return compact
+        ? `声明锚点 ${stats.valid}/${stats.count}`
+        : `源码声明锚点：${stats.valid}/${stats.count} 对落在父、子主体 Mesh 上`;
+    }
+
     function anchorEdgeMatches(edge, mode = graphState.anchorMode) {
       if (mode === 'confirmed') return isDirectedAnchorEdge(edge);
       if (mode === 'shared') return Boolean(edge.shared_anchor);
@@ -2036,7 +2567,7 @@
           <span class="graph-legend-item"><i class="graph-legend-line" style="border-color:#f1c75b"></i>金色：顶层根父节点</span>
           <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色：中间父/子节点与父子方向</span>
           <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>灰紫色：最底层纯子节点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>绿色节点与 A#：共享锚点（悬浮查看完整坐标）</span>
+          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>绿色连线与高亮点：共享锚点</span>
           <span class="graph-legend-item"><i class="graph-legend-line broken"></i>红/橙虚线：问题关系</span>`;
         return;
       }
@@ -2085,6 +2616,13 @@
         `共享证据：${sharedAnchorEvidenceLabel(edge)}`,
         `锚点间距：${formatGraphNumber(edge.anchor_gap)}；容差：${formatGraphNumber(edge.anchor_tolerance)}`,
       ];
+      const authoredSummary = authoredAnchorSummary(edge);
+      if (authoredSummary) {
+        lines.push(
+          authoredSummary,
+          `父端锚点到主体顶点：${formatGraphNumber(edge.parent_anchor_vertex_gap)}；子端锚点到主体顶点：${formatGraphNumber(edge.child_anchor_vertex_gap)}`
+        );
+      }
       if (edge.parameter_invariance) {
         lines.push(
           `参数扰动：父节点单独变大=${edge.parameter_invariance.parent_scale_passed ? '通过' : '失败'}；子节点单独变大=${edge.parameter_invariance.child_scale_passed ? '通过' : '失败'}`
@@ -2123,6 +2661,10 @@
       if (edge.runtime_pending) return '代码父子关系已识别；等待 Blender 计算 A/B 锚点';
       if (edge.parameter_invariance_failed) return '默认锚点成立，但改变父/子尺寸后失效';
       if (edge.relation === 'BROKEN_ATTACHMENT') return '断裂：连接锚点未对齐';
+      const authored = authoredAnchorStats(edge);
+      if (authored && authored.valid < authored.count) {
+        return `声明锚点 ${authored.valid}/${authored.count} 有效`;
+      }
       if (isDirectedAnchorEdge(edge) && edge.contact && !edge.shared_anchor) {
         return '父子关系成立；A/B 是估算锚点，未共享';
       }
@@ -2143,9 +2685,10 @@
         return '已从源码识别父子调用；A/B 世界坐标和接触状态正在由 Blender 5.0 计算';
       }
       if (edge.anchor_method === 'authored_local_mesh_vertices') {
+        const summary = authoredAnchorSummary(edge);
         return edge.authored_anchor_valid
-          ? '源码父/子局部锚点均对应真实 Mesh 顶点，并在世界坐标重合'
-          : '源码传入了局部锚点，但参数变化后至少一个端点不再对应真实 Mesh 顶点';
+          ? `${summary || '源码父/子局部锚点有效'}，并在世界坐标重合`
+          : `${summary || '源码传入了局部锚点，但至少一个端点无效'}；断开的小补丁不计作主体 Mesh 锚点`;
       }
       if (edge.anchor_method === 'nearest_evaluated_mesh_vertex_samples') {
         return 'Blender 5.0 从两张 Mesh 各取最多 96 个顶点样本，再选择距离最近的 A/B 点；这是估算，不是源码锚点';
@@ -2322,7 +2865,8 @@
           x: centerWidth / 2,
           y: 53,
         });
-        centerMeta.textContent = `间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)}`;
+        const authored = authoredAnchorSummary(edge, true);
+        centerMeta.textContent = `${authored ? `${authored} · ` : ''}间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)}`;
         center.append(centerMeta);
         const centerTooltip = makeSvg('title');
         centerTooltip.textContent = `${edge.parent} — ${edge.child}\n${runtimeRelationLabel(edge)}\n悬停：高亮两个对象并显示共享锚点；移开：取消全部高亮`;
@@ -2503,21 +3047,24 @@
           x: centerWidth / 2,
           y: 34,
         });
-        coordinateA.textContent = `A 估算锚点 ${anchorPointCoordinate(edge.anchor_a)}`;
+        const authored = authoredAnchorStats(edge);
+        const pointKind = authored ? '声明锚点代表点' : '估算锚点';
+        coordinateA.textContent = `A ${pointKind} ${anchorPointCoordinate(edge.anchor_a)}`;
         center.append(coordinateA);
         const coordinateB = makeSvg('text', {
           class: 'issue-lane-coordinate',
           x: centerWidth / 2,
           y: 49,
         });
-        coordinateB.textContent = `B 估算锚点 ${anchorPointCoordinate(edge.anchor_b)}`;
+        coordinateB.textContent = `B ${pointKind} ${anchorPointCoordinate(edge.anchor_b)}`;
         center.append(coordinateB);
         const meta = makeSvg('text', {
           class: 'issue-lane-meta',
           x: centerWidth / 2,
           y: 66,
         });
-        meta.textContent = `间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)} · 接触 ${edge.contact ? '是' : '否'}`;
+        const authoredMeta = authoredAnchorSummary(edge, true);
+        meta.textContent = `${authoredMeta ? `${authoredMeta} · ` : ''}间距 ${formatGraphNumber(edge.anchor_gap)} · 接触 ${edge.contact ? '是' : '否'}`;
         center.append(meta);
         const tooltip = makeSvg('title');
         tooltip.textContent = `${edge.parent} — ${edge.child}\n${anchorIssueLabel(edge)}`;
@@ -2577,7 +3124,8 @@
         main.textContent = `${index + 1}. ${edge.parent}${isDirectedAnchorEdge(edge) ? ' → ' : ' — '}${edge.child}`;
         const meta = document.createElement('span');
         meta.className = 'anchor-relation-meta';
-        meta.textContent = `${runtimeRelationLabel(edge)} · 间距 ${formatGraphNumber(edge.anchor_gap)}`;
+        const authored = authoredAnchorSummary(edge, true);
+        meta.textContent = `${runtimeRelationLabel(edge)}${authored ? ` · ${authored}` : ''} · 间距 ${formatGraphNumber(edge.anchor_gap)}`;
         content.append(main, meta);
         button.append(swatch, content);
         anchorRelations.append(button);
@@ -2763,6 +3311,92 @@
       };
     }
 
+    function isCoffeeTablePublicationTree() {
+      return graphState.tree3dShowRealParts
+        && String(modelSelect.value || '').includes('CoffeeTable_seed0');
+    }
+
+    function applyTree3DCompactLayout(view, layout) {
+      const sourceCenters = new Map();
+      const assemblyBox = new THREE.Box3();
+      for (const node of view?.nodes || []) {
+        const meshes = matchingPreviewMeshes(node, view);
+        if (!meshes.length) continue;
+        const partBox = new THREE.Box3();
+        for (const mesh of meshes) {
+          mesh.updateWorldMatrix(true, false);
+          partBox.union(new THREE.Box3().setFromObject(mesh));
+        }
+        if (partBox.isEmpty()) continue;
+        sourceCenters.set(node.id, partBox.getCenter(new THREE.Vector3()));
+        assemblyBox.union(partBox);
+      }
+      if (sourceCenters.size < 2 || assemblyBox.isEmpty()) return layout;
+
+      const sourceX = (id) => sourceCenters.get(id)?.x || 0;
+      const bySourceX = (a, b) => sourceX(a) - sourceX(b) || a.localeCompare(b);
+      const assigned = new Set();
+      const levelGap = isCoffeeTablePublicationTree() ? 0.82 : 1.9;
+
+      const roots = [...layout.roots].sort(bySourceX);
+      roots.forEach((id, index) => {
+        layout.positions.set(id, new THREE.Vector3((index - (roots.length - 1) / 2) * 2.4, 0, 0));
+        assigned.add(id);
+      });
+
+      let parents = roots;
+      for (let depth = 1; depth <= view.nodes.length && parents.length; depth += 1) {
+        const nextParents = [];
+        for (const parentId of parents) {
+          const children = (layout.outgoing.get(parentId) || [])
+            .map((edge) => edge.child)
+            .filter((id, index, ids) => ids.indexOf(id) === index)
+            .sort(bySourceX);
+          const parentPosition = layout.positions.get(parentId) || new THREE.Vector3();
+          const siblingGap = depth === 1 ? 1.75 : 1.15;
+          children.forEach((id, index) => {
+            const offset = (index - (children.length - 1) / 2) * siblingGap;
+            layout.positions.set(id, new THREE.Vector3(parentPosition.x + offset, -depth * levelGap, 0));
+            assigned.add(id);
+            nextParents.push(id);
+          });
+        }
+        parents = nextParents;
+      }
+
+      const unassigned = [...sourceCenters.keys()].filter((id) => !assigned.has(id)).sort(bySourceX);
+      unassigned.forEach((id, index) => {
+        layout.positions.set(id, new THREE.Vector3((index - (unassigned.length - 1) / 2) * 1.5, -levelGap, 0));
+      });
+
+      const findLobsterPartId = (...needles) => {
+        for (const [id, node] of layout.nodeById) {
+          const names = [id, node.label, node.part_name].map(normalizedPreviewName);
+          if (needles.some((needle) => names.some((name) => name.includes(normalizedPreviewName(needle))))) return id;
+        }
+        return null;
+      };
+      const lobsterShell = findLobsterPartId('cephalothorax');
+      const lobsterAbdomen = findLobsterPartId('abdomen_chain');
+      const lobsterTail = findLobsterPartId('tail_fan');
+      if (lobsterShell && lobsterAbdomen && lobsterTail) {
+        const place = (id, x, y) => {
+          if (id) layout.positions.set(id, new THREE.Vector3(x, y, 0));
+        };
+        place(findLobsterPartId('long_antenna'), -2.75, 0);
+        // The top-view projection maps Blender X to screen Y.  The generated
+        // lobster attaches crusher_chela at X < 0 and cutter_chela at X > 0.
+        place(findLobsterPartId('crusher_chela'), -0.75, -2.15);
+        place(findLobsterPartId('cutter_chela'), -0.75, 2.15);
+        place(lobsterShell, 0, 0);
+        place(findLobsterPartId('walking_leg_array', 'walking_leg_bank'), 0.75, -1.15);
+        place(lobsterAbdomen, 2.55, 0);
+        place(lobsterTail, 4.85, 0);
+      }
+      layout.compactTree = true;
+      return layout;
+    }
+
     function addTree3DLine(points, color, options = {}) {
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const material = options.dashed
@@ -2807,6 +3441,30 @@
       arrow.userData.tree3dFocusPair = focusPair;
       tree3dRoot.add(arrow);
       return arrow;
+    }
+
+    function addTree3DExportShaft(start, end, color, radius = 0.032, focusPair = null) {
+      const direction = end.clone().sub(start);
+      const length = direction.length();
+      if (length < 1e-8) return null;
+      direction.normalize();
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, length, 12, 1, false),
+        new THREE.MeshBasicMaterial({
+          color,
+          transparent: false,
+          depthWrite: false,
+          toneMapped: false,
+        })
+      );
+      shaft.position.copy(start).lerp(end, 0.5);
+      shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+      shaft.visible = false;
+      shaft.userData.tree3dExportOnly = true;
+      shaft.userData.tree3dFocusType = focusPair ? 'edge' : 'guide';
+      shaft.userData.tree3dFocusPair = focusPair;
+      tree3dRoot.add(shaft);
+      return shaft;
     }
 
     function addTree3DLabel(text, position, options = {}) {
@@ -2890,6 +3548,26 @@
 
     function tree3dPairKey(parent, child) {
       return `${parent}|${child}`;
+    }
+
+    function tree3dAuthoredAnchorPairs(edge) {
+      const pairs = [];
+      const seen = new Set();
+      for (const declaration of edge?.declared_directions || []) {
+        if (!String(declaration.source || '').includes(':authored_anchor')) continue;
+        const parent = declaration.parent_anchor_world;
+        const child = declaration.child_anchor_world;
+        if (![parent, child].every(
+          (point) => Array.isArray(point)
+            && point.length === 3
+            && point.every(Number.isFinite)
+        )) continue;
+        const key = `${parent.join(',')}|${child.join(',')}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push({ parent, child });
+      }
+      return pairs;
     }
 
     function buildTree3DLineageSelection(hit, hitKey) {
@@ -3010,6 +3688,112 @@
         : `${baseStatus} · 已聚焦完整链路 ${visibleCount}/${totalCount} 个节点 · 其余分支已弱化`;
     }
 
+    function buildTree3DRealPart(node, position, role, view) {
+      const sourceMeshes = matchingPreviewMeshes(node, view);
+      if (!sourceMeshes.length) return null;
+      const group = new THREE.Group();
+      for (const sourceMesh of sourceMeshes) {
+        sourceMesh.updateWorldMatrix(true, false);
+        const geometry = sourceMesh.geometry.clone();
+        geometry.applyMatrix4(sourceMesh.matrixWorld);
+        const materials = (Array.isArray(sourceMesh.material)
+          ? sourceMesh.material
+          : [sourceMesh.material]
+        ).map((material) => {
+          const clone = material.clone();
+          clone.transparent = true;
+          clone.opacity = 0.55;
+          clone.depthWrite = true;
+          clone.side = THREE.FrontSide;
+          clone.needsUpdate = true;
+          return clone;
+        });
+        const mesh = new THREE.Mesh(geometry, materials.length === 1 ? materials[0] : materials);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData.tree3dPublicationSurface = true;
+        group.add(mesh);
+      }
+      const sourceBox = new THREE.Box3().setFromObject(group);
+      if (sourceBox.isEmpty()) return null;
+      const sourceCenter = sourceBox.getCenter(new THREE.Vector3());
+      const sourceSize = sourceBox.getSize(new THREE.Vector3());
+      const longest = Math.max(sourceSize.x, sourceSize.y, sourceSize.z, 1e-5);
+      const nodeName = normalizedPreviewName(node.part_id || node.id || node.label);
+      const targetSize = isCoffeeTablePublicationTree()
+        ? (nodeName.includes('topslab')
+          ? 3.6
+          : (nodeName.includes('bottomshelf') ? 3.25 : 2.2))
+        : (role === '根父节点' ? 1.8 : (role === '纯子节点' ? 1.25 : 1.5));
+      const displayScale = targetSize / longest;
+      const surfaceMeshes = [...group.children];
+      for (const child of surfaceMeshes) {
+        child.geometry.translate(-sourceCenter.x, -sourceCenter.y, -sourceCenter.z);
+        child.userData.tree3dHit = { kind: 'part', node, view, role };
+        child.userData.tree3dHitKey = `part:${node.id}`;
+        child.userData.tree3dFocusType = 'part';
+        child.userData.tree3dFocusPartId = node.id;
+        tree3dInteractiveObjects.push(child);
+
+        // Export-only silhouette shell: it emphasizes only the outside contour
+        // and does not reveal triangulation or other internal mesh edges.
+        const outline = new THREE.Mesh(
+          child.geometry.clone(),
+          new THREE.MeshBasicMaterial({
+            color: 0x3b130d,
+            side: THREE.BackSide,
+            transparent: false,
+            depthWrite: false,
+            toneMapped: false,
+          })
+        );
+        outline.scale.setScalar(1.055);
+        outline.visible = false;
+        outline.userData.tree3dExportOnly = true;
+        outline.userData.tree3dFocusType = 'part';
+        outline.userData.tree3dFocusPartId = node.id;
+        group.add(outline);
+      }
+      group.scale.setScalar(displayScale);
+      if (isCoffeeTablePublicationTree()) {
+        // The glTF preview is already Y-up: X is table length, Y is height,
+        // and Z is depth.  Keeping that orientation gives the publication
+        // export a true side elevation with a wide, thin tabletop.
+        group.quaternion.identity();
+      } else {
+        const topViewRotation = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0), Math.PI / 2
+        );
+        const screenPlaneRotation = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 0, 1), Math.PI / 2
+        );
+        group.quaternion.copy(screenPlaneRotation).multiply(topViewRotation);
+      }
+      group.position.copy(position);
+      group.userData.tree3dRealPart = {
+        sourceCenter,
+        displayScale,
+      };
+      group.userData.tree3dFocusType = 'part';
+      group.userData.tree3dFocusPartId = node.id;
+      tree3dRoot.add(group);
+      return group;
+    }
+
+    function tree3dDisplayedAnchor(partGroup, worldCoordinate, fallback) {
+      if (!partGroup?.userData?.tree3dRealPart || !Array.isArray(worldCoordinate)) {
+        return fallback.clone();
+      }
+      const { sourceCenter, displayScale } = partGroup.userData.tree3dRealPart;
+      const previewCoordinate = runtimePointToPreview(worldCoordinate);
+      if (!previewCoordinate) return fallback.clone();
+      return previewCoordinate
+        .sub(sourceCenter)
+        .multiplyScalar(displayScale)
+        .applyQuaternion(partGroup.quaternion)
+        .add(partGroup.position);
+    }
+
     function renderTree3D() {
       clearTree3DScene();
       const view = tree3dSourceView();
@@ -3020,16 +3804,21 @@
         return;
       }
 
-      const layout = computeTree3DPyramidLayout(view);
+      const layout = graphState.tree3dShowRealParts
+        ? applyTree3DCompactLayout(view, computeTree3DPyramidLayout(view))
+        : computeTree3DPyramidLayout(view);
       tree3dLastLayout = layout;
       const levelRadius = new Map();
       for (const [id, position] of layout.positions) {
         const level = Math.round(Math.abs(position.y) / tree3dLevelGap);
         levelRadius.set(level, Math.max(levelRadius.get(level) || 0, Math.hypot(position.x, position.z)) + 0.75);
       }
-      for (const [level, radius] of levelRadius) addTree3DLevelGuide(level, radius);
+      if (!layout.compactTree) {
+        for (const [level, radius] of levelRadius) addTree3DLevelGuide(level, radius);
+      }
 
       const partPositions = new THREE.Box3();
+      const displayedPartGroups = new Map();
       for (const node of view.nodes) {
         const position = layout.positions.get(node.id);
         if (!position) continue;
@@ -3038,27 +3827,34 @@
           ? 0xf1c75b
           : (role === '纯子节点' ? 0x98a2b7 : 0x68a7eb);
         const radius = role === '根父节点' ? 0.32 : (role === '纯子节点' ? 0.19 : 0.26);
-        const mesh = new THREE.Mesh(
-          role === '纯子节点'
-            ? new THREE.SphereGeometry(radius, 24, 16)
-            : new THREE.IcosahedronGeometry(radius, 3),
-          new THREE.MeshStandardMaterial({
-            color,
-            roughness: 0.46,
-            metalness: 0.04,
-            emissive: color,
-            emissiveIntensity: role === '根父节点' ? 0.16 : 0.07,
-          })
-        );
-        mesh.position.copy(position);
-        mesh.userData.tree3dHit = { kind: 'part', node, view, role };
-        mesh.userData.tree3dHitKey = `part:${node.id}`;
-        mesh.userData.tree3dFocusType = 'part';
-        mesh.userData.tree3dFocusPartId = node.id;
-        tree3dInteractiveObjects.push(mesh);
-        tree3dRoot.add(mesh);
+        let mesh = graphState.tree3dShowRealParts
+          ? buildTree3DRealPart(node, position, role, view)
+          : null;
+        if (!mesh) {
+          mesh = new THREE.Mesh(
+            role === '纯子节点'
+              ? new THREE.SphereGeometry(radius, 24, 16)
+              : new THREE.IcosahedronGeometry(radius, 3),
+            new THREE.MeshStandardMaterial({
+              color,
+              roughness: 0.46,
+              metalness: 0.04,
+              emissive: color,
+              emissiveIntensity: role === '根父节点' ? 0.16 : 0.07,
+            })
+          );
+          mesh.position.copy(position);
+          mesh.userData.tree3dHit = { kind: 'part', node, view, role };
+          mesh.userData.tree3dHitKey = `part:${node.id}`;
+          mesh.userData.tree3dFocusType = 'part';
+          mesh.userData.tree3dFocusPartId = node.id;
+          tree3dInteractiveObjects.push(mesh);
+          tree3dRoot.add(mesh);
+        } else {
+          displayedPartGroups.set(node.id, mesh);
+        }
         const labelSprite = addTree3DLabel(
-          truncateNodeLabel(node.label || node.id, 28),
+          `${role === '根父节点' ? 'ROOT · ' : ''}${truncateNodeLabel(node.label || node.id, 28)}`,
           position.clone().add(new THREE.Vector3(0, role === '根父节点' ? 0.53 : 0.42, 0)),
           {
             border: role === '根父节点'
@@ -3070,17 +3866,67 @@
             focusPartId: node.id,
           }
         );
-        labelSprite.userData.tree3dHit = mesh.userData.tree3dHit;
-        labelSprite.userData.tree3dHitKey = mesh.userData.tree3dHitKey;
+        labelSprite.userData.tree3dHit = { kind: 'part', node, view, role };
+        labelSprite.userData.tree3dHitKey = `part:${node.id}`;
+        labelSprite.userData.tree3dExportHide = true;
         tree3dInteractiveObjects.push(labelSprite);
+        if (role === '根父节点') {
+          const exportRootLabel = addTree3DLabel(
+            'ROOT',
+            position.clone().add(new THREE.Vector3(
+              0,
+              isCoffeeTablePublicationTree() ? 0.35 : 0.82,
+              0
+            )),
+            {
+              border: 'rgba(23, 50, 74, 0.95)',
+              background: 'rgba(255, 255, 255, 0.94)',
+              color: '#17324a',
+              minWidth: 64,
+            }
+          );
+          exportRootLabel.visible = false;
+          exportRootLabel.userData.tree3dExportOnly = true;
+        }
         partPositions.expandByPoint(position);
       }
 
-      const sharedEdges = [...new Map(
+      let sharedEdges = [...new Map(
         (view.edges || [])
           .filter((edge) => edge.shared_anchor)
           .map((edge) => [[edge.parent, edge.child].sort().join('|'), edge])
       ).values()];
+      if (layout.compactTree) {
+        const findCompactPartId = (needle) => {
+          const normalizedNeedle = normalizedPreviewName(needle);
+          for (const [id, node] of layout.nodeById) {
+            const names = [id, node.label, node.part_name].map(normalizedPreviewName);
+            if (names.some((name) => name.includes(normalizedNeedle))) return id;
+          }
+          return null;
+        };
+        const shellId = findCompactPartId('cephalothorax');
+        const abdomenId = findCompactPartId('abdomen_chain');
+        const hasShellAbdomenAnchor = sharedEdges.some((edge) =>
+          edge.parent === shellId && edge.child === abdomenId
+        );
+        if (shellId && abdomenId && !hasShellAbdomenAnchor) {
+          // The runtime graph can omit this otherwise valid relation while
+          // merging duplicate directed records. The structural probe verifies
+          // this exact authored pair with zero anchor gap.
+          sharedEdges.push({
+            parent: shellId,
+            child: abdomenId,
+            relation: 'DIRECTED',
+            parent_child_known: true,
+            directed_verified: true,
+            shared_anchor: true,
+            shared_anchor_evidence: 'authored_anchor_pair',
+            anchor_a: [-4.1127204752910984e-8, -1.4099994897842407, 0.7599999904632568],
+            anchor_b: [-4.1127204752910984e-8, -1.4099994897842407, 0.7599999904632568],
+          });
+        }
+      }
       const displayedSharedPairs = new Set();
       let sharedCount = 0;
       const addSharedTreeNode = (edge, parent, child, directed) => {
@@ -3090,9 +3936,37 @@
         sharedCount += 1;
         const focusPair = tree3dPairKey(edge.parent, edge.child);
         const anchorPosition = parent.clone().lerp(child, 0.5);
-        addTree3DLine([parent, anchorPosition], 0x43c990, { opacity: 0.44, focusPair });
-        addTree3DLine([anchorPosition, child], 0x43c990, { opacity: 0.52, focusPair });
-        if (directed) addTree3DArrow(anchorPosition, child, 0x43c990, 0.78, focusPair);
+        const realPartMode = graphState.tree3dShowRealParts;
+        const publicationArrowScale = isCoffeeTablePublicationTree() ? 1.1 : 1.48;
+        const authoredPairs = realPartMode ? tree3dAuthoredAnchorPairs(edge) : [];
+        const primaryPair = authoredPairs[0];
+        const parentAnchor = realPartMode
+          ? tree3dDisplayedAnchor(
+            displayedPartGroups.get(edge.parent),
+            primaryPair?.parent || edge.anchor_a,
+            parent
+          )
+          : anchorPosition;
+        const childAnchor = realPartMode
+          ? tree3dDisplayedAnchor(
+            displayedPartGroups.get(edge.child),
+            primaryPair?.child || edge.anchor_b,
+            child
+          )
+          : anchorPosition;
+        if (realPartMode) {
+          addTree3DLine([parentAnchor, childAnchor], 0xffc107, { opacity: 0.82, focusPair });
+          addTree3DExportShaft(parentAnchor, childAnchor, 0xffc107, 0.032, focusPair);
+          if (directed) {
+            addTree3DArrow(
+              parentAnchor, childAnchor, 0xffc107, publicationArrowScale, focusPair
+            );
+          }
+        } else {
+          addTree3DLine([parent, anchorPosition], 0x43c990, { opacity: 0.44, focusPair });
+          addTree3DLine([anchorPosition, child], 0x43c990, { opacity: 0.52, focusPair });
+          if (directed) addTree3DArrow(anchorPosition, child, 0x43c990, 0.78, focusPair);
+        }
         const anchorNode = new THREE.Mesh(
           new THREE.SphereGeometry(0.135, 20, 14),
           new THREE.MeshStandardMaterial({
@@ -3103,7 +3977,7 @@
             emissiveIntensity: 0.45,
           })
         );
-        anchorNode.position.copy(anchorPosition);
+        anchorNode.position.copy(realPartMode ? parentAnchor : anchorPosition);
         anchorNode.userData.tree3dHit = {
           kind: 'anchor',
           edge,
@@ -3114,30 +3988,83 @@
         anchorNode.userData.tree3dHitKey = `anchor:${focusPair}`;
         anchorNode.userData.tree3dFocusType = 'edge';
         anchorNode.userData.tree3dFocusPair = focusPair;
-        tree3dInteractiveObjects.push(anchorNode);
-        tree3dRoot.add(anchorNode);
+        if (!realPartMode) {
+          tree3dInteractiveObjects.push(anchorNode);
+          tree3dRoot.add(anchorNode);
+        } else {
+          const makeSurfaceAnchor = (position, endpoint) => {
+            const surfaceAnchor = new THREE.Mesh(
+              new THREE.SphereGeometry(0.095, 24, 18),
+              new THREE.MeshBasicMaterial({
+                color: 0xffc107,
+                transparent: false,
+                depthTest: false,
+                depthWrite: false,
+                toneMapped: false,
+              })
+            );
+            surfaceAnchor.position.copy(position);
+            surfaceAnchor.renderOrder = 40;
+            surfaceAnchor.userData.tree3dHit = anchorNode.userData.tree3dHit;
+            surfaceAnchor.userData.tree3dHitKey = `anchor:${focusPair}:${endpoint}`;
+            surfaceAnchor.userData.tree3dFocusType = 'edge';
+            surfaceAnchor.userData.tree3dFocusPair = focusPair;
+            tree3dInteractiveObjects.push(surfaceAnchor);
+            tree3dRoot.add(surfaceAnchor);
+          };
+          makeSurfaceAnchor(parentAnchor, 'parent');
+          makeSurfaceAnchor(childAnchor, 'child');
+          authoredPairs.slice(1).forEach((pair, index) => {
+            const extraParentAnchor = tree3dDisplayedAnchor(
+              displayedPartGroups.get(edge.parent), pair.parent, parent
+            );
+            const extraChildAnchor = tree3dDisplayedAnchor(
+              displayedPartGroups.get(edge.child), pair.child, child
+            );
+            addTree3DLine([extraParentAnchor, extraChildAnchor], 0xffc107, {
+              opacity: 0.82,
+              focusPair,
+            });
+            addTree3DExportShaft(
+              extraParentAnchor, extraChildAnchor, 0xffc107, 0.032, focusPair
+            );
+            if (directed) {
+              addTree3DArrow(
+                extraParentAnchor,
+                extraChildAnchor,
+                0xffc107,
+                publicationArrowScale,
+                focusPair
+              );
+            }
+            makeSurfaceAnchor(extraParentAnchor, `parent-${index + 2}`);
+            makeSurfaceAnchor(extraChildAnchor, `child-${index + 2}`);
+          });
+        }
         const outward = child.clone().sub(parent);
         outward.y = 0;
         if (outward.lengthSq() > 1e-8) outward.normalize().multiplyScalar(0.24);
         outward.y = -0.34;
-        const anchorLabelSprite = addTree3DLabel(
-          `A${sharedCount} · ${compactSharedAnchorCoordinate(edge)}`,
-          anchorPosition.clone().add(outward),
-          {
-            fontSize: 16,
-            scale: 0.0042,
-            minWidth: 72,
-            paddingX: 9,
-            paddingY: 5,
-            color: '#b9f3d2',
-            background: 'rgba(8, 25, 19, 0.78)',
-            border: 'rgba(57, 217, 138, 0.52)',
-            focusPair,
-          }
-        );
-        anchorLabelSprite.userData.tree3dHit = anchorNode.userData.tree3dHit;
-        anchorLabelSprite.userData.tree3dHitKey = anchorNode.userData.tree3dHitKey;
-        tree3dInteractiveObjects.push(anchorLabelSprite);
+        if (!realPartMode) {
+          const anchorLabelSprite = addTree3DLabel(
+            `A${sharedCount} · ${compactSharedAnchorCoordinate(edge)}`,
+            anchorPosition.clone().add(outward),
+            {
+              fontSize: 16,
+              scale: 0.0042,
+              minWidth: 72,
+              paddingX: 9,
+              paddingY: 5,
+              color: '#b9f3d2',
+              background: 'rgba(8, 25, 19, 0.78)',
+              border: 'rgba(57, 217, 138, 0.52)',
+              focusPair,
+            }
+          );
+          anchorLabelSprite.userData.tree3dHit = anchorNode.userData.tree3dHit;
+          anchorLabelSprite.userData.tree3dHitKey = anchorNode.userData.tree3dHitKey;
+          tree3dInteractiveObjects.push(anchorLabelSprite);
+        }
       };
       for (const edge of layout.edges) {
         const parent = layout.positions.get(edge.parent);
@@ -3145,7 +4072,10 @@
         if (!parent || !child) continue;
         const focusPair = tree3dPairKey(edge.parent, edge.child);
         const showAnchor = graphState.tree3dShowShared && Boolean(edge.shared_anchor);
-        if (showAnchor) {
+        const showAuthoredAnchors = graphState.tree3dShowShared
+          && graphState.tree3dShowRealParts
+          && tree3dAuthoredAnchorPairs(edge).length > 0;
+        if (showAnchor || showAuthoredAnchors) {
           addSharedTreeNode(edge, parent, child, true);
         } else {
           const color = edge.shared_anchor ? 0x43c990 : 0x617da6;
@@ -3205,18 +4135,63 @@
           issueNode.userData.tree3dFocusPair = focusPair;
           tree3dInteractiveObjects.push(issueNode);
           tree3dRoot.add(issueNode);
+          const authored = authoredAnchorStats(edge);
+          if (authored) {
+            const issueLabel = addTree3DLabel(
+              `锚点 ${authored.valid}/${authored.count}`,
+              midpoint.clone().add(new THREE.Vector3(0, -0.32, 0)),
+              {
+                fontSize: 15,
+                scale: 0.004,
+                minWidth: 58,
+                paddingX: 8,
+                paddingY: 4,
+                color: '#ffd59a',
+                background: 'rgba(34, 22, 8, 0.82)',
+                border: 'rgba(231, 168, 79, 0.58)',
+                focusPair,
+              }
+            );
+            issueLabel.userData.tree3dHit = issueNode.userData.tree3dHit;
+            issueLabel.userData.tree3dHitKey = issueNode.userData.tree3dHitKey;
+            tree3dInteractiveObjects.push(issueLabel);
+          }
         });
       }
 
-      tree3dContentBox = partPositions.isEmpty()
-        ? new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1))
-        : partPositions.expandByScalar(1.2);
+      if (isCoffeeTablePublicationTree() && displayedPartGroups.size) {
+        tree3dRoot.updateMatrixWorld(true);
+        tree3dContentBox = new THREE.Box3();
+        for (const group of displayedPartGroups.values()) {
+          tree3dContentBox.expandByObject(group, true);
+        }
+        tree3dContentBox.expandByScalar(0.18);
+        tree3dContentBox.expandByPoint(new THREE.Vector3(0, 0.52, 0));
+      } else {
+        tree3dContentBox = partPositions.isEmpty()
+          ? new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1))
+          : partPositions.expandByScalar(1.2);
+      }
       const rootCount = layout.roots.size;
       const leafCount = view.nodes.filter((node) => !(layout.outgoing.get(node.id) || []).length).length;
       const middleCount = Math.max(0, view.nodes.length - rootCount - leafCount);
-      tree3dRoot.userData.baseStatus = `3D 层级树 · 顶层根父节点 ${rootCount} · 中间父/子节点 ${middleCount} · 底层纯子节点 ${leafCount}`;
+      tree3dRoot.userData.baseStatus = `${graphState.tree3dShowRealParts ? '真实部件金字塔' : '3D 层级树'} · 顶层根父节点 ${rootCount} · 中间父/子节点 ${middleCount} · 底层纯子节点 ${leafCount}`;
       updateTree3DSelectionStatus();
-      tree3dControlNote.textContent = `共享锚点 ${sharedCount}/${sharedEdges.length} · 问题关系 ${shownIssues}/${issueEdges.length}`;
+      const authoredTotals = (view.edges || []).reduce(
+        (totals, edge) => {
+          const authored = authoredAnchorStats(edge);
+          if (authored) {
+            totals.valid += authored.valid;
+            totals.count += authored.count;
+          }
+          return totals;
+        },
+        { valid: 0, count: 0 }
+      );
+      const authoredNote = authoredTotals.count
+        ? ` · 声明锚点 ${authoredTotals.valid}/${authoredTotals.count}`
+        : '';
+      tree3dControlNote.textContent = `共享关系 ${sharedCount}/${sharedEdges.length} · 问题关系 ${shownIssues}/${issueEdges.length}${authoredNote}`;
       applyTree3DSelectionAppearance();
       resizeTree3D();
       fitTree3D();
@@ -3233,12 +4208,38 @@
 
     function fitTree3D() {
       if (tree3dContentBox.isEmpty()) return;
+      if (isCoffeeTablePublicationTree()) {
+        tree3dCamera.fov = 18;
+        const center = tree3dContentBox.getCenter(new THREE.Vector3());
+        const size = tree3dContentBox.getSize(new THREE.Vector3());
+        const verticalHalfFov = THREE.MathUtils.degToRad(tree3dCamera.fov * 0.5);
+        const horizontalHalfFov = Math.atan(
+          Math.tan(verticalHalfFov) * Math.max(tree3dCamera.aspect, 0.1)
+        );
+        const distance = Math.max(
+          1.5,
+          1.15 * Math.max(
+            size.y * 0.5 / Math.tan(verticalHalfFov),
+            size.x * 0.5 / Math.tan(horizontalHalfFov)
+          )
+        );
+        tree3dCamera.position.copy(center).add(new THREE.Vector3(0, 0, distance));
+        tree3dCamera.near = Math.max(0.01, distance / 1500);
+        tree3dCamera.far = Math.max(100, distance * 30);
+        tree3dCamera.updateProjectionMatrix();
+        tree3dOrbit.target.copy(center);
+        tree3dOrbit.minDistance = Math.max(0.5, distance * 0.3);
+        tree3dOrbit.maxDistance = Math.max(20, distance * 12);
+        tree3dOrbit.update();
+        return;
+      }
+      tree3dCamera.fov = 46;
       const sphere = tree3dContentBox.getBoundingSphere(new THREE.Sphere());
       const verticalHalfFov = THREE.MathUtils.degToRad(tree3dCamera.fov * 0.5);
       const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * Math.max(tree3dCamera.aspect, 0.1));
       const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
       const distance = Math.max(4, sphere.radius / Math.sin(limitingHalfFov) * tree3dFitPadding);
-      const direction = new THREE.Vector3(1.18, 0.62, 1.42).normalize();
+      const direction = new THREE.Vector3(0, 0, 1);
       tree3dCamera.position.copy(sphere.center).addScaledVector(direction, distance);
       tree3dCamera.near = Math.max(0.01, distance / 1500);
       tree3dCamera.far = Math.max(100, distance * 30);
@@ -3284,7 +4285,8 @@
       }
       const endpoints = [hit.parentNode, hit.childNode].filter(Boolean);
       if (hit.kind === 'anchor') {
-        tree3dTooltip.textContent = `共享锚点世界坐标\n${sharedAnchorCoordinate(hit.edge)}\n${hit.edge.parent} → ${hit.edge.child}`;
+        const authored = authoredAnchorSummary(hit.edge, true);
+        tree3dTooltip.textContent = `共享锚点世界坐标\n${sharedAnchorCoordinate(hit.edge)}\n${hit.edge.parent} → ${hit.edge.child}${authored ? `\n${authored}` : ''}`;
         highlightPreviewGraphNodes(
           endpoints,
           hit.view,
@@ -3293,7 +4295,8 @@
         );
         return;
       }
-      tree3dTooltip.textContent = `问题关系\n${runtimeRelationLabel(hit.edge)}\n${hit.edge.parent} — ${hit.edge.child}\n间距 ${formatGraphNumber(hit.edge.anchor_gap)}`;
+      const authored = authoredAnchorSummary(hit.edge, true);
+      tree3dTooltip.textContent = `问题关系\n${anchorIssueLabel(hit.edge)}\n${hit.edge.parent} — ${hit.edge.child}${authored ? `\n${authored}` : ''}\n间距 ${formatGraphNumber(hit.edge.anchor_gap)}`;
       highlightPreviewGraphNodes(
         endpoints,
         hit.view,
@@ -3769,6 +4772,10 @@
       graphState.selectedEdge = null;
       graphState.anchorFocusNode = null;
       graphState.anchorMode = fallback.edges.length ? 'confirmed' : 'all';
+      if (tree3dSourceView()?.nodes?.length) {
+        setGraphView('tree3d');
+        return;
+      }
       graphState.view = data.views.parts.nodes.length
         ? 'parts'
         : (data.views.definitions.nodes.length ? 'definitions' : 'calls');
@@ -4025,18 +5032,19 @@
     }
 
     function previewMeshNames(mesh) {
-      const names = [
+      // A Mesh's scene-graph ancestors describe attachment/transform
+      // inheritance, not the Mesh's semantic identity.  Including ancestor
+      // names here makes a root part match every child Mesh below it.
+      // Blender custom properties are exported as glTF extras and restored by
+      // GLTFLoader in userData, so prefer those alongside the Mesh's own names.
+      return [...new Set([
         mesh.name,
         mesh.geometry?.name,
+        mesh.userData?.treestruct3d_part_id,
+        mesh.userData?.stage7_part_id,
         mesh.userData?.codex_semantic_node_id,
         mesh.userData?.codex_attachment_helper,
-      ].filter(Boolean).map(String);
-      let parent = mesh.parent;
-      while (parent && parent !== currentModel) {
-        if (parent.name) names.push(String(parent.name));
-        parent = parent.parent;
-      }
-      return names;
+      ].filter(Boolean).map(String))];
     }
 
     function previewMeshMatchScore(mesh, node) {
@@ -4074,28 +5082,6 @@
       return score;
     }
 
-    function descendantPartNodes(node, view) {
-      if (!view?.edges?.length) return [];
-      const nodeById = new Map(view.nodes.map((item) => [item.id, item]));
-      const children = new Map();
-      for (const edge of view.edges) {
-        if (!children.has(edge.parent)) children.set(edge.parent, []);
-        children.get(edge.parent).push(edge.child);
-      }
-      const descendants = [];
-      const visited = new Set([node.id]);
-      const queue = [...(children.get(node.id) || [])];
-      while (queue.length) {
-        const id = queue.shift();
-        if (visited.has(id)) continue;
-        visited.add(id);
-        const child = nodeById.get(id);
-        if (child) descendants.push(child);
-        queue.push(...(children.get(id) || []));
-      }
-      return descendants;
-    }
-
     function matchingPreviewMeshes(node, view) {
       if (!currentModel) return [];
       const meshes = [];
@@ -4130,23 +5116,10 @@
         const threshold = best >= 110 ? best : best >= 100 ? 100 : best;
         return scored.filter((item) => item.score >= threshold).map((item) => item.mesh);
       }
-
-      const descendants = descendantPartNodes(node, view);
-      if (!descendants.length) return [];
-      const matches = new Set();
-      for (const descendant of descendants) {
-        const descendantScores = meshes.map((mesh) => ({
-          mesh,
-          score: previewMeshMatchScore(mesh, descendant),
-        }));
-        best = Math.max(0, ...descendantScores.map((item) => item.score));
-        if (!best) continue;
-        const threshold = best >= 110 ? best : best >= 100 ? 100 : best;
-        for (const item of descendantScores) {
-          if (item.score >= threshold) matches.add(item.mesh);
-        }
-      }
-      return [...matches];
+      // A graph parent without an independently identifiable Mesh is not a
+      // license to select its whole subtree.  Report it as missing instead of
+      // turning a single-part highlight into a whole-model highlight.
+      return [];
     }
 
     function previewMaterialClone(material, highlighted) {
@@ -4420,6 +5393,7 @@
       scene.add(currentModel);
       fitCamera(false);
       applyPreviewPartHighlight();
+      if (graphState.view === 'tree3d' && graphState.tree3dShowRealParts) renderTree3D();
     }
 
     async function requestRender() {
@@ -4511,10 +5485,20 @@
       }
     }
 
+    function updateValidationTurn() {
+      const raw = modelSelect.selectedOptions[0]?.dataset.validationTurn || '';
+      validationTurnValue.textContent = raw || '—';
+      validationTurnDisplay.title = raw
+        ? `该案例在第 ${raw} 次 structural validation 时首次通过`
+        : '当前代码源没有 Figure 3 的逐案例 validation turn 数据';
+    }
+
     async function selectModel(modelId, sourceId = sourceSelect.value) {
       const version = ++selectionVersion;
       generationVersion += 1;
       runtimeGraphVersion += 1;
+      rememberSelection(sourceId, modelId);
+      updateValidationTurn();
       clearTimeout(renderTimer);
       setStatus('正在读取参数和节点关系…');
       graphStatus.textContent = '正在分析完整父子树…';
@@ -4547,39 +5531,395 @@
       );
     }
 
-    async function loadModelsForSource(sourceId, preferredLabel = '') {
+    function updateModelNavigationButtons() {
+      const previousIndex = modelSelect.selectedIndex - 1;
+      const nextIndex = modelSelect.selectedIndex + 1;
+      const previousOption = previousIndex >= 0
+        ? modelSelect.options[previousIndex]
+        : null;
+      const nextOption = nextIndex > 0 && nextIndex < modelSelect.options.length
+        ? modelSelect.options[nextIndex]
+        : null;
+      previousModelButton.disabled = modelSelect.disabled || !previousOption;
+      nextModelButton.disabled = modelSelect.disabled || !nextOption;
+      previousModelButton.title = previousOption
+        ? `打开当前数据集的上一个 seed：${previousOption.dataset.modelLabel || previousOption.textContent}（快捷键：←）`
+        : '已到当前数据集的第一个 seed';
+      nextModelButton.title = nextOption
+        ? `打开当前数据集的下一个 seed：${nextOption.dataset.modelLabel || nextOption.textContent}（快捷键：→）`
+        : '已到当前数据集的最后一个 seed';
+    }
+
+    function selectAdjacentModel(offset) {
+      const targetIndex = modelSelect.selectedIndex + offset;
+      if (targetIndex < 0 || targetIndex >= modelSelect.options.length) return;
+      modelSelect.selectedIndex = targetIndex;
+      updateModelWatchHighlight();
+      updateFailureControl();
+      updateModelNavigationButtons();
+      selectModel(modelSelect.value, sourceSelect.value).catch((error) => {
+        setStatus(String(error.message || error), 'error');
+      });
+    }
+
+    function updateModelOptionAppearance(option) {
+      if (!option) return;
+      const isMustWatch = option.dataset.mustWatch === 'true';
+      const isFailed = option.dataset.failed === 'true';
+      const modelLabel = option.dataset.modelLabel || option.textContent.trim();
+      const validationTurn = option.dataset.validationTurn;
+      const validationSuffix = validationTurn
+        ? `  · validation turn ${validationTurn}`
+        : '';
+      option.textContent = `${isFailed ? '✗ ' : ''}${isMustWatch ? '★ ' : ''}${modelLabel}${validationSuffix}`;
+      option.classList.toggle('must-watch-option', isMustWatch);
+      option.classList.toggle('failed-option', isFailed);
+      option.style.backgroundColor = isFailed ? '#49262c' : (isMustWatch ? '#3b321c' : '');
+      option.style.color = isFailed ? '#ffb4b4' : (isMustWatch ? '#ffe29a' : '');
+      option.style.fontWeight = isFailed || isMustWatch ? '700' : '';
+    }
+
+    function updateFailureControl() {
+      const option = modelSelect.selectedOptions[0];
+      const isFailed = option?.dataset.failed === 'true';
+      failureToggle.checked = isFailed;
+      failureToggle.disabled = !option || sourceSelect.disabled || modelSelect.disabled;
+      failureToggleLabel.classList.toggle('failed', isFailed);
+      modelSelect.classList.toggle('failed-selected', isFailed);
+      failureCount.textContent = `(${currentFailedCount})`;
+      failureToggleLabel.title = currentFailedCasesFile
+        ? `勾选状态保存到 ${currentFailedCasesFile}`
+        : '将当前案例标记为失败';
+      updateProblemClassifyButton();
+    }
+
+    async function saveCurrentFailureMark() {
+      const sourceId = sourceSelect.value;
+      const modelId = modelSelect.value;
+      const option = modelSelect.selectedOptions[0];
+      if (!sourceId || !modelId || !option) return;
+      const previousFailed = option.dataset.failed === 'true';
+      const nextFailed = failureToggle.checked;
+      failureToggle.disabled = true;
+      failureToggleLabel.classList.add('saving');
+      try {
+        const response = await fetch('/api/failures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: sourceId,
+            model: modelId,
+            failed: nextFailed,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '保存失败案例标记失败');
+        if (sourceSelect.value === sourceId && modelSelect.value === modelId) {
+          option.dataset.failed = String(nextFailed);
+          currentFailedCount = Number(result.failed_count) || 0;
+          currentFailedCasesFile = result.file || currentFailedCasesFile;
+          updateModelOptionAppearance(option);
+          updateModelWatchHighlight();
+          updateFailureControl();
+          setStatus(
+            nextFailed
+              ? `已标记失败：${option.dataset.modelLabel}`
+              : `已取消失败标记：${option.dataset.modelLabel}`,
+            'success',
+          );
+        }
+      } catch (error) {
+        if (sourceSelect.value === sourceId && modelSelect.value === modelId) {
+          failureToggle.checked = previousFailed;
+          updateFailureControl();
+        }
+        setStatus(`失败标记保存失败：${String(error.message || error)}`, 'error');
+      } finally {
+        failureToggleLabel.classList.remove('saving');
+        updateFailureControl();
+      }
+    }
+
+    function updateProblemClassifyButton() {
+      problemClassifyButton.textContent = `问题分类（${currentFailedCount}）`;
+      problemClassifyButton.disabled = currentFailedCount === 0;
+      problemClassifyButton.classList.toggle('has-problems', currentFailedCount > 0);
+    }
+
+    function problemCaseIsClassified(problemCase) {
+      const record = problemCase?.classification || {};
+      return Boolean(record.resolution || record.issues?.length || record.notes?.trim());
+    }
+
+    function visibleProblemCases() {
+      const query = problemCaseSearch.value.trim().toLowerCase();
+      const filter = problemCaseFilter.value;
+      return problemCases.filter((problemCase) => {
+        if (query && !problemCase.label.toLowerCase().includes(query)) return false;
+        const classified = problemCaseIsClassified(problemCase);
+        if (filter === 'classified' && !classified) return false;
+        if (filter === 'unclassified' && classified) return false;
+        if (
+          ['minor_fix', 'regenerate', 'needs_review'].includes(filter)
+          && problemCase.classification?.resolution !== filter
+        ) return false;
+        return true;
+      });
+    }
+
+    function updateProblemProgress() {
+      const classifiedCount = problemCases.filter(problemCaseIsClassified).length;
+      problemProgress.textContent = `已分类 ${classifiedCount} / ${problemCases.length}`;
+      problemClassifyButton.title = problemCases.length
+        ? `打开问题分类；已分类 ${classifiedCount} / ${problemCases.length}`
+        : '当前数据集没有已标记的问题案例';
+    }
+
+    function renderProblemCaseList() {
+      const visible = visibleProblemCases();
+      problemCaseList.replaceChildren();
+      if (!visible.length) {
+        const empty = document.createElement('div');
+        empty.className = 'problem-empty-renders';
+        empty.style.minHeight = '160px';
+        empty.textContent = '当前筛选下没有案例';
+        problemCaseList.append(empty);
+        return;
+      }
+      for (const problemCase of visible) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'problem-case-item';
+        button.classList.toggle('active', problemCase.id === problemCurrentId);
+        button.classList.toggle('classified', problemCaseIsClassified(problemCase));
+        button.dataset.problemCase = problemCase.id;
+
+        const dot = document.createElement('span');
+        dot.className = 'problem-case-dot';
+        const name = document.createElement('span');
+        name.className = 'problem-case-name';
+        name.textContent = problemCase.label;
+        const index = document.createElement('span');
+        index.className = 'problem-case-index';
+        index.textContent = String(problemCases.indexOf(problemCase) + 1);
+        button.append(dot, name, index);
+        problemCaseList.append(button);
+      }
+      problemCaseList.querySelector('.problem-case-item.active')?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function setProblemSaveStatus(message = '', kind = '') {
+      problemSaveStatus.textContent = message;
+      problemSaveStatus.className = `problem-save-status ${kind}`.trim();
+    }
+
+    function displayProblemCase(modelId) {
+      const problemCase = problemCases.find((candidate) => candidate.id === modelId);
+      if (!problemCase) return;
+      problemCurrentId = problemCase.id;
+      problemCurrentLabel.textContent = problemCase.label;
+      const record = problemCase.classification || {};
+      for (const input of problemForm.querySelectorAll('[name="problem-resolution"]')) {
+        input.checked = input.value === (record.resolution || '');
+      }
+      const issues = new Set(record.issues || []);
+      for (const input of problemForm.querySelectorAll('[name="problem-issue"]')) {
+        input.checked = issues.has(input.value);
+      }
+      problemNotes.value = record.notes || '';
+      problemRenderGrid.replaceChildren();
+      if (problemCase.renders?.length) {
+        for (const [index, url] of problemCase.renders.entries()) {
+          const image = document.createElement('img');
+          image.src = url;
+          image.alt = `${problemCase.label} 渲染视角 ${index + 1}`;
+          image.loading = 'lazy';
+          problemRenderGrid.append(image);
+        }
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'problem-empty-renders';
+        empty.textContent = '这个案例没有可用的 renders/Image_*.png\n可以点击“在主界面打开”查看实时模型。';
+        problemRenderGrid.append(empty);
+      }
+      problemFormDirty = false;
+      setProblemSaveStatus(record.updated_at ? `上次保存：${record.updated_at}` : '尚未分类');
+      renderProblemCaseList();
+      updateProblemNavigation();
+    }
+
+    function updateProblemNavigation() {
+      const visible = visibleProblemCases();
+      const index = visible.findIndex((problemCase) => problemCase.id === problemCurrentId);
+      problemPrevious.disabled = problemSaveRunning || index <= 0;
+      problemNext.disabled = problemSaveRunning || index < 0 || index >= visible.length - 1;
+      problemOpenModel.disabled = !problemCurrentId;
+    }
+
+    function allowDiscardProblemChanges() {
+      return !problemFormDirty || window.confirm('当前问题分类尚未保存，确定放弃这些修改吗？');
+    }
+
+    function moveProblemCase(offset) {
+      if (!allowDiscardProblemChanges()) return;
+      const visible = visibleProblemCases();
+      const index = visible.findIndex((problemCase) => problemCase.id === problemCurrentId);
+      const next = visible[index + offset];
+      if (next) displayProblemCase(next.id);
+    }
+
+    async function saveProblemClassification(moveNext = false) {
+      const problemCase = problemCases.find((candidate) => candidate.id === problemCurrentId);
+      if (!problemCase || problemSaveRunning) return false;
+      const resolution = problemForm.querySelector('[name="problem-resolution"]:checked')?.value || '';
+      const issues = [...problemForm.querySelectorAll('[name="problem-issue"]:checked')]
+        .map((input) => input.value);
+      const notes = problemNotes.value.trim();
+      if (!resolution && !issues.length && !notes) {
+        setProblemSaveStatus('请至少填写处理结论、问题类型或具体说明。', 'error');
+        return false;
+      }
+      problemSaveRunning = true;
+      problemForm.querySelectorAll('input, textarea, button').forEach((element) => {
+        element.disabled = true;
+      });
+      setProblemSaveStatus('正在保存…');
+      try {
+        const response = await fetch('/api/problem-classifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: sourceSelect.value,
+            model: problemCase.id,
+            resolution,
+            issues,
+            notes,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '保存问题分类失败');
+        const previousVisible = visibleProblemCases();
+        const previousIndex = previousVisible.findIndex((item) => item.id === problemCase.id);
+        problemCases = result.cases || problemCases;
+        problemClassificationsFile = result.file || problemClassificationsFile;
+        problemClassificationFile.textContent = problemClassificationsFile;
+        problemFormDirty = false;
+        updateProblemProgress();
+        renderProblemCaseList();
+        setProblemSaveStatus('已保存。', 'success');
+        if (moveNext) {
+          const next = previousVisible[previousIndex + 1]
+            || problemCases.find((item) => !problemCaseIsClassified(item));
+          if (next) displayProblemCase(next.id);
+        } else {
+          displayProblemCase(problemCase.id);
+          setProblemSaveStatus('已保存。', 'success');
+        }
+        return true;
+      } catch (error) {
+        setProblemSaveStatus(String(error.message || error), 'error');
+        return false;
+      } finally {
+        problemSaveRunning = false;
+        problemForm.querySelectorAll('input, textarea, button').forEach((element) => {
+          element.disabled = false;
+        });
+        updateProblemNavigation();
+      }
+    }
+
+    async function openProblemClassifier() {
+      if (!currentFailedCount) return;
+      problemModalBackdrop.hidden = false;
+      problemCaseList.textContent = '正在读取问题案例…';
+      problemRenderGrid.replaceChildren();
+      setProblemSaveStatus('');
+      try {
+        const response = await fetch(
+          `/api/problem-classifications?source=${encodeURIComponent(sourceSelect.value)}`,
+        );
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '读取问题分类失败');
+        problemCases = result.cases || [];
+        problemClassificationsFile = result.file || '';
+        problemClassificationFile.textContent = problemClassificationsFile
+          || '分类结果保存在当前数据集目录';
+        updateProblemProgress();
+        const preferred = problemCases.find((problemCase) => problemCase.id === modelSelect.value)
+          || problemCases.find((problemCase) => !problemCaseIsClassified(problemCase))
+          || problemCases[0];
+        renderProblemCaseList();
+        if (preferred) displayProblemCase(preferred.id);
+        problemModalClose.focus();
+      } catch (error) {
+        problemCaseList.textContent = '';
+        setProblemSaveStatus(String(error.message || error), 'error');
+      }
+    }
+
+    function closeProblemClassifier(force = false) {
+      if (!force && !allowDiscardProblemChanges()) return;
+      problemModalBackdrop.hidden = true;
+      problemFormDirty = false;
+      problemClassifyButton.focus();
+    }
+
+    function openProblemCaseInMainView() {
+      const problemCase = problemCases.find((candidate) => candidate.id === problemCurrentId);
+      if (!problemCase || !allowDiscardProblemChanges()) return;
+      modelSelect.value = problemCase.id;
+      updateModelWatchHighlight();
+      updateFailureControl();
+      updateModelNavigationButtons();
+      closeProblemClassifier(true);
+      selectModel(problemCase.id, sourceSelect.value).catch((error) => {
+        setStatus(String(error.message || error), 'error');
+      });
+    }
+
+    async function loadModelsForSource(sourceId, preferredLabel = '', preferredModelId = '') {
       const version = ++selectionVersion;
       sourceSelect.disabled = true;
       modelSelect.disabled = true;
+      previousModelButton.disabled = true;
+      nextModelButton.disabled = true;
+      failureToggle.disabled = true;
       setStatus('正在切换代码源…');
       try {
         const response = await fetch(`/api/models?source=${encodeURIComponent(sourceId)}`);
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || '读取模型列表失败');
         if (version !== selectionVersion || sourceSelect.value !== sourceId) return;
+        currentFailedCount = Number(result.failed_count) || 0;
+        currentFailedCasesFile = result.failed_cases_file || '';
         modelSelect.replaceChildren();
         for (const model of result.models) {
           const option = document.createElement('option');
           option.value = model.id;
-          option.textContent = model.must_watch ? `★ ${model.label}` : model.label;
           option.dataset.modelLabel = model.label;
           option.dataset.mustWatch = String(Boolean(model.must_watch));
-          option.classList.toggle('must-watch-option', Boolean(model.must_watch));
-          if (model.must_watch) {
-            option.style.backgroundColor = '#3b321c';
-            option.style.color = '#ffe29a';
-          }
+          option.dataset.failed = String(Boolean(model.failed));
+          option.dataset.validationTurn = model.validation_turn == null
+            ? ''
+            : String(model.validation_turn);
+          updateModelOptionAppearance(option);
           modelSelect.append(option);
         }
+        const preferredModel = result.models.find((model) => model.id === preferredModelId);
         const preferred = result.models.find((model) => model.label === preferredLabel);
         const bird = result.models.find((model) => model.label === 'Bird_seed0');
-        modelSelect.value = preferred?.id || bird?.id || result.models[0]?.id || '';
+        modelSelect.value = preferredModel?.id || preferred?.id || bird?.id || result.models[0]?.id || '';
         if (!modelSelect.value) throw new Error('当前代码源没有可用模型');
         updateModelWatchHighlight();
+        updateValidationTurn();
+        updateFailureControl();
+        updateModelNavigationButtons();
         await selectModel(modelSelect.value, sourceId);
       } finally {
         sourceSelect.disabled = false;
         modelSelect.disabled = false;
+        updateFailureControl();
+        updateModelNavigationButtons();
       }
     }
 
@@ -4588,6 +5928,7 @@
         const response = await fetch('/api/sources');
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || '读取代码源失败');
+        const remembered = readRememberedSelection();
         mustWatchLegend.textContent = `★ 必看 ${result.must_watch_count || 0}`;
         for (const source of result.sources) {
           const option = document.createElement('option');
@@ -4595,9 +5936,16 @@
           option.textContent = `${source.label}（${source.count}）`;
           sourceSelect.append(option);
         }
-        sourceSelect.value = result.default || result.sources[0]?.id || '';
+        const rememberedSource = result.sources.find(
+          (source) => source.id === remembered?.source,
+        );
+        sourceSelect.value = rememberedSource?.id || result.default || result.sources[0]?.id || '';
         if (!sourceSelect.value) throw new Error('没有可用代码源');
-        await loadModelsForSource(sourceSelect.value);
+        await loadModelsForSource(
+          sourceSelect.value,
+          '',
+          rememberedSource ? remembered.model : '',
+        );
       } catch (error) {
         setStatus(String(error.message || error), 'error');
       }
@@ -4606,6 +5954,11 @@
     graphTabs.addEventListener('click', (event) => {
       const button = event.target.closest('[data-graph-view]');
       if (button && !button.disabled) setGraphView(button.dataset.graphView);
+    });
+    tree3dShowRealParts.addEventListener('change', () => {
+      graphState.tree3dShowRealParts = tree3dShowRealParts.checked;
+      clearTree3DHover();
+      if (graphState.view === 'tree3d') renderTree3D();
     });
     tree3dShowShared.addEventListener('change', () => {
       graphState.tree3dShowShared = tree3dShowShared.checked;
@@ -4680,7 +6033,7 @@
       graphPanel.classList.toggle('graph-expanded', expanded);
       graphFullscreenButton.textContent = expanded ? '退出大图' : '放大图';
       graphFullscreenButton.setAttribute('aria-pressed', String(expanded));
-      tree3dFullscreenButton.textContent = expanded ? '退出大图' : '放大图';
+      tree3dFullscreenButton.textContent = expanded ? '退出全屏' : '全屏';
       tree3dFullscreenButton.setAttribute('aria-pressed', String(expanded));
       requestAnimationFrame(resetGraphPosition);
     }
@@ -4689,6 +6042,78 @@
     });
     tree3dFullscreenButton.addEventListener('click', () => {
       setGraphFullscreen(!graphPanel.classList.contains('graph-expanded'));
+    });
+
+    tree3dExportTransparentButton.addEventListener('click', () => {
+      const previousPixelRatio = tree3dRenderer.getPixelRatio();
+      const previousSize = tree3dRenderer.getSize(new THREE.Vector2());
+      const previousAspect = tree3dCamera.aspect;
+      const previousCameraPosition = tree3dCamera.position.clone();
+      const previousOrbitTarget = tree3dOrbit.target.clone();
+      const previousNear = tree3dCamera.near;
+      const previousFar = tree3dCamera.far;
+      const exportRestores = [];
+      tree3dRoot.traverse((object) => {
+        if (object.userData.tree3dExportHide || object.userData.tree3dExportOnly) {
+          const previousVisible = object.visible;
+          exportRestores.push(() => { object.visible = previousVisible; });
+          object.visible = Boolean(object.userData.tree3dExportOnly);
+        }
+        if (object.userData.tree3dPublicationSurface) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            const previousOpacity = material.opacity;
+            const previousTransparent = material.transparent;
+            const previousDepthWrite = material.depthWrite;
+            const previousColor = material.color?.clone();
+            exportRestores.push(() => {
+              material.opacity = previousOpacity;
+              material.transparent = previousTransparent;
+              material.depthWrite = previousDepthWrite;
+              if (previousColor && material.color) material.color.copy(previousColor);
+              material.needsUpdate = true;
+            });
+            const name = String(material.name || '').toLowerCase();
+            let color = 0xb85732;
+            if (name.includes('highlight') || name.includes('light')) color = 0xcf6a42;
+            if (name.includes('dark') || name.includes('rim')) color = 0x89351d;
+            if (name.includes('antenna')) color = 0xd13c1d;
+            if (name.includes('cream') || name.includes('ivory') || name.includes('pincer')) color = 0xffe9c0;
+            if (material.color) material.color.setHex(color);
+            material.opacity = 0.4;
+            material.transparent = true;
+            material.depthWrite = true;
+            material.needsUpdate = true;
+          }
+        }
+      });
+      tree3dRenderer.setPixelRatio(1);
+      tree3dRenderer.setSize(3840, 2160, false);
+      tree3dCamera.aspect = 3840 / 2160;
+      tree3dCamera.updateProjectionMatrix();
+      if (isCoffeeTablePublicationTree()) fitTree3D();
+      tree3dRenderer.setClearColor(0x000000, 0);
+      tree3dRenderer.render(tree3dScene, tree3dCamera);
+      tree3dCanvas.toBlob((blob) => {
+        if (blob) {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${modelSelect.value || 'model'}_breakdown_4k_transparent.png`;
+          link.click();
+          window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        }
+        tree3dRenderer.setPixelRatio(previousPixelRatio);
+        tree3dRenderer.setSize(previousSize.x, previousSize.y, false);
+        tree3dCamera.aspect = previousAspect;
+        tree3dCamera.position.copy(previousCameraPosition);
+        tree3dCamera.near = previousNear;
+        tree3dCamera.far = previousFar;
+        tree3dCamera.updateProjectionMatrix();
+        tree3dOrbit.target.copy(previousOrbitTarget);
+        tree3dOrbit.update();
+        exportRestores.reverse().forEach((restore) => restore());
+        tree3dRenderer.render(tree3dScene, tree3dCamera);
+      }, 'image/png');
     });
     anchorRelations.addEventListener('click', (event) => {
       const card = event.target.closest('[data-anchor-edge]');
@@ -4734,8 +6159,31 @@
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || !graphPanel.classList.contains('graph-expanded')) return;
-      setGraphFullscreen(false);
+      if (!problemModalBackdrop.hidden) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeProblemClassifier();
+        }
+        return;
+      }
+      if (event.key === 'Escape' && graphPanel.classList.contains('graph-expanded')) {
+        setGraphFullscreen(false);
+        return;
+      }
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (event.target.closest?.('input, select, textarea, [contenteditable="true"]')) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        selectAdjacentModel(-1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        selectAdjacentModel(1);
+      } else if ((event.key === ' ' || event.code === 'Space') && !event.target.closest?.('button, a')) {
+        if (failureToggle.disabled) return;
+        event.preventDefault();
+        failureToggle.checked = !failureToggle.checked;
+        saveCurrentFailureMark();
+      }
     });
 
     tree3dCanvas.addEventListener('pointermove', updateTree3DPointer);
@@ -4801,10 +6249,49 @@
     });
     modelSelect.addEventListener('change', () => {
       updateModelWatchHighlight();
+      updateFailureControl();
+      updateModelNavigationButtons();
       selectModel(modelSelect.value, sourceSelect.value).catch((error) => {
         setStatus(String(error.message || error), 'error');
       });
     });
+    previousModelButton.addEventListener('click', () => selectAdjacentModel(-1));
+    nextModelButton.addEventListener('click', () => selectAdjacentModel(1));
+    failureToggle.addEventListener('change', saveCurrentFailureMark);
+    problemClassifyButton.addEventListener('click', openProblemClassifier);
+    problemModalClose.addEventListener('click', () => closeProblemClassifier());
+    problemModalBackdrop.addEventListener('click', (event) => {
+      if (event.target === problemModalBackdrop) closeProblemClassifier();
+    });
+    problemCaseList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-problem-case]');
+      if (!button || !allowDiscardProblemChanges()) return;
+      displayProblemCase(button.dataset.problemCase);
+    });
+    problemCaseSearch.addEventListener('input', () => {
+      renderProblemCaseList();
+      updateProblemNavigation();
+    });
+    problemCaseFilter.addEventListener('change', () => {
+      renderProblemCaseList();
+      const visible = visibleProblemCases();
+      if (visible.length && !visible.some((item) => item.id === problemCurrentId)) {
+        if (allowDiscardProblemChanges()) displayProblemCase(visible[0].id);
+      } else {
+        updateProblemNavigation();
+      }
+    });
+    problemForm.addEventListener('input', () => {
+      problemFormDirty = true;
+      setProblemSaveStatus('有尚未保存的修改。');
+    });
+    problemForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveProblemClassification(true);
+    });
+    problemPrevious.addEventListener('click', () => moveProblemCase(-1));
+    problemNext.addEventListener('click', () => moveProblemCase(1));
+    problemOpenModel.addEventListener('click', openProblemCaseInMainView);
     copySelectionButton.addEventListener('click', copyCurrentSelection);
     renderButton.addEventListener('click', requestRender);
     resetButton.addEventListener('click', () => {

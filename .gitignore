@@ -1,0 +1,19 @@
+# This working directory contains research material that is not part of the
+# public TreeStruct3D repository. Track only the monorepo metadata and its two
+# declared components.
+/*
+
+!/.gitignore
+!/README.md
+!/LICENSE
+!/NOTICE
+!/THIRD_PARTY_NOTICES.md
+!/CONTRIBUTING.md
+!/SECURITY.md
+!/.github/
+!/.github/**
+!/TreeStruct3D/
+!/validation_test/
+
+# Local migration recovery data must never be committed.
+/.monorepo-backup/

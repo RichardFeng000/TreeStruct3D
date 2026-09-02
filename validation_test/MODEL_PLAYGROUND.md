@@ -1,62 +1,78 @@
-# Blender 模型参数编辑器
+# TreeStruct3D model inspector
 
-项目代码已经按职责分成两层：
+The model inspector keeps the browser presentation layer separate from Blender
+execution and source analysis:
 
-- `frontend/`：网页界面、参数面板、树图/锚点图和 Three.js 模型预览。
-- `algorithm/`：Blender Python 静态解析、完整执行、参数注入、运行时关系分析和 GLB 导出。
+- `frontend/` contains the parameter controls, hierarchy and anchor diagrams,
+  and Three.js preview.
+- `algorithm/` contains source parsing, parameter injection, task scheduling,
+  Blender execution, GLB export, and runtime structural analysis.
 
-运行时父子和共享锚点 probe 已复制到 `algorithm/runtime/blender_probe.py`，项目运行不再读取外部 `SR_F1_Structural_Metric`。
+The browser never executes Blender Python directly. It sends bounded requests
+to a service listening on localhost; that service runs the selected program in
+Blender, exports a fresh GLB, and returns it to the preview.
 
-三个数据源统一放在 `datasets/`；旧报告和结构输出放在根目录 `achieve/`；运行缓存和一键启动脚本继续放在项目根目录。详细目录说明见 `README.md`。
+## Start
 
-启动：
-
-```bash
-cd /Users/fengruiding/Downloads/3d_code/validation_test
-./run_model_playground.sh
-```
-
-临时加载任意数据集目录或单个 seed 目录：
+From the monorepo root:
 
 ```bash
-bash run_dataset.sh stage1_output
-bash run_dataset.sh stage7_output/Chameleon_seed0
+./validation_test/start_model_playground.sh
 ```
 
-既可以加载整个 `stage7_output`，也可以加载其中一个带同名 Python 的 seed 目录；
-启动后该临时数据源会成为网页默认选择。
+To load a specific dataset or seed as the initial source:
 
-浏览器会打开 `http://127.0.0.1:8765/`。顶部先选择代码源，再选择模型；左侧修改参数，中间显示零件父子树、定义树或调用节点图，右侧可以拖动旋转、滚轮缩放。参数停止变化约半秒后，服务会调用本地 Blender、导出 GLB 并刷新预览。
+```bash
+./validation_test/run_dataset.sh validation_test/datasets/stage1_output
+./validation_test/run_dataset.sh TreeStruct3D/outputs/Chameleon_seed0
+```
 
-右侧预览使用 Three.js 的 Y-up 坐标系，初次加载采用从模型上方观察的标准斜视角。“居中”只重新对准模型中心并调整距离，会保留用户当前手动旋转后的观察方向；窄屏时会同时依据水平和垂直视野计算距离，避免横向裁切。
+Multiple directories can be exposed as independent sources:
 
-可切换的代码源：
+```bash
+./validation_test/run_dataset.sh first_output second_output
+```
 
-- `Benchmark 验证集`：`validation_test/datasets/benchmark/categories`，212 个模型。
-- `Stage 1 Output`：`validation_test/datasets/stage1_output`，网页只列出每个模型目录中的正式同名 Python，212 个模型。
-- `Stage 1 · GPT-5.6-sol`：`validation_test/datasets/stage1_output_openai5.6sol`，网页只列出正式同名 Python，当前 46 个模型。
+Use `MODEL_PLAYGROUND_PORT` to choose a port and
+`MODEL_PLAYGROUND_OPEN=0` to suppress automatic browser opening. Use
+`TREESTRUCT3D_BLENDER` to select the Blender 5.0 executable.
 
-切换来源时会尽量保持当前同名模型；如果新来源没有该模型，优先选择 Bird，否则选择列表中的第一个。参数、结构树、运行时锚点和 Blender 预览始终使用当前代码源，缓存键也包含代码源，避免同名模型互相覆盖。
+## Interface
 
-服务固定使用 `/Users/fengruiding/Downloads/3d_code/tools/Blender-5.0.app/Contents/MacOS/Blender`（Blender 5.0.0），不会退回系统 Blender 或环境变量指定的版本。缓存键包含 Blender 版本，因此旧版 Blender 生成的 GLB 不会被复用。
+The top toolbar selects a code source and model. The parameter panel edits
+supported values, the center panel switches between part hierarchy, definition
+tree, and call graph views, and the Three.js panel supports orbit, zoom, reset,
+and semantic-part highlighting.
 
-父子树默认完整展开；每个父节点会连到全部直接子节点。节点图可以拖动、缩放、搜索，点击节点会列出其父节点、全部直接子节点和源码行号。
+The preview uses Three.js's Y-up coordinate system and begins from an elevated
+three-quarter view. Re-centering preserves the user's viewing direction while
+adjusting the target and distance to fit the current model.
 
-“3D 层级树”把运行时父子结构排成可旋转的金字塔：没有父节点的根父节点位于顶层；同时作为子节点和父节点的零件位于中间层；没有任何子节点的纯叶子统一落在最底层。层级越深，节点分布半径越大。顶部开关可以独立显示“共享锚点”和“问题关系”。开启共享锚点后，关系显示为“父节点 → 绿色世界坐标节点 → 子节点”，绿色节点标签直接显示运行时锚点坐标；关闭后仍保留直接父子方向。开启问题关系后，会额外显示红色或橙色虚线和八面体问题节点。3D 树支持旋转、平移、缩放、居中和全屏；悬停零件球或矩形名称标签时，会保留从所有顶层祖先到该节点、以及该节点下面全部子孙的完整链路；悬停绿色锚点球、坐标标签或问题节点时会聚焦对应关系链路；兄弟分支和其他无关节点、标签、共享锚点及问题关系统一弱化，同时在右侧模型中联动高亮对应对象。鼠标移到树的空白处或移出树后，立即恢复完整树和右侧模型。单击不锁定选择，也不会重置观察视角。
+Source changes are isolated by dataset in the model catalog and cache key, so
+models with the same seed name cannot overwrite one another's previews.
 
-点击零件父子树或锚点关系图中的对象节点时，右侧 3D 预览会将对应的真实 GLB Mesh 高亮为金黄色，并将其他零件弱化。运行时锚点节点按 Blender 对象名精确匹配；`Pillow_{pi}` 一类集合节点会同时匹配全部实例。在“共享锚点”泳道中，鼠标悬停父节点框或子节点框时只高亮对应对象；悬停中央共享锚点块时同时高亮两个对象并显示唯一的绿色世界坐标球；鼠标移开任一区域后立即清除全部三维高亮。点击仍用于选择关系和查看详情。“问题关系”中点击中央问题卡片会同时高亮问题对象 A 和 B。模型重新生成后会自动恢复当前非悬停选择，右下角“取消高亮”可恢复全部原始材质。
+## Native parameter editing
 
-锚点关系图默认进入“确认父子”模式，只显示同时满足方向确认、接触和共享锚点的关系，避免接触候选把图铺满。顶部可以切换“共享锚点”“问题关系”和“全部关系”，按钮旁显示当前关系数量。“共享锚点”不再把表面采样点很近直接当成共享：除了接触和几何点对齐，还必须有运行时单向/双向联动或代码连接证据。只有这三类证据同时成立才会进入“共享锚点”。已确认父子关系显示绿色或蓝色父 → 子箭头；已证明连接但方向未知的关系显示无箭头的端点 A — 端点 B。仅几何接近、没有代码或运行证据的关系改为“几何接近，但共享锚点未证明”，并归入“问题关系”。点击端点会筛选涉及它的所有行，“返回总览”恢复全部关系。“放大图”进入全屏关系图，按 Esc 或“退出大图”返回。“全部关系”仍可点击关系卡或连线查看关系类型、状态、间距、容差和 A/B 世界坐标。
+TreeStruct3D-generated programs use the top-level literal dictionary
+`PART_PARAMS`. For these programs, the inspector edits the literal values and
+executes the full source again, allowing geometry and shared anchors to be
+recomputed together.
 
-零件尺寸右侧带有“隐藏叶子/隐藏节点”按钮。隐藏后对应零件会在父子树中变淡，并在下一次 Blender 生成时从 GLB 中排除；点击“恢复显示”即可重新加入。Bird 按身体、头、喙、眼睛、翅膀、尾巴、腿和脚隐藏，普通模型按静态识别到的运行变量或 creator 输出隐藏。原始 benchmark Python 文件始终不会被修改。
+Programs without this protocol remain viewable through legacy approximate
+controls, but that mode is not evidence that attachments survive structural
+edits. Runtime validation independently perturbs each concrete parent and child
+part before accepting a shared anchor.
 
-每次修改任何参数后，服务都会启动新的 Blender 5.0 空场景，重新执行所选模型的整份 Python，不复用旧 GLB。代码全局变量和 `main()` 默认值在编译本次执行时替换；通用零件的 creator 返回值或运行时变量会在源代码继续执行之前完成尺寸注入，使后续父子定位代码读取新值。Bird 的零件尺寸同样在各个 `create_*` 函数返回后、原始 `attach_part()` 和 `foot_anchor` 计算之前注入，因此身体、头、腿等尺寸变化会由原代码重新计算其骨架、表面射线锚点和子零件位置；不再使用生成后的最近 Mesh 表面点搬移零件。原始 Python 文件保持不变。
+## Review workflow
 
-网页和服务端都会把数值限制在当前参数面板显示的最小值与最大值内；单次 Blender 重建超过 60 秒会自动终止并清理临时输出，避免一个高复杂度参数长期占住后续请求。
+The failed-case control persists selections in `failed_cases.json` under the
+active dataset. The classification dialog records a resolution and one of the
+supported issue categories in `problem_classifications.json`. Both records are
+scoped to the selected source.
 
-## 支持范围
+## Runtime isolation
 
-- 所有 benchmark 脚本：整体 X/Y/Z 比例，以及脚本中可静态发现的简单全局参数和 `main()` 默认参数。
-- `Bird_seed0`：额外支持喙类型，以及身体、头、喙、眼睛、翅膀、尾巴、腿、脚的独立尺寸。
-- 网页必须由本地服务打开，不能直接双击 HTML；否则浏览器无法调用 Blender。
-- 修改仅用于临时预览，不会改写 benchmark 原始 Python 文件。
+The runtime probe lives at `algorithm/runtime/blender_probe.py` and imports no
+code from directories outside this component. Cache keys include the Blender
+version, render-worker version, source content, parameters, and source identity
+to prevent stale previews from being reused across incompatible runs.

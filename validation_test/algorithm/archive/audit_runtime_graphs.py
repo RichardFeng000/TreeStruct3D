@@ -13,7 +13,7 @@ from typing import Any
 
 try:
     from .. import model_playground
-except ImportError:  # Support: python3 algorithm/achieve/audit_runtime_graphs.py
+except ImportError:  # Support: python3 algorithm/archive/audit_runtime_graphs.py
     ALGORITHM_DIR = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(ALGORITHM_DIR))
     import model_playground
@@ -39,7 +39,7 @@ def arguments() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=APP_DIR / "achieve" / "audit_reports",
+        default=APP_DIR / "archive" / "audit_reports",
     )
     return parser.parse_args()
 

@@ -1,219 +1,178 @@
-# Stage 7
+# TreeStruct3D
 
-This is an isolated Stage 7 project built from the 3DCodeBench text-to-3D
-pipeline. It does not import or invoke StructGen3D and does not inherit any
-Stage 2--6 prompts or generated outputs.
+TreeStruct3D generates editable Blender Python programs from natural-language
+object descriptions. It first extracts a category-neutral part tree, then asks
+a code model to construct the object with explicit parent-child relationships
+and geometry-derived shared anchors. Generated programs are rendered, checked
+for structural consistency, repaired when necessary, and finally reviewed for
+visual quality.
 
-The baseline runner, rendering utilities, prompts, and benchmark inputs are
-derived from [3DCodeBench](https://github.com/gaoypeng/3dcodebench), with local
-changes for a separate structure-extraction phase, chronological flow logging,
-and a pinned Blender 5.0 runtime. Runtime structural validation is supplied by the
-sibling `../validation_test` project. The upstream Apache-2.0 license is
-included in `LICENSE`.
-
-## Active task prompts
-
-- Structure extraction uses only
-  `prompts/structure_extraction_surface_attachment_system_prompt.txt`.
-- The previous extraction prompt remains unchanged at
-  `prompts/structure_extraction_system_prompt.txt` as the reproducible baseline.
-- Blender Python generation uses only
-  `prompts/text_to_3d_system_prompt.txt`, copied unchanged from 3DCodeBench.
-- No Stage 7 extra prompt is inserted into initial generation or repair user
-  messages. The validated extraction JSON is supplied directly as ordinary
-  user context; it is not a system prompt and does not use RAG.
+This repository is research code derived from
+[3DCodeBench](https://github.com/gaoypeng/3dcodebench). The upstream generation
+system prompt is preserved byte-for-byte; TreeStruct3D adds structure extraction,
+chronological logging, attachment validation, and repair orchestration.
 
 ## Pipeline
 
-1. Extract and locally validate `<instance>/structure.json` using
-   `structure_extraction_surface_attachment_system_prompt.txt`.
-2. Load `benchmark/categories/<instance>/prompt_description.txt` and the
-   validated structure JSON.
-3. Send the original description plus structure JSON as one ordinary user
-   message, while generation uses the unchanged `text_to_3d_system_prompt.txt`.
-4. Generate a complete Blender 5.0 Python script.
-5. Reject responses that fail Python syntax parsing.
-6. Execute and render the script with the pinned Blender 5.0 binary.
-7. Only after a render failure, send the traceback back for repair.
-8. After every valid render, run `validation_test`'s Blender probe and score
-   the parent/child tree, contact, anchor alignment, and explicitly authored
-   shared anchors.
-9. Send deterministic structural failures back for structural repair, then
-   re-run Blender and `validation_test` before accepting the replacement.
-10. Only after render and structural validation both pass, run visual feedback.
-11. Re-run both Blender and `validation_test` after every visual code change.
+1. Read a 3DCodeBench natural-language description.
+2. Extract and validate a connected structure blueprint.
+3. Supply the description and blueprint to the Blender code model.
+4. Parse, execute, and render the generated Blender Python program.
+5. Validate its part hierarchy, contact, shared anchors, and parameter changes.
+6. Repair render or structural failures and rerun the relevant checks.
+7. Apply visual feedback only after render and structural validation pass.
 
-The original 3DCodeBench system-prompt file is not modified by structural
-validation. Structural diagnostics are supplied only in the user-side repair
-request for the failed candidate.
+The extraction and generation steps are separate commands. Generation never
+reads benchmark reference Python files.
 
-No reference Python factory is read by the runner.
+## Requirements
+
+- Python 3.9 or newer
+- Blender 5.0
+- An API endpoint supported by one of the configuration formats below
+- The sibling structural validation toolkit when structural checks are enabled
+
+Install the Python dependency in a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+TreeStruct3D looks for Blender in the existing sibling `tools/` checkout, the
+standard macOS application path, and `PATH`. Set an explicit executable when
+needed:
+
+```bash
+export TREESTRUCT3D_BLENDER=/absolute/path/to/blender
+```
+
+The monorepo's sibling `../validation_test` directory is selected by default.
+An external validator checkout can be selected explicitly:
+
+```bash
+export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/validation_test
+```
 
 ## Configuration
 
-Both `run_stage7.py` and `extract_structure.py` now load their default local
-configuration from:
-
-```text
-configs/gemma_4_31b.yaml
-```
-
-Local YAML files under `configs/` are ignored by Git because they contain API
-credentials. To create another configuration, duplicate one of your local YAML
-files and change its endpoint, model, and key. Select it explicitly, for example:
+Copy the tracked example and provide credentials through the environment:
 
 ```bash
-./run_stage7.sh --config configs/gemma_4_e2b.yaml ...
-./extract_structure.sh --config configs/gemma_4_e2b.yaml ...
+cp configs/config.example.yaml config.local.yaml
+export TREESTRUCT3D_API_KEY=your-api-key
 ```
 
-`--model` still overrides only the model ID after loading the selected YAML;
-the endpoint, credential, and output-token settings continue to come from that
-configuration file.
+`config.local.yaml`, every other `configs/*.yaml` file, logs, and generated
+outputs are ignored by Git. Never commit provider credentials.
 
-Native OpenAI Responses configurations use background mode by default whenever
-the caller provides a response artifact path. The initial POST immediately
-stores its response ID in a neighboring `*.background.json` sidecar, then the
-runner polls the retrieve endpoint with short GET requests. Restarting the same
-run resumes that ID instead of submitting and billing a duplicate task. Optional
-YAML controls are:
+Supported API formats are:
 
-```yaml
-openai_background: true
-openai_poll_interval: 5
-openai_request_timeout: 60
-```
+- `lmstudio_responses`
+- `openai_responses`
+- `openai_chat_completions`
+- `gemini_generate_content`
 
-`openai_request_timeout` applies to each short POST or GET connection, not to
-the total model runtime. This mechanism applies only to `api_format:
-openai_responses`; other providers keep their existing request behavior.
+Use `--config PATH` to select another local configuration. Use `--model ID` to
+override only its model identifier while retaining the endpoint, API format,
+credential, and token settings.
 
-TokenPony's OpenAI-compatible Kimi K3 configuration is available at
-`configs/kimi_k3.yaml`. Fill in `api_key`, then select it explicitly:
+## Quick start
+
+Extract one structure blueprint:
 
 ```bash
 ./extract_structure.sh \
-  --config configs/kimi_k3.yaml \
-  --output-prefix kimi_k3_ \
-  --instances Chameleon_seed0 \
-  --overwrite
-
-./run_stage7.sh \
-  --config configs/kimi_k3.yaml \
-  --output-prefix kimi_k3_ \
-  --instances Chameleon_seed0 \
+  --instances Bird_seed0 \
   --overwrite
 ```
 
-With `--output-prefix kimi_k3_`, the benchmark and structure input remain
-`Chameleon_seed0`, while the result is written as
-`../stage_results/stage7_output/kimi_k3_Chameleon_seed0/` with the canonical
-`kimi_k3_Chameleon_seed0.py`. Its manifest remains inside that seed as
-`run_manifest.json`, so an existing model run is not overwritten.
-Use the same `--output-suffix '(1)'` on extraction and generation to keep a
-second run as `kimi_k3_Chameleon_seed0(1)` without overwriting the first run.
-
-The configuration uses `api_format: openai_chat_completions`, so Stage 7 sends
-the `messages` and `stream: false` body expected by
-`https://api.tokenpony.cn/v1/chat/completions`. The existing Gemma configuration
-continues to use `api_format: lmstudio_responses` and its original request body.
-For Kimi K3, structure extraction keeps high reasoning, while Blender code
-generation uses low visible reasoning and a larger code-token allowance so the
-response budget is spent on executable Python rather than an exposed design
-diary. Model API timeout `0` means no client-side time limit.
-
-## Structure extraction phase
-
-Structure extraction is currently a separate pre-generation experiment. It
-reads only `prompt_description.txt`, asks a planning model for one connected
-parent/child blueprint, validates the tree locally, and saves JSON/Markdown.
-It does not read benchmark Python. The validated JSON is then injected into
-Blender-code generation as ordinary user context.
-
-Run one extraction with the strongest model available in the configured API:
+Generate and validate its Blender program:
 
 ```bash
-./extract_structure.sh \
-  --model google/gemma-4-31b \
-  --output-prefix gemma4_31b_ \
-  --instances Chameleon_seed0 \
-  --overwrite
-```
-
-All extraction artifacts are written only inside the model-specific Stage 7
-seed directory. No `stage7_structure_extraction*` directory is created beside
-`stage7_output`:
-
-- `../stage_results/stage7_output/<prefix><instance>/structure_extraction/structure.json`
-- `../stage_results/stage7_output/<prefix><instance>/structure_extraction/structure.md`
-- `../stage_results/stage7_output/<prefix><instance>/structure_extraction/extraction_log.json`
-- `../stage_results/stage7_output/<prefix><instance>/structure_extraction/structure_catalog.jsonl`
-
-The extractor rejects missing parents, missing primary attachments, cycles,
-unknown part ids, mismatched parent declarations, and incomplete anchor pairs.
-Blueprint schema v2 also rejects a required shared attachment unless it has a
-unique `shared_anchor_id`, the exact world-space equality invariant, and a rule
-for recomputing both endpoints after geometry parameters change.
-
-The unchanged 3DCodeBench generation system prompt is not extended. Instead,
-the ordinary user message and structural-repair message carry one shared-anchor
-implementation contract. It requires real retained Mesh connection samples,
-explicit parent/child local anchors, world-space equality before parenting, and
-recomputation on every full-script execution. The neutral helper pattern is
-recognized by `validation_test` as an authored anchor pair; comments, proximity,
-and `child.location` guesses are explicitly rejected.
-
-Generated Stage7 scripts also implement the category-neutral native parameter
-protocol `PART_PARAMS`. Concrete part ids are selected by the model rather than
-prescribed by the prompt. The web editor replaces only literal values in this
-dictionary, executes the complete source from an empty Blender 5.0 scene,
-rebuilds geometry, recomputes both anchor endpoints, and then aligns and parents
-children. Structural validation reruns every concrete part at scale `1.35` one
-at a time. A relation is confirmed as a shared anchor only when the default
-run, the parent-size perturbation, and the child-size perturbation all retain
-real Mesh endpoint vertices and world-space equality.
-
-## Run one smoke case
-
-```bash
-./run_stage7.sh \
-  --model google/gemma-4-e2b \
+./generate_3d.sh \
   --instances Bird_seed0 \
   --overwrite \
   --render-samples 16 \
   --render-resolution 256
 ```
 
-`run_stage7.sh` requires the matching extraction at
-`../stage_results/stage7_output/<prefix><instance>/structure_extraction/structure.json`.
-It revalidates that file before sending any generation request. Use the same
-`--output-prefix` for extraction and generation.
+Both commands accept the same `--output-prefix` and `--output-suffix`. Use the
+same values for extraction and generation so they address the same result
+directory. Run either command with `--help` for the complete interface.
 
-All generated results are stored centrally under
-`../stage_results/stage7_output/`.
+By default, artifacts are written to `outputs/<run-id>/`:
 
-Structural validation is enabled by default and resolves its evaluator from
-`../validation_test`. Useful controls are:
-
-```bash
---validation-test-root ../validation_test
---min-structure-score 85
---max-structure-retries 2
---structure-timeout 180
+```text
+outputs/<run-id>/
+├── structure_extraction/
+│   ├── extraction_manifest.json
+│   ├── extraction_log.json
+│   ├── structure.json
+│   └── structure.md
+├── <run-id>.py
+├── run_manifest.json
+├── run_log.json
+├── pipeline.log
+├── renders/
+└── structural_score_attempt*.json
 ```
 
-Important outputs:
+Existing pre-release output directories remain usable through `--output-dir`
+and `--structure-context-dir`. See [the migration guide](docs/MIGRATION.md).
 
-- `../stage_results/stage7_output/<prefix><instance>/run_manifest.json`: prompt provenance.
-- `../stage_results/stage7_output/<prefix><instance>/flow.log`: chronological flow.
-- `../stage_results/stage7_output/<prefix><instance>/log.json`: structured history.
-- `../stage_results/stage7_output/<instance>/structural_probe_attempt*.raw.json`:
-  complete `validation_test` observations.
-- `../stage_results/stage7_output/<instance>/structural_score_attempt*.json`:
-  machine-readable score and exact error list.
-- `../stage_results/stage7_output/<instance>/structural_score_attempt*.md`:
-  concise readable report.
-- `../stage_results/stage7_output/<instance>/renders/`: latest four renders.
+## Prompt stability
 
-The `stage7_output` root contains seed directories only; every run-specific
-artifact remains inside its corresponding seed.
+The active prompt files have explicit responsibilities:
+
+- `prompts/structure_blueprint_system_prompt.txt` extracts the connected part
+  tree and attachment contract.
+- `prompts/blender_generation_system_prompt.txt` is the unchanged upstream
+  Blender generation system prompt.
+- `prompts/visual_critique_*` evaluates render quality after deterministic checks.
+- `prompts/structure_blueprint_baseline_system_prompt.txt` is retained only as a
+  reproducibility baseline.
+
+Tests pin the unchanged generation and baseline prompt hashes. Pull requests
+must not alter prompt behavior implicitly. See the monorepo
+[contribution guide](../CONTRIBUTING.md).
+
+## Repository layout
+
+```text
+benchmark/categories/   3DCodeBench inputs with stable upstream instance IDs
+prompts/                 active and reproducibility prompt files
+treestruct3d/            reusable extraction, rendering, and validation modules
+extract_structure.py     structure-blueprint command
+generate_3d.py           generation, repair, and evaluation command
+tests/                   deterministic unit and contract tests
+docs/                    terminology, migration, and research notes
+archive/                 inactive pre-release material
+```
+
+This directory is the generation component of the TreeStruct3D monorepo. See
+[the repository-level overview](../README.md) for the integrated generator and
+structural validation layout.
+
+Names used by the public interface and saved artifacts are defined in
+[docs/NAMING.md](docs/NAMING.md). Benchmark instance IDs are intentionally not
+renamed because they identify upstream data.
+
+## Testing
+
+The unit suite does not call model APIs or start Blender:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Full end-to-end runs can incur API charges and require Blender plus the
+structural validator.
+
+## Provenance and license
+
+The benchmark inputs, baseline runner behavior, rendering utilities, and
+generation prompt originate from 3DCodeBench and are used under Apache-2.0.
+TreeStruct3D's local changes are distributed under the same license; see
+[LICENSE](LICENSE).

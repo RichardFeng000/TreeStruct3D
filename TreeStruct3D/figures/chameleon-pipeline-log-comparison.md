@@ -1,4 +1,4 @@
-# Chameleon Stage 7 日志流程对比
+# Chameleon TreeStruct3D 日志流程对比
 
 根据 `kimi_k3_Chameleon_seed0` 与 `kimi_k3_Chameleon_seed0(2)` 的真实 `flow.log`、API token 统计和结构评分生成。时间均为日志中相邻事件的实际耗时。
 

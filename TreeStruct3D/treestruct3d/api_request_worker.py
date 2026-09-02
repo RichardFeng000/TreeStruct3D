@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One isolated Stage7 HTTP request, with its envelope on stdin/stdout."""
+"""Execute one isolated TreeStruct3D HTTP request over a JSON stdio envelope."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import run_stage7  # noqa: E402
+import generate_3d  # noqa: E402
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
         method=payload.get("method"),
     )
     try:
-        value = run_stage7._request_json_direct(
+        value = generate_3d._request_json_direct(
             request,
             timeout=payload.get("socket_timeout"),
             ambiguous_on_disconnect=bool(payload.get("ambiguous_on_disconnect")),

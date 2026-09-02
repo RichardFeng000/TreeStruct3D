@@ -49,6 +49,15 @@ PARENT_TOKENS = (
 )
 
 
+def _looks_temporary_part_node(value: str) -> bool:
+    cleaned = str(value).strip().lower()
+    return (
+        cleaned in {"tmp", "temp", "temporary"}
+        or cleaned.startswith("_tmp")
+        or cleaned.startswith("_temp")
+    )
+
+
 @dataclass
 class Definition:
     id: str
@@ -634,12 +643,31 @@ class SourceStructure:
             specs=self.attachment_helpers,
             method_links=self.method_links,
         )
-        module_collector.visit_statements(self.tree.body)
+        module_collector.visit_statements(
+            [
+                statement
+                for statement in self.tree.body
+                if not isinstance(
+                    statement,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+                )
+            ]
+        )
         for edge in module_collector.edges:
+            if _looks_temporary_part_node(edge.parent) or _looks_temporary_part_node(
+                edge.child
+            ):
+                continue
             edges[(edge.parent, edge.child)] = edge
 
         for definition_id, node in self.definition_nodes.items():
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            definition = self.definitions[definition_id]
+            # The body of an attachment helper describes its formal
+            # parent/child parameters, not concrete scene parts.  Its call
+            # sites are analyzed separately and retain the real endpoints.
+            if definition.name in self.attachment_helpers:
                 continue
             aliases = _part_aliases(node)
             collector = _PartEdgeCollector(
@@ -649,6 +677,10 @@ class SourceStructure:
             )
             collector.visit_statements(node.body)
             for edge in collector.edges:
+                if _looks_temporary_part_node(
+                    edge.parent
+                ) or _looks_temporary_part_node(edge.child):
+                    continue
                 key = (edge.parent, edge.child)
                 previous = edges.get(key)
                 if previous is None or _edge_priority(edge) > _edge_priority(previous):

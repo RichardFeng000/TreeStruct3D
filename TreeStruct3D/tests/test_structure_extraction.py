@@ -6,18 +6,19 @@ import tempfile
 import unittest
 
 import extract_structure
-import run_stage7
-from core.structure_extraction import (
+import generate_3d
+from treestruct3d.structure_extraction import (
+    SCHEMA_VERSION,
     blueprint_markdown,
     extract_json_object,
     validate_blueprint,
 )
-from core.visual_critique import build_critique_user_content
+from treestruct3d.visual_critique import build_critique_user_content
 
 
 def valid_blueprint():
     return {
-        "schema_version": "stage7-structure-blueprint/v2",
+        "schema_version": SCHEMA_VERSION,
         "object_name": "neutral assembly",
         "assembly_intent": "single_connected_assembly",
         "coordinate_frame": {
@@ -94,6 +95,11 @@ class StructureExtractionTest(unittest.TestCase):
         blueprint = valid_blueprint()
         self.assertEqual(validate_blueprint(blueprint), [])
 
+    def test_prerelease_blueprint_schema_remains_readable(self):
+        blueprint = valid_blueprint()
+        blueprint["schema_version"] = "stage7-structure-blueprint/v2"
+        self.assertEqual(validate_blueprint(blueprint), [])
+
     def test_non_root_without_attachment_is_rejected(self):
         blueprint = valid_blueprint()
         blueprint["attachments"] = []
@@ -158,11 +164,11 @@ class StructureExtractionTest(unittest.TestCase):
             instance_dir.mkdir()
             path = instance_dir / "structure.json"
             path.write_text(json.dumps(blueprint), encoding="utf-8")
-            loaded, loaded_path = run_stage7.load_structure_context(
+            loaded, loaded_path = generate_3d.load_structure_context(
                 root,
                 "Example_seed0",
             )
-        user_prompt = run_stage7.compose_generation_user_prompt(
+        user_prompt = generate_3d.compose_generation_user_prompt(
             "An example object.",
             loaded,
         )
@@ -181,7 +187,7 @@ class StructureExtractionTest(unittest.TestCase):
         self.assertIn("build every integrated feature inside its declared owner", user_prompt)
         self.assertIn("<native_part_parameter_contract>", user_prompt)
         self.assertIn("PART_PARAMS", user_prompt)
-        self.assertIn('obj["stage7_part_id"]', user_prompt)
+        self.assertIn('obj["treestruct3d_part_id"]', user_prompt)
         self.assertIn("rebuild that geometry", user_prompt)
         self.assertNotIn('"confidence":', user_prompt)
         self.assertNotIn('"floating_part_risks":', user_prompt)
@@ -190,7 +196,7 @@ class StructureExtractionTest(unittest.TestCase):
         prompt = extract_structure.DEFAULT_EXTRACTION_PROMPT.read_text(
             encoding="utf-8"
         )
-        self.assertIn("stage7-structure-blueprint/v2", prompt)
+        self.assertIn("treestruct3d.structure-blueprint/v2", prompt)
         self.assertIn('"shared_anchor_id"', prompt)
         self.assertIn('"alignment_invariant"', prompt)
         self.assertIn('"recompute_rule"', prompt)
@@ -213,7 +219,7 @@ class StructureExtractionTest(unittest.TestCase):
             self.assertNotIn(category_specific_word, prompt.lower())
 
     def test_neutral_prompt_pattern_is_recognized_as_authored_anchor(self):
-        contract = run_stage7.SHARED_ANCHOR_IMPLEMENTATION_CONTRACT
+        contract = generate_3d.SHARED_ANCHOR_IMPLEMENTATION_CONTRACT
         code = "from mathutils" + contract.split("from mathutils", 1)[1].split(
             "\n\n4.", 1
         )[0]
@@ -225,7 +231,9 @@ class StructureExtractionTest(unittest.TestCase):
             / "runtime"
             / "blender_probe.py"
         )
-        spec = importlib.util.spec_from_file_location("stage7_test_probe", probe_path)
+        spec = importlib.util.spec_from_file_location(
+            "treestruct3d_test_probe", probe_path
+        )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
         module = importlib.util.module_from_spec(spec)
@@ -237,7 +245,7 @@ class StructureExtractionTest(unittest.TestCase):
         self.assertTrue(attachment["code_directed"])
 
     def test_structural_repair_repeats_the_same_anchor_contract(self):
-        feedback = run_stage7.build_structure_feedback_prompt(
+        feedback = generate_3d.build_structure_feedback_prompt(
             original_prompt="neutral object",
             previous_code="print('old')",
             score={"score": 0, "issues": []},
@@ -249,7 +257,7 @@ class StructureExtractionTest(unittest.TestCase):
         self.assertIn("Do not fake evidence", feedback)
 
     def test_extraction_is_stored_inside_prefixed_seed(self):
-        root = Path("/tmp/stage7_output")
+        root = Path("/tmp/treestruct3d_outputs")
         self.assertEqual(
             extract_structure.extraction_output_dir(
                 root,
@@ -270,7 +278,7 @@ class StructureExtractionTest(unittest.TestCase):
             extraction_dir.mkdir(parents=True)
             path = extraction_dir / "structure.json"
             path.write_text(json.dumps(blueprint), encoding="utf-8")
-            loaded, loaded_path = run_stage7.load_structure_context(
+            loaded, loaded_path = generate_3d.load_structure_context(
                 root,
                 "Example_seed0",
                 "kimi_k3_Example_seed0",
@@ -290,7 +298,7 @@ class StructureExtractionTest(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaises(ValueError):
-                run_stage7.load_structure_context(root, "Example_seed0")
+                generate_3d.load_structure_context(root, "Example_seed0")
 
     def test_visual_baseline_images_precede_current_renders(self):
         with tempfile.TemporaryDirectory() as temporary:

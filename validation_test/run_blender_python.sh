@@ -9,7 +9,7 @@ usage() {
   printf '  %s ./datasets/benchmark/categories/Bird_seed0/Bird_seed0.py\n' "$(basename "$0")"
   printf '  %s ./scene.py --seed 0 --output ./result.blend\n' "$(basename "$0")"
   printf '\n'
-  printf '固定使用项目内 Blender 5.0。\n'
+  printf '使用 TREESTRUCT3D_BLENDER、仓库工具目录、macOS 应用目录或 PATH 中的 Blender 5.0。\n'
 }
 
 if [[ $# -lt 1 ]]; then
@@ -30,13 +30,35 @@ if [[ ! -f "$input_script" ]]; then
   exit 1
 fi
 
+app_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 script_dir="$(cd -- "$(dirname -- "$input_script")" && pwd -P)"
 script_path="$script_dir/$(basename -- "$input_script")"
 
-blender_bin="/Users/fengruiding/Downloads/3d_code/tools/Blender-5.0.app/Contents/MacOS/Blender"
+resolve_blender() {
+  local candidate
+  if [[ -n "${TREESTRUCT3D_BLENDER:-}" ]]; then
+    printf '%s\n' "$TREESTRUCT3D_BLENDER"
+    return
+  fi
+  candidate="$app_dir/../tools/Blender-5.0.app/Contents/MacOS/Blender"
+  if [[ -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  candidate="/Applications/Blender.app/Contents/MacOS/Blender"
+  if [[ -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  if command -v blender >/dev/null 2>&1; then
+    command -v blender
+    return
+  fi
+  return 1
+}
 
-if [[ ! -x "$blender_bin" ]]; then
-  printf '错误：项目固定的 Blender 5.0 可执行文件无效：%s\n' "$blender_bin" >&2
+if ! blender_bin="$(resolve_blender)" || [[ ! -x "$blender_bin" ]]; then
+  printf '错误：找不到 Blender 5.0；请设置 TREESTRUCT3D_BLENDER。\n' >&2
   exit 1
 fi
 

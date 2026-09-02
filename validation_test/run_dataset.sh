@@ -3,9 +3,10 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-workspace_dir="$(cd -- "$script_dir/.." && pwd -P)"
-stage_results_dir="$workspace_dir/stage_results"
-stage7_output_dir="$stage_results_dir/stage7_output"
+repository_dir="$(cd -- "$script_dir/.." && pwd -P)"
+pipeline_output_dir="$repository_dir/TreeStruct3D/outputs"
+legacy_results_dir="$repository_dir/stage_results"
+legacy_pipeline_output_dir="$legacy_results_dir/stage7_output"
 
 usage() {
   printf '%s\n' \
@@ -13,11 +14,11 @@ usage() {
     "" \
     "示例：" \
     "  bash run_dataset.sh stage1_output" \
-    "  bash run_dataset.sh stage7_output" \
-    "  bash run_dataset.sh stage7_output stage7.1_output" \
+    "  bash run_dataset.sh ../TreeStruct3D/outputs" \
+    "  bash run_dataset.sh ../TreeStruct3D/outputs/Chameleon_seed0" \
     "  bash run_dataset.sh Chameleon_seed0" \
-    "  bash run_dataset.sh /完整路径/stage7_output/Chameleon_seed0" \
-    "  bash run_dataset.sh stage7_output stage7.1_output -- --render-timeout 120"
+    "  bash run_dataset.sh /完整路径/outputs/Chameleon_seed0" \
+    "  bash run_dataset.sh first_output second_output -- --render-timeout 120"
 }
 
 if [[ $# -lt 1 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
@@ -46,13 +47,15 @@ for selector in "${selectors[@]}"; do
     dataset_path="$selector"
   elif [[ -e "$script_dir/datasets/$selector" ]]; then
     dataset_path="$script_dir/datasets/$selector"
-  elif [[ -e "$stage_results_dir/$selector" ]]; then
-    dataset_path="$stage_results_dir/$selector"
-  elif [[ -e "$stage7_output_dir/$selector" ]]; then
-    dataset_path="$stage7_output_dir/$selector"
+  elif [[ -e "$pipeline_output_dir/$selector" ]]; then
+    dataset_path="$pipeline_output_dir/$selector"
+  elif [[ -e "$legacy_results_dir/$selector" ]]; then
+    dataset_path="$legacy_results_dir/$selector"
+  elif [[ -e "$legacy_pipeline_output_dir/$selector" ]]; then
+    dataset_path="$legacy_pipeline_output_dir/$selector"
   else
     printf '错误：找不到数据集或 seed：%s\n' "$selector" >&2
-    printf '已检查 validation_test/datasets、stage_results 和 stage7_output。\n' >&2
+    printf '已检查 validation_test/datasets、TreeStruct3D/outputs 和旧版输出目录。\n' >&2
     exit 2
   fi
 

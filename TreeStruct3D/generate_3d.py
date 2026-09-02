@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run the isolated Stage 7 pipeline on the copied 3DCodeBench framework.
+"""Generate and validate attachment-aware Blender programs with TreeStruct3D.
 
-The original 3DCodeBench text-to-3D system prompt remains the only generation
-system prompt.  Structure extraction is a separate pre-generation phase and
-does not modify this runner's prompt.  This runner has no dependency on
-StructGen3D or any Stage 2--6 prompt, runner, output, or repair policy.
+Structure blueprints are extracted separately and supplied as user context.
+The upstream 3DCodeBench generation system prompt remains byte-for-byte
+unchanged.
 """
 
 from __future__ import annotations
@@ -30,39 +29,73 @@ from pathlib import Path
 import yaml
 
 
-HARD_CODED_BLENDER = (
-    "/Users/fengruiding/Downloads/3d_code/tools/"
-    "Blender-5.0.app/Contents/MacOS/Blender"
-)
-
-
+PROJECT_NAME = "TreeStruct3D"
 REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from core.visual_critique import (  # noqa: E402
+from treestruct3d.visual_critique import (  # noqa: E402
     build_critique_user_content,
     critique_system_prompt,
     parse_critique_response,
 )
-from core.structural_validation import (  # noqa: E402
+from treestruct3d.structural_validation import (  # noqa: E402
     apply_parameter_invariance_gate,
     native_part_parameter_ids,
     run_validation_probe,
     score_markdown,
     score_structure_report,
 )
-from core.structure_extraction import validate_blueprint  # noqa: E402
+from treestruct3d.structure_extraction import validate_blueprint  # noqa: E402
 
-DEFAULT_CONFIG_DIR = REPO_ROOT / "configs"
-DEFAULT_CONFIG = DEFAULT_CONFIG_DIR / "gemma_4_31b.yaml"
+
+def discover_default_blender() -> str:
+    """Return a portable Blender default while preserving the local setup."""
+
+    configured = os.environ.get("TREESTRUCT3D_BLENDER")
+    if configured:
+        return configured
+    candidates = [
+        REPO_ROOT.parent
+        / "tools"
+        / "Blender-5.0.app"
+        / "Contents"
+        / "MacOS"
+        / "Blender",
+        Path("/Applications/Blender.app/Contents/MacOS/Blender"),
+    ]
+    executable = shutil.which("blender")
+    if executable:
+        candidates.append(Path(executable))
+    return str(next((path for path in candidates if path.is_file()), candidates[0]))
+
+
+def resolve_blender_executable(value: str | Path) -> Path:
+    """Resolve either an explicit path or an executable available on PATH."""
+
+    expanded = Path(value).expanduser()
+    if expanded.parent == Path("."):
+        discovered = shutil.which(str(value))
+        if discovered:
+            return Path(discovered).resolve()
+    return expanded.resolve()
+
+
+DEFAULT_BLENDER = discover_default_blender()
+DEFAULT_CONFIG = REPO_ROOT / "config.local.yaml"
 DEFAULT_DATA_DIR = REPO_ROOT / "benchmark" / "categories"
-DEFAULT_OUTPUT_DIR = REPO_ROOT.parent / "stage_results" / "stage7_output"
-DEFAULT_STRUCTURE_CONTEXT_DIR = (
-    DEFAULT_OUTPUT_DIR
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "outputs"
+DEFAULT_STRUCTURE_CONTEXT_DIR = DEFAULT_OUTPUT_DIR
+DEFAULT_SYSTEM_PROMPT = REPO_ROOT / "prompts" / "blender_generation_system_prompt.txt"
+DEFAULT_VALIDATOR_ROOT = Path(
+    os.environ.get(
+        "TREESTRUCT3D_VALIDATOR_ROOT",
+        str(REPO_ROOT.parent / "validation_test"),
+    )
 )
-DEFAULT_SYSTEM_PROMPT = REPO_ROOT / "prompts" / "text_to_3d_system_prompt.txt"
-DEFAULT_VALIDATION_TEST_ROOT = REPO_ROOT.parent / "validation_test"
-RENDER_SCRIPT = REPO_ROOT / "core" / "render.py"
+RENDER_SCRIPT = REPO_ROOT / "treestruct3d" / "render.py"
+RUN_LOG_FILENAME = "run_log.json"
+PIPELINE_LOG_FILENAME = "pipeline.log"
+LEGACY_RUN_LOG_FILENAME = "log.json"
 MAX_ERROR_CHARS = 3000
 API_FORMAT_LMSTUDIO = "lmstudio_responses"
 API_FORMAT_OPENAI_CHAT = "openai_chat_completions"
@@ -112,6 +145,14 @@ are parameterized. Each local anchor must be a retained Mesh vertex or a Mesh
 connection sample deliberately authored into that part; fixed world offsets,
 parenting alone, proximity, comments, or metadata are not anchors.
 
+The validator checks anchors against the final evaluated Mesh, not only the
+pre-modifier source Mesh.  Therefore an anchor vertex must survive bevel,
+subdivision, geometry-node, and other topology-changing modifiers exactly
+(within 1e-5); otherwise apply the modifier before choosing the anchor or avoid
+that modifier on the anchored geometry.  The anchor must also belong to a
+substantial surface-connected component of the semantic part, not a tiny or
+loose proof patch.  Recompute the endpoint from that final substantial Mesh.
+
 Use this data flow for every independent child instance:
 
 from mathutils import Matrix, Vector
@@ -154,7 +195,7 @@ PART_PARAMS = {
 }
 
 For every listed semantic part, create one Mesh object whose obj.name and
-obj["stage7_part_id"] equal its PART_PARAMS key. Repeated decorative primitives
+obj["treestruct3d_part_id"] equal its PART_PARAMS key. Repeated decorative primitives
 owned by one listed unit may be built separately in memory, but join their
 geometry into that one owning Mesh data-block before validation; do not expose
 each primitive as another parameter part. Builders must read the current
@@ -174,19 +215,49 @@ from_pydata, provided every retained local anchor receives the identical scale
 before world alignment. This central pattern is preferable to leaving scale
 reads scattered or unused in individual builders."""
 
+TREE_ONLY_ATTACHMENT_CONTRACT = """Use the supplied parent--child tree as the
+complete assembly plan and expose the same top-level PART_PARAMS interface, but
+do not implement shared anchors or geometry-derived attachment recomputation.
+Place every part with explicit fixed world-coordinate positions or offsets
+chosen for the default asset. Blender parenting may encode the requested tree,
+but do not move a child in response to a rebuilt parent surface and do not
+derive a placement point from the current parent or child geometry. In
+particular, do not define or call shared-anchor alignment helpers, nearest-point
+attachment routines, or post-build contact correction. This intentionally
+represents the Tree-only control: the model knows which parts should be
+connected, while their placement remains a fixed-coordinate construction."""
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate Blender Python for all benchmark text prompts with LM Studio."
+        description=(
+            "Generate, render, and validate Blender Python programs from "
+            "TreeStruct3D structure blueprints."
+        )
     )
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG,
+        help="Provider and model configuration (default: config.local.yaml).",
+    )
     parser.add_argument(
         "--model",
         default=None,
         help="Override only the model ID from the local config.",
     )
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=DEFAULT_DATA_DIR,
+        help="Directory containing 3DCodeBench instance directories.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIR,
+        help="Root directory for generated programs and evaluation artifacts.",
+    )
     parser.add_argument(
         "--output-prefix",
         default="",
@@ -236,13 +307,32 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--api-timeout",
         "--timeout",
+        dest="timeout",
         type=int,
         default=0,
-        help="Model API timeout in seconds; 0 means no client-side time limit.",
+        help=(
+            "Total model API wall-clock timeout in seconds; 0 means no "
+            "client-side limit. The old --timeout spelling remains accepted."
+        ),
     )
-    parser.add_argument("--retries", type=int, default=2)
-    parser.add_argument("--blender", default=HARD_CODED_BLENDER)
+    parser.add_argument(
+        "--generation-retries",
+        "--retries",
+        dest="retries",
+        type=int,
+        default=2,
+        help=(
+            "Retries for initial generation after an explicit safe-to-retry "
+            "failure. The old --retries spelling remains accepted."
+        ),
+    )
+    parser.add_argument(
+        "--blender",
+        default=DEFAULT_BLENDER,
+        help="Blender 5.0 executable path or command name.",
+    )
     parser.add_argument("--render-samples", type=int, default=32)
     parser.add_argument("--render-resolution", type=int, default=512)
     parser.add_argument(
@@ -252,22 +342,31 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--render-timeout", type=int, default=240)
     parser.add_argument(
+        "--validator-root",
         "--validation-test-root",
+        dest="validator_root",
         type=Path,
-        default=DEFAULT_VALIDATION_TEST_ROOT,
-        help="validation_test project used for parent/child and shared-anchor checks.",
+        default=DEFAULT_VALIDATOR_ROOT,
+        help=(
+            "Structural validation toolkit used for parent/child and "
+            "shared-anchor checks. The old --validation-test-root spelling "
+            "remains accepted for compatibility."
+        ),
     )
     parser.add_argument(
         "--structure-timeout",
         type=int,
         default=180,
-        help="Seconds allowed for one validation_test Blender probe.",
+        help="Seconds allowed for one structural-validator Blender probe.",
     )
     parser.add_argument(
         "--max-structure-retries",
         type=int,
         default=1,
-        help="Structural repair rounds after parent/child or shared-anchor validation fails.",
+        help=(
+            "Structural repair rounds after parent/child or shared-anchor "
+            "validation fails; -1 retries until validation passes."
+        ),
     )
     parser.add_argument(
         "--min-structure-score",
@@ -278,13 +377,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-structure-verify",
         action="store_true",
-        help="Disable validation_test structural checks and structural repair only.",
+        help="Disable structural-validator checks and structural repair only.",
+    )
+    parser.add_argument(
+        "--attachment-mechanism",
+        choices=("shared-anchor", "tree-only"),
+        default="shared-anchor",
+        help=(
+            "Attachment implementation supplied to the code model. The tree-only "
+            "ablation keeps the generated part tree and PART_PARAMS but permits "
+            "only fixed-coordinate placement without shared-anchor recomputation."
+        ),
     )
     parser.add_argument(
         "--max-trace-retries",
         type=int,
         default=3,
-        help="Blender traceback repair rounds after a generated script fails.",
+        help=(
+            "Blender traceback repair rounds after a generated script fails; "
+            "-1 retries until the script renders."
+        ),
     )
     parser.add_argument(
         "--max-visual-iterations",
@@ -307,10 +419,15 @@ def parse_args() -> argparse.Namespace:
         help="Disable Blender validation, traceback repair, and visual feedback.",
     )
     parser.add_argument(
+        "--request-delay",
         "--sleep",
+        dest="sleep",
         type=float,
         default=0.0,
-        help="Seconds to sleep between successful requests.",
+        help=(
+            "Delay in seconds between completed instances. The old --sleep "
+            "spelling remains accepted."
+        ),
     )
     return parser.parse_args()
 
@@ -414,7 +531,11 @@ def compact_blueprint_for_generation(blueprint: dict) -> dict:
     }
 
 
-def compose_generation_user_prompt(description: str, blueprint: dict) -> str:
+def compose_generation_user_prompt(
+    description: str,
+    blueprint: dict,
+    attachment_mechanism: str = "shared-anchor",
+) -> str:
     """Place compact extracted construction context beside the visual task."""
 
     structure_json = json.dumps(
@@ -422,6 +543,25 @@ def compose_generation_user_prompt(description: str, blueprint: dict) -> str:
         ensure_ascii=False,
         indent=2,
     )
+    if attachment_mechanism == "tree-only":
+        attachment_instructions = f"""Use the extracted structure as construction
+context so significant parts follow the specified parent-to-child assembly.
+This is the Tree-only control: preserve the tree and parameter interface, but
+implement placement using the fixed-coordinate contract below.
+
+<tree_only_attachment_contract>
+{TREE_ONLY_ATTACHMENT_CONTRACT}
+</tree_only_attachment_contract>"""
+    else:
+        attachment_instructions = f"""Use the extracted structure as construction
+context so significant parts form one coherent parent-to-child assembly and do
+not float apart. Every attachment marked shared_anchor_required is mandatory,
+not advisory. Implement it using the contract below.
+
+<shared_anchor_implementation_contract>
+{SHARED_ANCHOR_IMPLEMENTATION_CONTRACT}
+</shared_anchor_implementation_contract>"""
+
     return f"""HARD RESPONSE MODE: Do not expose planning, analysis, a design diary,
 or explanatory prose. Start immediately with valid Blender Python and spend the
 response budget on one complete executable script. The first output line must
@@ -452,14 +592,7 @@ Extracted structure context:
 {structure_json}
 </structure_blueprint>
 
-Use the extracted structure as construction context so significant parts form
-one coherent parent-to-child assembly and do not float apart. Every attachment
-marked shared_anchor_required is mandatory, not advisory. Implement it using
-the contract below.
-
-<shared_anchor_implementation_contract>
-{SHARED_ANCHOR_IMPLEMENTATION_CONTRACT}
-</shared_anchor_implementation_contract>
+{attachment_instructions}
 
 <native_part_parameter_contract>
 {NATIVE_PART_PARAMETER_CONTRACT}
@@ -471,7 +604,7 @@ only an assembly plan. Return code only as required by the system prompt."""
 
 def persist_log(out_dir: Path, log: dict) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "log.json").write_text(
+    (out_dir / RUN_LOG_FILENAME).write_text(
         json.dumps(log, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
@@ -494,7 +627,7 @@ def append_flow_event(
         **fields,
     }
     log["flow_events"].append(item)
-    with (out_dir / "flow.log").open("a", encoding="utf-8") as handle:
+    with (out_dir / PIPELINE_LOG_FILENAME).open("a", encoding="utf-8") as handle:
         handle.write(
             f"{item['sequence']:02d} | {item['timestamp']} | {event} | {detail}\n"
         )
@@ -503,7 +636,15 @@ def append_flow_event(
 
 
 def load_config(path: Path) -> dict:
-    config = yaml.safe_load(path.read_text()) or {}
+    try:
+        config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except FileNotFoundError as exc:
+        raise SystemExit(
+            f"Configuration file not found: {path}. Copy "
+            "configs/config.example.yaml to config.local.yaml or pass --config."
+        ) from exc
+    except OSError as exc:
+        raise SystemExit(f"Could not read configuration {path}: {exc}") from exc
     config.setdefault("api_format", API_FORMAT_LMSTUDIO)
     key = config.get("api_key")
     if isinstance(key, str) and key.startswith("${") and key.endswith("}"):
@@ -919,7 +1060,7 @@ def _request_json(
     }
     try:
         completed = subprocess.run(
-            [sys.executable, str(REPO_ROOT / "core" / "api_request_worker.py")],
+            [sys.executable, str(REPO_ROOT / "treestruct3d" / "api_request_worker.py")],
             input=json.dumps(worker_input).encode("utf-8"),
             capture_output=True,
             timeout=float(seconds),
@@ -928,7 +1069,7 @@ def _request_json(
     except subprocess.TimeoutExpired as exc:
         raise ApiWallClockTimeoutError(
             "model API request exceeded the total wall-clock timeout of "
-            f"{seconds:g}s; the request worker was terminated so Stage7 can "
+            f"{seconds:g}s; the request worker was terminated so {PROJECT_NAME} can "
             "continue to the next seed"
         ) from exc
     if completed.returncode != 0:
@@ -1097,7 +1238,7 @@ def call_openai_background_response(
         status = str(response.get("status") or "unknown")
         now = _local_timestamp()
         state = {
-            "schema_version": "stage7-openai-background/v1",
+            "schema_version": "treestruct3d.openai-background-state/v1",
             "api_url": api_url,
             "model": payload.get("model"),
             "request_sha256": request_hash,
@@ -1313,12 +1454,46 @@ def archive_renders(out_dir: Path, label: str) -> None:
     renders = out_dir / "renders"
     if not renders.exists():
         return
-    history = out_dir / "renders_history"
+    history = out_dir / "render_history"
     history.mkdir(parents=True, exist_ok=True)
     dst = history / label
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(str(renders), str(dst))
+
+
+def archive_render_attempt(
+    out_dir: Path,
+    script_path: Path,
+    result: dict,
+) -> dict:
+    """Keep the exact program and available views for every Blender execution."""
+
+    renders_dir = out_dir / "renders"
+    history = out_dir / "render_history"
+    history.mkdir(parents=True, exist_ok=True)
+    prior = []
+    for candidate in history.iterdir():
+        if candidate.name.startswith("attempt_"):
+            suffix = candidate.name.removeprefix("attempt_")
+            if suffix.isdigit():
+                prior.append(int(suffix))
+    snapshot = history / f"attempt_{max(prior, default=0) + 1:03d}"
+    if renders_dir.exists():
+        shutil.copytree(renders_dir, snapshot)
+    else:
+        snapshot.mkdir(parents=True)
+    if script_path.is_file():
+        shutil.copy2(script_path, snapshot / "program.py")
+    result["render_snapshot"] = snapshot.name
+    report_text = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
+    (snapshot / "render_log.json").write_text(report_text, encoding="utf-8")
+    if renders_dir.exists():
+        (renders_dir / "render_log.json").write_text(
+            report_text,
+            encoding="utf-8",
+        )
+    return result
 
 
 def render_script(
@@ -1354,37 +1529,70 @@ def render_script(
     try:
         subprocess.run(cmd, capture_output=True, text=True, timeout=args.render_timeout)
     except subprocess.TimeoutExpired:
-        return {
+        return archive_render_attempt(out_dir, script_path, {
             "status": "ERR_TIMEOUT",
             "n_meshes": 0,
             "n_views_rendered": 0,
             "error": f"Blender subprocess exceeded {args.render_timeout}s",
             "latency_s": round(time.time() - started, 2),
-        }
+        })
 
     if not log_path.exists():
-        return {
+        return archive_render_attempt(out_dir, script_path, {
             "status": "ERR_NOLOG",
             "n_meshes": 0,
             "n_views_rendered": 0,
             "error": "Blender exited without writing render_log.json",
             "latency_s": round(time.time() - started, 2),
-        }
+        })
     result = json.loads(log_path.read_text())
-    history = out_dir / "renders_history"
-    history.mkdir(parents=True, exist_ok=True)
-    prior = []
-    for candidate in history.iterdir():
-        if candidate.name.startswith("render_attempt"):
-            suffix = candidate.name.removeprefix("render_attempt")
-            if suffix.isdigit():
-                prior.append(int(suffix))
-    snapshot = history / f"render_attempt{max(prior, default=0) + 1}"
-    shutil.copytree(renders_dir, snapshot)
-    result["render_snapshot"] = snapshot.name
-    log_path.write_text(json.dumps(result, indent=2) + "\n")
-    (snapshot / "render_log.json").write_text(json.dumps(result, indent=2) + "\n")
-    return result
+    return archive_render_attempt(out_dir, script_path, result)
+
+
+def archive_validation_turn(
+    *,
+    out_dir: Path,
+    script_path: Path,
+    attempt: int,
+    score: dict,
+    raw_path: Path,
+    score_path: Path,
+    markdown_path: Path,
+) -> Path:
+    """Bundle one validator turn with its program, views, and reports."""
+
+    turn_dir = out_dir / "validation_turns" / f"turn_{attempt:02d}"
+    if turn_dir.exists():
+        shutil.rmtree(turn_dir)
+    turn_dir.mkdir(parents=True)
+    if script_path.is_file():
+        shutil.copy2(script_path, turn_dir / "program.py")
+    renders_dir = out_dir / "renders"
+    if renders_dir.is_dir():
+        shutil.copytree(renders_dir, turn_dir / "renders")
+    for report in (raw_path, score_path, markdown_path):
+        if report.is_file():
+            shutil.copy2(report, turn_dir / report.name)
+    for report in sorted(
+        out_dir.glob(f"structural_probe_attempt{attempt}.scale_*.raw.json")
+    ):
+        shutil.copy2(report, turn_dir / report.name)
+    image_count = len(list((turn_dir / "renders").glob("Image_*.png")))
+    manifest = {
+        "validation_turn": attempt,
+        "status": "PASS" if score.get("passed") else "FAIL",
+        "score": score.get("score"),
+        "program": "program.py" if (turn_dir / "program.py").is_file() else None,
+        "render_views": image_count,
+        "render_directory": "renders" if (turn_dir / "renders").is_dir() else None,
+        "raw_report": raw_path.name,
+        "score_report": score_path.name,
+    }
+    (turn_dir / "turn_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return turn_dir
 
 
 def build_trace_feedback_prompt(
@@ -1392,9 +1600,10 @@ def build_trace_feedback_prompt(
     previous_code: str,
     render_log: dict,
     attempt_num: int,
-    max_attempts: int,
+    max_attempts: int | None,
 ) -> str:
     error_text = truncate_error(str(render_log.get("error") or ""))
+    attempt_limit = str(max_attempts) if max_attempts is not None else "unlimited"
     return f"""Original text-to-3D task:
 
 {original_prompt}
@@ -1415,7 +1624,7 @@ Traceback / error:
 
 {error_text}
 
-This is repair attempt {attempt_num} of {max_attempts}.
+This is repair attempt {attempt_num}; the retry limit is {attempt_limit}.
 
 Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations."""
 
@@ -1431,14 +1640,17 @@ def validate_with_trace_repair(
     log: dict,
 ) -> tuple[str, bool]:
     script_path.write_text(code)
-    max_attempts = args.max_trace_retries + 1
-
-    for attempt in range(max_attempts):
+    max_attempts = (
+        None if args.max_trace_retries < 0 else args.max_trace_retries + 1
+    )
+    attempt = 0
+    while max_attempts is None or attempt < max_attempts:
+        attempt_limit = max_attempts if max_attempts is not None else "until pass"
         append_flow_event(
             out_dir,
             log,
             "blender_render_start",
-            f"Render validation attempt {attempt + 1}/{max_attempts}",
+            f"Render validation attempt {attempt + 1}/{attempt_limit}",
             attempt=attempt + 1,
         )
         render_log = render_script(args, out_dir, script_path)
@@ -1470,8 +1682,8 @@ def validate_with_trace_repair(
             )
             return code, True
 
-        archive_renders(out_dir, f"trace_attempt{attempt}_failed")
-        if attempt == max_attempts - 1:
+        archive_renders(out_dir, f"trace_failure_{attempt:02d}")
+        if max_attempts is not None and attempt == max_attempts - 1:
             append_flow_event(
                 out_dir,
                 log,
@@ -1526,7 +1738,13 @@ def validate_with_trace_repair(
                 f"{type(exc).__name__}: {exc}",
                 repair_attempt=attempt + 1,
             )
+            if max_attempts is None:
+                time.sleep(2)
+                attempt += 1
+                continue
             return code, False
+
+        attempt += 1
 
     return code, False
 
@@ -1537,7 +1755,7 @@ def build_structure_feedback_prompt(
     previous_code: str,
     score: dict,
     attempt_num: int,
-    max_attempts: int,
+    max_attempts: int | None,
 ) -> str:
     """Build a user-side repair request from deterministic validation evidence."""
 
@@ -1581,8 +1799,9 @@ def build_structure_feedback_prompt(
         "issues": issue_details,
         "failing_relations": failing_relations,
     }
+    attempt_limit = str(max_attempts) if max_attempts is not None else "unlimited"
     return f"""The previous Blender 5.0 Python script executed and rendered, but
-validation_test rejected its parent-to-child structure or shared anchors.
+the structural validator rejected its parent-to-child structure or shared anchors.
 
 Original object request:
 
@@ -1596,13 +1815,13 @@ Previous complete code:
 {previous_code}
 </previous_code>
 
-Machine-generated validation_test report:
+Machine-generated structural validation report:
 
 <structural_report>
 {json.dumps(diagnostic, ensure_ascii=False, indent=2)}
 </structural_report>
 
-This is structural repair attempt {attempt_num} of {max_attempts}.
+This is structural repair attempt {attempt_num}; the retry limit is {attempt_limit}.
 
 Repair only the failed structural or attachment logic while preserving the
 frozen visual design. The structure blueprint, not accidental helper objects in
@@ -1644,11 +1863,11 @@ def run_structural_validation(
     log: dict,
     attempt: int,
 ) -> dict:
-    """Run validation_test and persist raw, scored, and readable reports."""
+    """Run the structural validator and persist raw and scored reports."""
 
     out_dir.mkdir(parents=True, exist_ok=True)
     probe = (
-        args.validation_test_root
+        args.validator_root
         / "algorithm"
         / "runtime"
         / "blender_probe.py"
@@ -1660,7 +1879,7 @@ def run_structural_validation(
         out_dir,
         log,
         "structural_validation_start",
-        f"Run validation_test parent/child and shared-anchor probe, attempt {attempt}",
+        f"Run structural parent/child and shared-anchor probe, attempt {attempt}",
         attempt=attempt,
         probe=str(probe),
     )
@@ -1812,6 +2031,16 @@ def run_structural_validation(
         score=score.get("score"),
         issue_codes=issue_codes,
     )
+    turn_dir = archive_validation_turn(
+        out_dir=out_dir,
+        script_path=script_path,
+        attempt=attempt,
+        score=score,
+        raw_path=raw_path,
+        score_path=score_path,
+        markdown_path=markdown_path,
+    )
+    history_item["turn_archive"] = str(turn_dir.relative_to(out_dir))
     return score
 
 
@@ -1825,20 +2054,25 @@ def validate_with_structure_repair(
     script_path: Path,
     log: dict,
 ) -> tuple[str, bool]:
-    """Gate a valid render through validation_test, repairing when necessary."""
+    """Gate a valid render through structural validation and repair failures."""
 
     if args.no_structure_verify:
         append_flow_event(
             out_dir,
             log,
             "structural_validation_skipped",
-            "validation_test structural verification disabled by command line",
+            "Structural verification disabled by command line",
         )
         return code, True
 
-    max_attempts = args.max_structure_retries + 1
+    max_attempts = (
+        None
+        if args.max_structure_retries < 0
+        else args.max_structure_retries + 1
+    )
     script_path.write_text(code)
-    for attempt in range(1, max_attempts + 1):
+    attempt = 1
+    while max_attempts is None or attempt <= max_attempts:
         score = run_structural_validation(
             args=args,
             out_dir=out_dir,
@@ -1852,18 +2086,18 @@ def validate_with_structure_repair(
                 out_dir,
                 log,
                 "structural_validation_passed",
-                "Parent/child hierarchy and authored shared anchors passed validation_test",
+                "Parent/child hierarchy and authored shared anchors passed validation",
                 score=score.get("score"),
             )
             return code, True
 
-        if attempt == max_attempts:
+        if max_attempts is not None and attempt == max_attempts:
             log["failure_stage"] = "structure"
             append_flow_event(
                 out_dir,
                 log,
                 "structural_repair_exhausted",
-                "All validation_test structural repair attempts were exhausted",
+                "All structural repair attempts were exhausted",
                 score=score.get("score"),
             )
             return code, False
@@ -1884,7 +2118,7 @@ def validate_with_structure_repair(
             out_dir,
             log,
             "structural_repair_request",
-            "Ask the model to repair validation_test structural failures",
+            "Ask the model to repair structural validation failures",
             repair_attempt=attempt,
         )
         try:
@@ -1923,6 +2157,10 @@ def validate_with_structure_repair(
                 f"{type(exc).__name__}: {exc}",
                 repair_attempt=attempt,
             )
+            if max_attempts is None:
+                time.sleep(2)
+                attempt += 1
+                continue
             return code, False
 
         code, render_ok = validate_with_trace_repair(
@@ -1938,6 +2176,8 @@ def validate_with_structure_repair(
         if not render_ok:
             log["failure_stage"] = "render"
             return code, False
+
+        attempt += 1
 
     log["failure_stage"] = "structure"
     return code, False
@@ -2079,7 +2319,7 @@ def visual_feedback_loop(
             )
             return code, True
 
-        archive_renders(out_dir, f"visual_iter{iteration}_before")
+        archive_renders(out_dir, f"visual_before_iteration_{iteration:02d}")
         (out_dir / f"{script_path.stem}.visual{iteration}.py").write_text(fixed_code)
         append_flow_event(
             out_dir,
@@ -2141,14 +2381,14 @@ def main() -> None:
     args.output_dir = args.output_dir.expanduser().resolve()
     args.structure_context_dir = args.structure_context_dir.expanduser().resolve()
     args.system_prompt = args.system_prompt.expanduser().resolve()
-    args.validation_test_root = args.validation_test_root.expanduser().resolve()
+    args.validator_root = args.validator_root.expanduser().resolve()
     if args.visual_baseline_dir is not None:
         args.visual_baseline_dir = args.visual_baseline_dir.expanduser().resolve()
     try:
         output_instance_name("probe", args.output_prefix, args.output_suffix)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
-    args.blender = HARD_CODED_BLENDER
+    args.blender = str(resolve_blender_executable(args.blender))
     config = load_config(args.config)
     if config.get("code_max_output_tokens") is not None:
         config["max_output_tokens"] = config["code_max_output_tokens"]
@@ -2159,7 +2399,7 @@ def main() -> None:
     system_prompt = args.system_prompt.read_text(encoding="utf-8")
     instances = iter_instances(args.data_dir, args.instances)
     validation_probe = (
-        args.validation_test_root / "algorithm" / "runtime" / "blender_probe.py"
+        args.validator_root / "algorithm" / "runtime" / "blender_probe.py"
     )
     if (
         not args.no_render_verify
@@ -2167,23 +2407,31 @@ def main() -> None:
         and not validation_probe.is_file()
     ):
         raise SystemExit(
-            "Missing validation_test runtime probe: "
+            "Missing structural-validator runtime probe: "
             f"{validation_probe.resolve()}"
+        )
+    if not args.no_render_verify and not Path(args.blender).is_file():
+        raise SystemExit(
+            "Blender executable does not exist: "
+            f"{args.blender}. Pass --blender or set TREESTRUCT3D_BLENDER."
         )
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     run_manifest = {
-        "schema_version": "stage7-run-manifest/v1",
+        "schema_version": "treestruct3d.run-manifest/v1",
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
-        "pipeline": "copied_3dcodebench_lmstudio_text_to_3d",
-        "inherits_structgen3d": False,
-        "inherits_stage_2_to_6": False,
+        "project": PROJECT_NAME,
+        "pipeline": "structure_guided_text_to_blender",
+        "upstream": {
+            "name": "3DCodeBench",
+            "generation_system_prompt_modified": False,
+        },
         "system_prompt": {
             "path": str(args.system_prompt.resolve()),
             "characters": len(system_prompt),
             "sha256": sha256_text(system_prompt),
             "role": "system",
-            "modified_by_stage7": False,
+            "modified": False,
         },
         "effective_system_prompt": {
             "path": None,
@@ -2199,12 +2447,13 @@ def main() -> None:
         },
         "structural_validation": {
             "enabled": not args.no_structure_verify,
-            "validation_test_root": str(args.validation_test_root.resolve()),
+            "validator_root": str(args.validator_root.resolve()),
             "probe": str(validation_probe.resolve()),
             "minimum_score": args.min_structure_score,
             "repair_rounds": args.max_structure_retries,
             "timeout_seconds": args.structure_timeout,
         },
+        "attachment_mechanism": args.attachment_mechanism,
         "visual_baseline": (
             str(args.visual_baseline_dir.resolve())
             if args.visual_baseline_dir is not None
@@ -2218,10 +2467,10 @@ def main() -> None:
             "Python syntax validation",
             "Blender 5.0 render validation",
             "traceback repair only after render failure",
-            "validation_test parent/child and shared-anchor scoring",
-            "structural repair followed by Blender and validation_test reruns",
+            "structural-validator parent/child and shared-anchor scoring",
+            "structural repair followed by Blender and validator reruns",
             "visual feedback only after a valid render",
-            "revalidate any visual fix in Blender 5.0 and validation_test",
+            "revalidate any visual fix in Blender 5.0 and the structural validator",
             "write final status and chronological logs",
         ],
         "model": config["model"],
@@ -2255,7 +2504,7 @@ def main() -> None:
         print(f"Trace retries: {args.max_trace_retries}", flush=True)
         print(f"Structural verify: {not args.no_structure_verify}", flush=True)
         if not args.no_structure_verify:
-            print(f"validation_test: {args.validation_test_root.resolve()}", flush=True)
+            print(f"Structural validator: {args.validator_root.resolve()}", flush=True)
             print(f"Minimum structural score: {args.min_structure_score}", flush=True)
             print(f"Structural retries: {args.max_structure_retries}", flush=True)
         print(f"Visual iterations: {args.max_visual_iterations}", flush=True)
@@ -2280,7 +2529,8 @@ def main() -> None:
         prompt_path = instance_dir / f"prompt_{args.prompt_type}.txt"
         out_dir = args.output_dir / output_name
         script_path = out_dir / f"{output_name}.py"
-        log_path = out_dir / "log.json"
+        log_path = out_dir / RUN_LOG_FILENAME
+        legacy_log_path = out_dir / LEGACY_RUN_LOG_FILENAME
 
         resuming_existing = bool(args.resume_existing and script_path.is_file())
         if script_path.exists() and not args.overwrite and not resuming_existing:
@@ -2308,6 +2558,7 @@ def main() -> None:
         generation_user_prompt = compose_generation_user_prompt(
             prompt,
             structure_blueprint,
+            args.attachment_mechanism,
         )
         out_dir.mkdir(parents=True, exist_ok=True)
         effective_prompt_path = out_dir / "effective_system_prompt.txt"
@@ -2334,23 +2585,26 @@ def main() -> None:
             generation_user_prompt + "\n",
             encoding="utf-8",
         )
-        if resuming_existing and log_path.is_file():
+        resume_log_path = (
+            log_path if log_path.is_file() else legacy_log_path
+        )
+        if resuming_existing and resume_log_path.is_file():
             try:
-                log = json.loads(log_path.read_text(encoding="utf-8"))
+                log = json.loads(resume_log_path.read_text(encoding="utf-8"))
             except (OSError, ValueError, TypeError):
                 log = {}
         else:
             log = {}
         log.update(
             {
-                "schema_version": "stage7-instance-log/v1",
+                "schema_version": "treestruct3d.instance-log/v1",
                 "instance": name,
                 "output_instance": output_name,
                 "model": config["model"],
                 "api_format": config.get("api_format", API_FORMAT_LMSTUDIO),
                 "status": None,
-                "pipeline": "copied_3dcodebench_lmstudio_text_to_3d",
-                "inherits_stage_2_to_6": False,
+                "project": PROJECT_NAME,
+                "pipeline": "structure_guided_text_to_blender",
                 "effective_system_prompt_identical_to_base": True,
                 "structure_context": {
                     "path": str(structure_path.resolve()),
@@ -2542,7 +2796,7 @@ def main() -> None:
             failed += 1
             if log.get("failure_stage") == "structure":
                 log["status"] = "ERR_STRUCTURE_REPAIR_EXHAUSTED"
-                detail = "validation_test structural repair exhausted"
+                detail = "structural repair exhausted"
             else:
                 log["status"] = "ERR_RENDER_REPAIR_EXHAUSTED"
                 detail = "render repair exhausted"
@@ -2551,7 +2805,7 @@ def main() -> None:
             out_dir,
             log,
             "instance_complete",
-            "Stage 7 instance finished",
+            "TreeStruct3D instance finished",
             status=log["status"],
         )
 
