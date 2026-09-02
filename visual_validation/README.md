@@ -35,6 +35,17 @@ visual_validation/
 
 The committed image, PDF, Blender, and GLB assets are managed with Git LFS.
 
+## Bundled benchmark fixtures
+
+`datasets/benchmark/categories/` mirrors the 212-category `3DCodeBench/`
+split from the official
+[YipengGao/3DCode dataset](https://huggingface.co/datasets/YipengGao/3DCode).
+The generation component keeps the canonical local input snapshot under
+`TreeStruct3D/benchmark/categories/`; this second copy supports the toolkit's
+self-contained dataset loader and may include additional derived validation
+fixtures. See the [benchmark provenance document](../TreeStruct3D/benchmark/README.md)
+for the pinned revision, download command, input boundary, and data licenses.
+
 ## Requirements
 
 - Python 3.9 or newer

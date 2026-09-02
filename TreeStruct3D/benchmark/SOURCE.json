@@ -1,0 +1,15 @@
+{
+  "schema_version": "treestruct3d.benchmark-source/v1",
+  "dataset_repository": "YipengGao/3DCode",
+  "repository_type": "huggingface_dataset",
+  "subset_path": "3DCodeBench",
+  "revision": "c2bcae4f36d6fe19e794b85695d430ce0210f92d",
+  "subset_tree_oid": "ce0b3c13d21b6f6a47e1827d3eb0db84eef647c7",
+  "source_url": "https://huggingface.co/datasets/YipengGao/3DCode",
+  "code_url": "https://github.com/gaoypeng/3dcodebench",
+  "local_path": "TreeStruct3D/benchmark/categories",
+  "category_count": 212,
+  "upstream_file_count": 636,
+  "verified_at": "2026-09-02",
+  "verification": "Every local upstream file matched the pinned source Git blob ID and byte size."
+}

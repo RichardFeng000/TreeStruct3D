@@ -55,6 +55,36 @@ An external visual-validation checkout can be selected explicitly:
 export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/visual_validation
 ```
 
+## Benchmark inputs
+
+The default data directory, `benchmark/categories/`, is a bundled snapshot of
+the official 212-category
+[`3DCodeBench/` split](https://huggingface.co/datasets/YipengGao/3DCode/tree/c2bcae4f36d6fe19e794b85695d430ce0210f92d/3DCodeBench)
+from the `YipengGao/3DCode` Hugging Face dataset. No additional download is
+needed for the examples in this README.
+
+Each instance contains two natural-language inputs and one reference Blender
+factory. The commands use `prompt_description.txt` by default, or
+`prompt_instruction.txt` when `--prompt-type instruction` is supplied. The
+reference `<instance>.py` factory is not read by either model-facing stage.
+
+The exact upstream revision, independent download command, directory layout,
+and license boundary are documented in
+[benchmark/README.md](benchmark/README.md). An independently downloaded copy
+can be used in place without copying it into this repository:
+
+```bash
+./extract_structure.sh \
+  --data-dir /absolute/path/to/3dcode/3DCodeBench \
+  --instances Bird_seed0 \
+  --overwrite
+
+./generate_3d.sh \
+  --data-dir /absolute/path/to/3dcode/3DCodeBench \
+  --instances Bird_seed0 \
+  --overwrite
+```
+
 ## Configuration
 
 Copy the tracked example and provide credentials through the environment:
@@ -172,7 +202,9 @@ structural validator.
 
 ## Provenance and license
 
-The benchmark inputs, baseline runner behavior, rendering utilities, and
-generation prompt originate from 3DCodeBench and are used under Apache-2.0.
-TreeStruct3D's local changes are distributed under the same license; see
-[LICENSE](LICENSE).
+The baseline runner behavior, rendering utilities, and generation prompt are
+derived from the 3DCodeBench software repository. Benchmark data has separate
+upstream terms: the benchmark split and text prompts are MIT-licensed, while
+the reference factory scripts retain Infinigen's BSD-3-Clause license.
+TreeStruct3D's original code is distributed under Apache-2.0; see
+[LICENSE](LICENSE) and [the repository notices](../THIRD_PARTY_NOTICES.md).

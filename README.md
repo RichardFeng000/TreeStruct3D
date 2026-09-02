@@ -70,6 +70,28 @@ Unit tests do not call model APIs or launch Blender:
 (cd visual_validation && python -m unittest discover -s tests -v)
 ```
 
+## Benchmark input data
+
+TreeStruct3D uses the 212-category `3DCodeBench/` evaluation split from the
+official [YipengGao/3DCode dataset](https://huggingface.co/datasets/YipengGao/3DCode).
+The corresponding evaluation code is maintained in the
+[3DCodeBench repository](https://github.com/gaoypeng/3dcodebench).
+
+For reproducibility, this repository already includes a byte-identical copy of
+all 636 files from the upstream `3DCodeBench/` split at Hugging Face revision
+[`c2bcae4f36d6fe19e794b85695d430ce0210f92d`](https://huggingface.co/datasets/YipengGao/3DCode/tree/c2bcae4f36d6fe19e794b85695d430ce0210f92d/3DCodeBench)
+under `TreeStruct3D/benchmark/categories/`. A separate dataset download is
+therefore not required for the default examples.
+
+By default, the model-facing stages read only each instance's
+`prompt_description.txt`. Passing `--prompt-type instruction` selects
+`prompt_instruction.txt` instead. The colocated reference Blender `.py` file
+is retained for provenance and evaluation; neither structure extraction nor
+generation reads it as model input.
+
+See [TreeStruct3D/benchmark/README.md](TreeStruct3D/benchmark/README.md) for the
+pinned download command, directory schema, input boundary, and data licenses.
+
 ## Quick start
 
 Create a local configuration from the tracked example and provide credentials
@@ -135,7 +157,8 @@ TreeStruct3D builds on the benchmark, generation setup, and rendering utilities
 introduced by [3DCodeBench](https://github.com/gaoypeng/3dcodebench). The
 upstream Blender generation system prompt is retained byte-for-byte for
 controlled comparison. See [NOTICE](NOTICE) and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution details.
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and the
+separate licenses that apply to the benchmark text and reference factories.
 
 The project is distributed under the Apache License 2.0. See
 [LICENSE](LICENSE).

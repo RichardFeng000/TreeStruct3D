@@ -1,8 +1,13 @@
 TreeStruct3D
 Copyright 2026 TreeStruct3D contributors
 
-This product includes material derived from 3DCodeBench
-(https://github.com/gaoypeng/3dcodebench), distributed under the Apache
-License, Version 2.0. TreeStruct3D preserves the upstream Blender generation
-system prompt for controlled research comparisons and adds structure planning,
-structural validation, repair orchestration, and related documentation.
+This product includes software material derived from 3DCodeBench
+(https://github.com/gaoypeng/3dcodebench). TreeStruct3D preserves the upstream
+Blender generation system prompt for controlled research comparisons and adds
+structure planning, structural validation, repair orchestration, and related
+documentation.
+
+This product also redistributes the 3DCodeBench evaluation split from
+https://huggingface.co/datasets/YipengGao/3DCode. Its text and reference factory
+files retain their separate upstream licenses. See THIRD_PARTY_NOTICES.md for
+the source revision, file scope, and applicable terms.

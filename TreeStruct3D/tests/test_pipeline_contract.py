@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -11,6 +12,27 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PipelineContractTest(unittest.TestCase):
+    def test_benchmark_source_is_pinned_and_matches_default_location(self):
+        source_path = ROOT / "benchmark" / "SOURCE.json"
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            generate_3d.DEFAULT_DATA_DIR,
+            ROOT / "benchmark" / "categories",
+        )
+        self.assertEqual(
+            extract_structure.DEFAULT_DATA_DIR,
+            generate_3d.DEFAULT_DATA_DIR,
+        )
+        self.assertEqual(source["dataset_repository"], "YipengGao/3DCode")
+        self.assertEqual(source["subset_path"], "3DCodeBench")
+        self.assertEqual(
+            source["revision"],
+            "c2bcae4f36d6fe19e794b85695d430ce0210f92d",
+        )
+        self.assertEqual(source["category_count"], 212)
+        self.assertEqual(source["upstream_file_count"], 636)
+
     def test_default_config_uses_the_conventional_local_filename(self):
         self.assertEqual(
             generate_3d.DEFAULT_CONFIG,
