@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from algorithm import model_playground
 
@@ -83,7 +84,13 @@ class MultipleDatasetsTest(unittest.TestCase):
                 render_timeout=60,
             )
 
-            state = model_playground.PlaygroundState(args)
+            validation_turns = {("GPT-5.5", "Bird_seed0"): 1}
+            with mock.patch.object(
+                model_playground,
+                "_load_validation_turns",
+                return_value=validation_turns,
+            ):
+                state = model_playground.PlaygroundState(args)
 
             self.assertEqual(state.validation_turn("dataset", "Bird_seed0"), 1)
             self.assertIsNone(state.validation_turn("dataset", "Missing_seed0"))

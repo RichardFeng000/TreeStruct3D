@@ -384,7 +384,7 @@ class ApiFormatTest(unittest.TestCase):
 
     def test_remote_disconnect_is_not_retried_after_unknown_billing(self):
         with mock.patch(
-            "generate_3d.urllib.request.urlopen",
+            "generate_3d._REQUEST_URLOPEN_OVERRIDE",
             side_effect=http.client.RemoteDisconnected("closed"),
         ):
             with self.assertRaisesRegex(
