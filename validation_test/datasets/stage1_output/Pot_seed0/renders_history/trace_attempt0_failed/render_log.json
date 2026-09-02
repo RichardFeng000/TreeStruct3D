@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pot_seed0/Pot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "KeyError: 'bpy_prop_collection[key]: key \"Fac\" not found'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Pot_seed0/Pot_seed0.py\", line 114, in <module>\n    create_cooking_pot()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Pot_seed0/Pot_seed0.py\", line 106, in create_cooking_pot\n    pot_mat = create_material()\n              ^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Pot_seed0/Pot_seed0.py\", line 33, in create_material\n    noise.inputs['Fac'].default_value = 0.3 # Control noise intensity\n    ~~~~~~~~~~~~^^^^^^^\nKeyError: 'bpy_prop_collection[key]: key \"Fac\" not found'\n"
+}

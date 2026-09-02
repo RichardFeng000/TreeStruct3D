@@ -1,0 +1,35 @@
+{
+  "instance": "GlowingRocks_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The shape is too lumpy and \"jittery\" (high-frequency noise), resembling melted wax rather than a smooth, river-worn pebble.\n- The material appears as a stark flat white in the renders; it lacks the nuanced cream tones and subtle \"inner luminescence\" requested.\n- Need to replace random vertex jitter with low-frequency organic deformation and refine the cream/glow colors."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The renders faithfully represent a smooth, elongated, organic pebble with the requested cream color and soft luminous appearance."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+- The current cellular texture is too smooth and looks like "bubbles" rather than "deeply pitted cells".
+- Pits are not deep enough, and ridges lack the definition of a coral structure.
+- Texture scale is too large; needs more numerous and smaller cells to create a complex network.
+- I will replace the Gaussian displacement with a distance-based Voronoi function to produce sharper cell walls and deeper pits.

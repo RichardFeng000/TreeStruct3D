@@ -1,0 +1,120 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default Blender scene."""
+    if bpy.context.object:
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple diffuse material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_principled.inputs['Base Color'].default_value = color
+    mat.node_tree.links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def create_mushroom_cap():
+    # 1. Setup Materials
+    mat_top = create_material("MushroomTop", (0.85, 0.78, 0.65, 1.0)) # Beige-tan
+    mat_bottom = create_material("MushroomGills", (0.05, 0.04, 0.03, 1.0)) # Dark brown/black
+
+    # 2. Create the main dome using BMesh
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=64, v_segments=32, radius=1.0)
+    
+    # Transform the sphere into an irregular dome
+    for v in bm.verts:
+        # Flatten Z to make it a cap
+        v.co.z *= 0.6
+        
+        # Organic irregularity
+        noise = random.uniform(-0.05, 0.05)
+        v.co.x += noise
+        v.co.y += noise
+        v.co.z += noise
+
+    # Remove the bottom half of the sphere to leave an opening for gills
+    verts_to_delete = [v for v in bm.verts if v.co.z < -0.1]
+    bmesh.ops.delete(bm, geom=verts_to_delete, type='VERT')
+    
+    # Create organic wavy line patterns (ridges) on the surface
+    for v in bm.verts:
+        angle = math.atan2(v.co.y, v.co.x)
+        dist_from_center = math.sqrt(v.co.x**2 + v.co.y**2)
+        
+        # Concentric wavy ridges using sine waves
+        wave1 = 0.04 * math.sin(8 * angle + dist_from_center * 6)
+        wave2 = 0.03 * math.cos(4 * angle - dist_from_center * 10)
+        v.co.z += (wave1 + wave2)
+
+    # Create the mesh object for the cap top
+    mesh_data = bpy.data.meshes.new("MushroomCapTop")
+    bm.to_mesh(mesh_data)
+    cap_obj = bpy.data.objects.new("MushroomCap", mesh_data)
+    bpy.context.collection.objects.link(cap_obj)
+    cap_obj.data.materials.append(mat_top)
+    bm.free()
+
+    # 3. Create the Gills (the underside structure)
+    gill_bm = bmesh.new()
+    num_gills = 72
+    gill_thickness = 0.01
+    segments_per_gill = 15
+
+    for i in range(num_gills):
+        theta = (i / num_gills) * 2 * math.pi
+        cos_t = math.cos(theta)
+        sin_t = math.sin(theta)
+        
+        # Create a radial strip for each gill
+        verts = []
+        for s in range(segments_per_gill + 1):
+            r = (s / segments_per_gill) * 0.95 # Stay slightly inside the cap edge
+            z = -0.1 + (r * r * 0.15) # Slight curve
+            
+            # Give each gill a tiny bit of thickness to avoid zero-area faces
+            offset_x = -sin_t * gill_thickness / 2
+            offset_y = cos_t * gill_thickness / 2
+            
+            v1 = gill_bm.verts.new(Vector((r * cos_t + offset_x, r * sin_t + offset_y, z)))
+            v2 = gill_bm.verts.new(Vector((r * cos_t - offset_x, r * sin_t - offset_y, z)))
+            verts.append((v1, v2))
+        
+        # Connect the vertices to form faces for this gill strip
+        for s in range(segments_per_gill):
+            try:
+                gill_bm.faces.new([verts[s][0], verts[s+1][0], verts[s+1][1], verts[s][1]])
+            except ValueError:
+                pass # Avoid duplicate faces
+
+    # Create the mesh object for the gills
+    gill_mesh_data = bpy.data.meshes.new("MushroomGills")
+    gill_bm.to_mesh(gill_mesh_data)
+    gill_obj = bpy.data.objects.new("Gills", gill_mesh_data)
+    bpy.context.collection.objects.link(gill_obj)
+    gill_obj.data.materials.append(mat_bottom)
+    gill_bm.free()
+
+    # Join the cap and gills into one object
+    bpy.context.view_layer.objects.active = cap_obj
+    cap_obj.select_set(True)
+    gill_obj.select_set(True)
+    bpy.ops.object.join()
+
+    # Final setup: ensure the combined object has both materials
+    # The join operation preserves material slots
+    cap_obj.location = (0, 0, 0)
+
+if __name__ == "__main__":
+    clear_scene()
+    create_mushroom_cap()

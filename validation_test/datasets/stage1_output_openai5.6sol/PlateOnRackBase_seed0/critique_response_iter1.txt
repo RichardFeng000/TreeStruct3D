@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The large dark purple plate is complete, properly supported, and convincingly displayed upright on a coherent wooden peg rack.
+</assessment>

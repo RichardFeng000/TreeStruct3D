@@ -1,0 +1,3 @@
+- Bowl shape is too narrow and cylindrical; it needs to be wider and more rounded to fit "wide rounded bowl".
+- The "stacked disc base" appears as a single smooth blob in the render; the layers need clearer definition/separation to be visible.
+- Proportions between the wide bowl and the stem should be more dramatic.

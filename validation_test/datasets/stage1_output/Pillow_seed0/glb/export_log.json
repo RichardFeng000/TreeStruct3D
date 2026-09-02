@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/Pillow_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/glb/Pillow_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 97.2,
+  "latency_s": 2.4,
+  "error": null
+}

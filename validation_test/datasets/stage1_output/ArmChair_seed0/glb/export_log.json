@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ArmChair_seed0/ArmChair_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/ArmChair_seed0/glb/ArmChair_seed0.glb",
+  "status": "OK",
+  "n_meshes": 5,
+  "size_kb": 883.1,
+  "latency_s": 0.36,
+  "error": null
+}

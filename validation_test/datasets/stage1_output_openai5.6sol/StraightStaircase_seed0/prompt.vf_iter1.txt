@@ -1,0 +1,429 @@
+Original text-to-3D task:
+
+A straight single-flight staircase rendered as a 3D model, featuring a compact dark maroon/purple structural frame with semi-transparent brownish-grey glass panel railings on both sides.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    pass
+
+# Materials
+def make_principled_material(name, color, metallic=0.0, roughness=0.4):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color[:3], color[3])
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color[:3], 1.0)
+    bsdf.inputs["Metallic"].default_value = metallic
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Alpha"].default_value = color[3]
+    return mat
+
+frame_mat = make_principled_material(
+    "Dark Maroon Purple Metal",
+    (0.115, 0.025, 0.095, 1.0),
+    metallic=0.72,
+    roughness=0.25
+)
+
+edge_mat = make_principled_material(
+    "Maroon Edge Accents",
+    (0.19, 0.045, 0.135, 1.0),
+    metallic=0.62,
+    roughness=0.28
+)
+
+glass_mat = bpy.data.materials.new("Brownish Grey Transparent Glass")
+glass_mat.diffuse_color = (0.22, 0.17, 0.15, 0.38)
+glass_mat.use_nodes = True
+glass_bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
+glass_bsdf.inputs["Base Color"].default_value = (0.23, 0.18, 0.16, 1.0)
+glass_bsdf.inputs["Roughness"].default_value = 0.22
+glass_bsdf.inputs["Metallic"].default_value = 0.0
+glass_bsdf.inputs["Alpha"].default_value = 0.38
+if "Transmission Weight" in glass_bsdf.inputs:
+    glass_bsdf.inputs["Transmission Weight"].default_value = 0.42
+if "IOR" in glass_bsdf.inputs:
+    glass_bsdf.inputs["IOR"].default_value = 1.48
+try:
+    glass_mat.surface_render_method = 'DITHERED'
+except Exception:
+    pass
+glass_mat.use_transparency_overlap = False if hasattr(glass_mat, "use_transparency_overlap") else True
+
+# Collections
+assembly = bpy.data.collections.new("Straight Staircase Assembly")
+bpy.context.scene.collection.children.link(assembly)
+
+def move_to_collection(obj, collection=assembly):
+    for col in list(obj.users_collection):
+        col.objects.unlink(obj)
+    collection.objects.link(obj)
+
+def add_box(name, location, dimensions, material, bevel=0.0, bevel_segments=2, rotation=(0.0, 0.0, 0.0)):
+    bpy.ops.mesh.primitive_cube_add(location=location, rotation=rotation)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if material:
+        obj.data.materials.append(material)
+    if bevel > 0.0:
+        modifier = obj.modifiers.new("Softened Metal Edges", 'BEVEL')
+        modifier.width = bevel
+        modifier.segments = bevel_segments
+        modifier.limit_method = 'ANGLE'
+    move_to_collection(obj)
+    return obj
+
+def add_cylinder(name, location, radius, depth, material, rotation=(0.0, 0.0, 0.0), vertices=24, bevel=0.0):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    if material:
+        obj.data.materials.append(material)
+    if bevel > 0.0:
+        modifier = obj.modifiers.new("Rounded Ends", 'BEVEL')
+        modifier.width = bevel
+        modifier.segments = 2
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    move_to_collection(obj)
+    return obj
+
+def add_round_beam(name, start, end, radius, material, vertices=24):
+    start = Vector(start)
+    end = Vector(end)
+    delta = end - start
+    length = delta.length
+    midpoint = (start + end) * 0.5
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=length,
+        location=midpoint
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(delta.normalized())
+    if material:
+        obj.data.materials.append(material)
+    bevel = obj.modifiers.new("Rail End Softening", 'BEVEL')
+    bevel.width = min(radius * 0.22, 0.012)
+    bevel.segments = 2
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    move_to_collection(obj)
+    return obj
+
+def add_rect_beam_between(name, start, end, width, depth, material, bevel=0.0):
+    start = Vector(start)
+    end = Vector(end)
+    delta = end - start
+    length = delta.length
+    midpoint = (start + end) * 0.5
+    angle = math.atan2(delta.z, delta.y)
+    return add_box(
+        name,
+        midpoint,
+        (width, length, depth),
+        material,
+        bevel=bevel,
+        rotation=(angle, 0.0, 0.0)
+    )
+
+def add_glass_panel(name, x_center, thickness, y0, y1, z0_low, z1_low, z0_high, z1_high, material):
+    xa = x_center - thickness * 0.5
+    xb = x_center + thickness * 0.5
+    verts = [
+        (xa, y0, z0_low),
+        (xa, y1, z1_low),
+        (xa, y1, z1_high),
+        (xa, y0, z0_high),
+        (xb, y0, z0_low),
+        (xb, y1, z1_low),
+        (xb, y1, z1_high),
+        (xb, y0, z0_high),
+    ]
+    faces = [
+        (0, 1, 2, 3),
+        (4, 7, 6, 5),
+        (0, 4, 5, 1),
+        (1, 5, 6, 2),
+        (2, 6, 7, 3),
+        (3, 7, 4, 0),
+    ]
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    assembly.objects.link(obj)
+    obj.data.materials.append(material)
+    bevel = obj.modifiers.new("Polished Glass Edges", 'BEVEL')
+    bevel.width = 0.008
+    bevel.segments = 2
+    return obj
+
+# Stair proportions
+step_count = 11
+step_run = 0.34
+step_rise = 0.215
+step_width = 2.20
+tread_depth = 0.39
+tread_thickness = 0.075
+first_tread_top = 0.235
+half_flight = (step_count - 1) * step_run * 0.5
+
+def tread_y(index):
+    return index * step_run - half_flight
+
+def tread_top(index):
+    return first_tread_top + index * step_rise
+
+def slope_surface(y):
+    return first_tread_top + ((y + half_flight) / step_run) * step_rise
+
+# Two diagonal structural stringers.
+stringer_x = 0.84
+stringer_depth = 0.15
+stringer_start_y = tread_y(0) - 0.08
+stringer_end_y = tread_y(step_count - 1) + 0.08
+stringer_start_z = slope_surface(stringer_start_y) - tread_thickness - stringer_depth * 0.5
+stringer_end_z = slope_surface(stringer_end_y) - tread_thickness - stringer_depth * 0.5
+
+for side in (-1, 1):
+    add_rect_beam_between(
+        "Left Stringer" if side < 0 else "Right Stringer",
+        (side * stringer_x, stringer_start_y, stringer_start_z),
+        (side * stringer_x, stringer_end_y, stringer_end_z),
+        0.145,
+        stringer_depth,
+        frame_mat,
+        bevel=0.018
+    )
+
+# Steps, front fascias, and transverse supports.
+for i in range(step_count):
+    y = tread_y(i)
+    top = tread_top(i)
+
+    add_box(
+        f"Tread {i + 1:02d}",
+        (0.0, y, top - tread_thickness * 0.5),
+        (step_width, tread_depth, tread_thickness),
+        frame_mat,
+        bevel=0.018,
+        bevel_segments=3
+    )
+
+    # Slightly raised narrow front nosing.
+    add_box(
+        f"Tread Nosing {i + 1:02d}",
+        (0.0, y - tread_depth * 0.5 + 0.018, top + 0.012),
+        (step_width + 0.025, 0.045, 0.035),
+        edge_mat,
+        bevel=0.012,
+        bevel_segments=3
+    )
+
+    # Compact riser fascia below the rear edge of each tread.
+    if i > 0:
+        add_box(
+            f"Riser Fascia {i + 1:02d}",
+            (0.0, y + tread_depth * 0.5 - 0.025, top - step_rise * 0.5),
+            (step_width - 0.08, 0.05, step_rise - 0.035),
+            frame_mat,
+            bevel=0.012
+        )
+
+    # Cross-member under every tread.
+    add_box(
+        f"Cross Support {i + 1:02d}",
+        (0.0, y + 0.035, top - tread_thickness - 0.055),
+        (1.88, 0.115, 0.11),
+        frame_mat,
+        bevel=0.014
+    )
+
+# Bottom mounting feet and compact end brackets.
+for side in (-1, 1):
+    add_box(
+        f"Bottom Foot {side}",
+        (side * stringer_x, stringer_start_y - 0.03, 0.022),
+        (0.34, 0.42, 0.044),
+        frame_mat,
+        bevel=0.012
+    )
+    add_box(
+        f"Bottom Anchor Bracket {side}",
+        (side * stringer_x, tread_y(0) - 0.10, 0.105),
+        (0.16, 0.12, 0.20),
+        frame_mat,
+        bevel=0.012
+    )
+    add_box(
+        f"Upper End Plate {side}",
+        (
+            side * stringer_x,
+            tread_y(step_count - 1) + tread_depth * 0.5 - 0.025,
+            tread_top(step_count - 1) - 0.16
+        ),
+        (0.17, 0.055, 0.37),
+        frame_mat,
+        bevel=0.012
+    )
+
+# Glass railing system.
+rail_x = step_width * 0.5 + 0.035
+post_indices = list(range(0, step_count, 2))
+if post_indices[-1] != step_count - 1:
+    post_indices.append(step_count - 1)
+
+post_height = 1.00
+panel_bottom_offset = 0.17
+panel_top_offset = 0.83
+
+for side in (-1, 1):
+    x = side * rail_x
+
+    # Vertical posts.
+    for node_number, idx in enumerate(post_indices):
+        y = tread_y(idx)
+        base_z = tread_top(idx) - 0.04
+        top_z = tread_top(idx) + post_height
+        add_box(
+            f"{'Left' if side < 0 else 'Right'} Railing Post {node_number + 1:02d}",
+            (x, y, (base_z + top_z) * 0.5),
+            (0.065, 0.065, top_z - base_z),
+            frame_mat,
+            bevel=0.012,
+            bevel_segments=3
+        )
+
+        # Post base collar.
+        add_box(
+            f"Post Base Collar {side} {node_number}",
+            (x, y, tread_top(idx) + 0.006),
+            (0.12, 0.12, 0.055),
+            edge_mat,
+            bevel=0.014,
+            bevel_segments=3
+        )
+
+    # Sloped circular handrail.
+    first_idx = post_indices[0]
+    last_idx = post_indices[-1]
+    rail_start_y = tread_y(first_idx) - 0.16
+    rail_end_y = tread_y(last_idx) + 0.16
+    add_round_beam(
+        f"{'Left' if side < 0 else 'Right'} Sloped Handrail",
+        (x, rail_start_y, slope_surface(rail_start_y) + post_height),
+        (x, rail_end_y, slope_surface(rail_end_y) + post_height),
+        0.048,
+        frame_mat,
+        vertices=28
+    )
+
+    # Lower framing rail behind the glass.
+    lower_start_y = tread_y(first_idx)
+    lower_end_y = tread_y(last_idx)
+    add_round_beam(
+        f"{'Left' if side < 0 else 'Right'} Lower Glass Rail",
+        (x, lower_start_y, slope_surface(lower_start_y) + panel_bottom_offset - 0.035),
+        (x, lower_end_y, slope_surface(lower_end_y) + panel_bottom_offset - 0.035),
+        0.025,
+        frame_mat,
+        vertices=20
+    )
+
+    # Individual glass panels.
+    for panel_index in range(len(post_indices) - 1):
+        idx0 = post_indices[panel_index]
+        idx1 = post_indices[panel_index + 1]
+        y0 = tread_y(idx0) + 0.052
+        y1 = tread_y(idx1) - 0.052
+        z0_surface = slope_surface(y0)
+        z1_surface = slope_surface(y1)
+
+        add_glass_panel(
+            f"{'Left' if side < 0 else 'Right'} Glass Panel {panel_index + 1:02d}",
+            x,
+            0.024,
+            y0,
+            y1,
+            z0_surface + panel_bottom_offset,
+            z1_surface + panel_bottom_offset,
+            z0_surface + panel_top_offset,
+            z1_surface + panel_top_offset,
+            glass_mat
+        )
+
+    # Circular clamp hardware at each vertical glass boundary.
+    outer_x = side * (rail_x + 0.047)
+    for node_number, idx in enumerate(post_indices):
+        y = tread_y(idx)
+        surface_z = tread_top(idx)
+        for clamp_offset in (0.29, 0.70):
+            add_cylinder(
+                f"Glass Clamp {side} {node_number} {clamp_offset}",
+                (outer_x, y, surface_z + clamp_offset),
+                0.040,
+                0.070,
+                edge_mat,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+                vertices=24,
+                bevel=0.006
+            )
+            add_cylinder(
+                f"Clamp Fastener {side} {node_number} {clamp_offset}",
+                (side * (rail_x + 0.086), y, surface_z + clamp_offset),
+                0.014,
+                0.012,
+                frame_mat,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+                vertices=16,
+                bevel=0.003
+            )
+
+# Small visible anchor bolts on the bottom feet.
+for side in (-1, 1):
+    for dy in (-0.13, 0.13):
+        add_cylinder(
+            f"Foot Anchor Bolt {side} {dy}",
+            (side * stringer_x, stringer_start_y - 0.03 + dy, 0.053),
+            0.022,
+            0.035,
+            edge_mat,
+            vertices=16,
+            bevel=0.004
+        )
+
+# Organize viewport display and ensure the staircase is selected as an assembly.
+for obj in assembly.objects:
+    obj.select_set(True)
+
+bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+bpy.context.view_layer.objects.active = assembly.objects.get("Tread 01") if assembly.objects.get("Tread 01") else next(iter(assembly.objects), None)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

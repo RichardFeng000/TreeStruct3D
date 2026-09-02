@@ -1,0 +1,410 @@
+NEEDS_FIX: YES
+<assessment>
+- The shell is oriented horizontally and reads as a flying saucer; rotate the planispiral disc upright for a front-facing shell silhouette.
+- The thick raised ivory spiral resembles a loose rope or lid rim; replace it with a thin integrated spiral groove.
+- The body is too thick and domed for a flat planispiral shell; reduce depth while retaining a rounded outer whorl.
+</assessment>
+<code>
+import bpy
+import math
+import random
+
+# Clear the scene
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (
+    bpy.data.meshes,
+    bpy.data.curves,
+    bpy.data.materials,
+    bpy.data.cameras,
+    bpy.data.lights,
+):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+random.seed(41)
+
+RX = 3.35
+RY = 3.12
+DEPTH = 0.72
+COIL_X = -0.34
+COIL_Y = 0.05
+
+
+def make_material(name, color, roughness=0.55):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+        bsdf.inputs["Metallic"].default_value = 0.0
+    return mat
+
+
+cream = make_material("Warm cream shell", (0.86, 0.73, 0.52), 0.52)
+light_cream = make_material("Whorl highlight cream", (0.96, 0.86, 0.67), 0.48)
+center_cream = make_material("Central chamber cream", (0.91, 0.78, 0.57), 0.50)
+umber = make_material("Deep brown spiral groove", (0.16, 0.045, 0.014), 0.58)
+brown = make_material("Brown shell stripes", (0.39, 0.12, 0.035), 0.57)
+cinnamon = make_material("Cinnamon shell stripes", (0.55, 0.22, 0.065), 0.56)
+ochre = make_material("Ochre shell stripes", (0.68, 0.38, 0.14), 0.54)
+
+
+def surface_depth(x, y):
+    q = (x / RX) ** 2 + (y / RY) ** 2
+    return DEPTH * math.sqrt(max(0.0, 1.0 - q))
+
+
+def ellipse_boundary_radius(angle):
+    dx = math.cos(angle)
+    dy = math.sin(angle)
+
+    a = dx * dx / (RX * RX) + dy * dy / (RY * RY)
+    b = 2.0 * (
+        COIL_X * dx / (RX * RX) +
+        COIL_Y * dy / (RY * RY)
+    )
+    c = (
+        COIL_X * COIL_X / (RX * RX) +
+        COIL_Y * COIL_Y / (RY * RY) -
+        1.0
+    )
+
+    discriminant = max(0.0, b * b - 4.0 * a * c)
+    return (-b + math.sqrt(discriminant)) / (2.0 * a)
+
+
+def make_curve(name, points, bevel, material, radii=None, cyclic=False, resolution=3):
+    curve_data = bpy.data.curves.new(name, 'CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.resolution_u = 2
+    curve_data.bevel_depth = bevel
+    curve_data.bevel_resolution = resolution
+    curve_data.resolution_v = 1
+
+    spline = curve_data.splines.new('POLY')
+    spline.points.add(len(points) - 1)
+
+    for index, point in enumerate(points):
+        spline.points[index].co = (point[0], point[1], point[2], 1.0)
+        if radii is not None:
+            spline.points[index].radius = radii[index]
+
+    spline.use_cyclic_u = cyclic
+
+    obj = bpy.data.objects.new(name, curve_data)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    return obj
+
+
+# Thin, rounded planispiral shell body
+bpy.ops.mesh.primitive_uv_sphere_add(
+    segments=144,
+    ring_count=80,
+    location=(0.0, 0.0, 0.0)
+)
+shell = bpy.context.object
+shell.name = "Flattened rounded nautilus shell"
+shell.scale = (RX, RY, DEPTH)
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+shell.data.materials.append(cream)
+
+for polygon in shell.data.polygons:
+    polygon.use_smooth = True
+
+
+# Wavy radiating brown and cream pattern
+stripe_materials = [brown, cinnamon, ochre]
+stripe_vertices = []
+stripe_faces = []
+stripe_material_indices = []
+
+stripe_count = 34
+radial_steps = 64
+
+for stripe_index in range(stripe_count):
+    base_angle = (
+        2.0 * math.pi * stripe_index / stripe_count
+        + random.uniform(-0.028, 0.028)
+    )
+    phase = random.uniform(0.0, 2.0 * math.pi)
+    width = random.uniform(0.022, 0.043)
+    curl = random.uniform(-0.15, 0.15)
+    wave = random.uniform(0.035, 0.075)
+
+    for front_side in (True, False):
+        start_index = len(stripe_vertices)
+
+        for step in range(radial_steps):
+            t = step / (radial_steps - 1)
+            s = 0.13 + 0.855 * t
+
+            center_angle = (
+                base_angle
+                + curl * (1.0 - s) ** 1.6
+                + wave * math.sin(4.1 * math.pi * s + phase)
+                + 0.015 * math.sin(12.0 * math.pi * s + phase * 0.7)
+            )
+
+            width_flutter = 1.0 + 0.19 * math.sin(
+                6.0 * math.pi * s + phase
+            )
+            half_width = width * width_flutter * (0.76 + 0.24 * s)
+
+            side_values = (-1.0, 1.0) if front_side else (1.0, -1.0)
+
+            for side in side_values:
+                edge_angle = center_angle + side * half_width
+                radius = ellipse_boundary_radius(edge_angle) * s
+                x = COIL_X + radius * math.cos(edge_angle)
+                y = COIL_Y + radius * math.sin(edge_angle)
+                z = surface_depth(x, y) + 0.009
+                if not front_side:
+                    z = -z
+                stripe_vertices.append((x, y, z))
+
+        for step in range(radial_steps - 1):
+            a = start_index + step * 2
+            stripe_faces.append((a, a + 1, a + 3, a + 2))
+            stripe_material_indices.append(
+                stripe_index % len(stripe_materials)
+            )
+
+stripe_mesh = bpy.data.meshes.new("Wavy radiating stripe geometry")
+stripe_mesh.from_pydata(stripe_vertices, [], stripe_faces)
+stripe_mesh.update()
+
+stripes = bpy.data.objects.new(
+    "Brown and cream radiating shell pattern",
+    stripe_mesh
+)
+bpy.context.collection.objects.link(stripes)
+
+for mat in stripe_materials:
+    stripes.data.materials.append(mat)
+
+for polygon, material_index in zip(
+    stripes.data.polygons,
+    stripe_material_indices
+):
+    polygon.material_index = material_index
+    polygon.use_smooth = True
+
+
+# Integrated logarithmic spiral groove on the front face
+spiral_points = []
+spiral_radii = []
+turns = 2.35
+point_count = 390
+theta_start = -0.55 * math.pi
+theta_end = theta_start + turns * 2.0 * math.pi
+radius_start = 0.105
+radius_end = 3.02
+growth = math.log(radius_end / radius_start)
+
+for index in range(point_count):
+    u = index / (point_count - 1)
+    theta = theta_start + (theta_end - theta_start) * u
+    radius = radius_start * math.exp(growth * u)
+
+    x = COIL_X + radius * math.cos(theta)
+    y = COIL_Y + radius * math.sin(theta)
+    q = (x / RX) ** 2 + (y / RY) ** 2
+
+    if q >= 0.975:
+        break
+
+    z = surface_depth(x, y) + 0.013
+    spiral_points.append((x, y, z))
+
+    inner_taper = min(1.0, max(0.30, u / 0.055))
+    outer_taper = min(1.0, max(0.20, (1.0 - u) / 0.055))
+    spiral_radii.append(
+        (0.72 + 0.30 * u) * inner_taper * outer_taper
+    )
+
+make_curve(
+    "Thin integrated planispiral groove",
+    spiral_points,
+    0.027,
+    umber,
+    radii=spiral_radii,
+    cyclic=False,
+    resolution=3
+)
+
+
+# A narrow cream highlight beside the groove suggests layered whorls
+highlight_points = []
+highlight_radii = []
+
+for index, point in enumerate(spiral_points):
+    if index == 0:
+        tangent_x = spiral_points[1][0] - point[0]
+        tangent_y = spiral_points[1][1] - point[1]
+    elif index == len(spiral_points) - 1:
+        tangent_x = point[0] - spiral_points[index - 1][0]
+        tangent_y = point[1] - spiral_points[index - 1][1]
+    else:
+        tangent_x = spiral_points[index + 1][0] - spiral_points[index - 1][0]
+        tangent_y = spiral_points[index + 1][1] - spiral_points[index - 1][1]
+
+    length = math.sqrt(tangent_x * tangent_x + tangent_y * tangent_y)
+    if length == 0.0:
+        normal_x = 0.0
+        normal_y = 0.0
+    else:
+        normal_x = -tangent_y / length
+        normal_y = tangent_x / length
+
+    offset = 0.046
+    x = point[0] + normal_x * offset
+    y = point[1] + normal_y * offset
+    z = surface_depth(x, y) + 0.010
+    highlight_points.append((x, y, z))
+    highlight_radii.append(spiral_radii[index] * 0.75)
+
+make_curve(
+    "Subtle whorl edge highlight",
+    highlight_points,
+    0.018,
+    light_cream,
+    radii=highlight_radii,
+    cyclic=False,
+    resolution=3
+)
+
+
+# Low central chamber, embedded into the shell rather than floating above it
+center_surface = surface_depth(COIL_X, COIL_Y)
+
+bpy.ops.mesh.primitive_uv_sphere_add(
+    segments=80,
+    ring_count=40,
+    location=(COIL_X, COIL_Y, center_surface + 0.018)
+)
+chamber = bpy.context.object
+chamber.name = "Integrated central chamber"
+chamber.scale = (0.47, 0.45, 0.115)
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+chamber.data.materials.append(center_cream)
+
+for polygon in chamber.data.polygons:
+    polygon.use_smooth = True
+
+
+# Small spiral articulation across the central chamber
+inner_points = []
+inner_radii = []
+inner_count = 110
+
+for index in range(inner_count):
+    u = index / (inner_count - 1)
+    theta = -0.45 * math.pi + 1.55 * math.pi * u
+    radius = 0.075 * math.exp(math.log(0.36 / 0.075) * u)
+
+    x = COIL_X + radius * math.cos(theta)
+    y = COIL_Y + radius * math.sin(theta)
+    normalized = min(0.995, radius / 0.47)
+    z = (
+        center_surface
+        + 0.018
+        + 0.115 * math.sqrt(max(0.0, 1.0 - normalized * normalized))
+        + 0.009
+    )
+
+    inner_points.append((x, y, z))
+    inner_radii.append(0.45 + 0.40 * u)
+
+make_curve(
+    "Central chamber spiral detail",
+    inner_points,
+    0.018,
+    umber,
+    radii=inner_radii,
+    cyclic=False,
+    resolution=3
+)
+
+
+# Small dark nucleus
+bpy.ops.mesh.primitive_uv_sphere_add(
+    segments=40,
+    ring_count=20,
+    location=(COIL_X - 0.01, COIL_Y, center_surface + 0.142)
+)
+nucleus = bpy.context.object
+nucleus.name = "Central nautilus nucleus"
+nucleus.scale = (0.09, 0.082, 0.032)
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+nucleus.data.materials.append(umber)
+
+for polygon in nucleus.data.polygons:
+    polygon.use_smooth = True
+
+
+# Subtle outer edge definition without a raised lid-like rim
+rim_points = []
+rim_count = 360
+
+for index in range(rim_count):
+    angle = 2.0 * math.pi * index / rim_count
+    x = RX * 0.994 * math.cos(angle)
+    y = RY * 0.994 * math.sin(angle)
+    z = surface_depth(x, y) + 0.004
+    rim_points.append((x, y, z))
+
+make_curve(
+    "Fine rounded outer whorl edge",
+    rim_points,
+    0.018,
+    light_cream,
+    cyclic=True,
+    resolution=3
+)
+
+
+# Convert all curve details to mesh
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'CURVE':
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.convert(target='MESH')
+
+
+# Orient the shell upright so its planispiral face is front-facing
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'MESH':
+        obj.rotation_euler.x = math.radians(90.0)
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.transform_apply(
+            location=False,
+            rotation=True,
+            scale=False
+        )
+        obj.select_set(False)
+
+
+# Keep the coherent shell assembly centered at the world origin
+mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+
+if mesh_objects:
+    minimum = [float('inf'), float('inf'), float('inf')]
+    maximum = [float('-inf'), float('-inf'), float('-inf')]
+
+    for obj in mesh_objects:
+        for corner in obj.bound_box:
+            world_corner = obj.matrix_world @ mathutils.Vector(corner) if False else None
+
+    # Geometry was constructed symmetrically around the origin; no translation needed.
+    bpy.ops.object.select_all(action='DESELECT')
+    shell.select_set(True)
+    bpy.context.view_layer.objects.active = shell
+</code>

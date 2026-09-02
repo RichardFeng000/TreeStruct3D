@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Towel_seed0/Towel_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Towel_seed0/glb/Towel_seed0.glb",
+  "status": "OK",
+  "n_meshes": 5,
+  "size_kb": 523.1,
+  "latency_s": 0.12,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- Leaves are virtually invisible or missing in the renders; they need to be slightly larger and more distinct to be seen.
+- The branch structure is too simplistic (a basic 'Y' shape) and lacks the "several minimal slim offshoots" requested.
+- The branches appear too straight/stiff; organic curvature needs to be more pronounced.

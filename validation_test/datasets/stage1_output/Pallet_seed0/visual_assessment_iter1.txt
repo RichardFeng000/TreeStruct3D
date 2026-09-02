@@ -1,0 +1,3 @@
+- The color is far too light; it should be a distinct dark brown.
+- The runner boards are continuous across the width, which blocks forklift access from the short ends, violating the "four sides" requirement.
+- Top planks have slightly awkward spacing and alignment.

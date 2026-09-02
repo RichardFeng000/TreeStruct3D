@@ -1,0 +1,441 @@
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(41)
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for data in list(bpy.data.curves):
+    bpy.data.curves.remove(data)
+
+created = []
+
+def material(name, color, roughness=0.75):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = color
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Specular IOR Level"].default_value = 0.25
+    return mat
+
+def skin_material():
+    mat = bpy.data.materials.new("Deep Olive Leathery Skin")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    color_noise = nodes.new("ShaderNodeTexNoise")
+    bump_noise = nodes.new("ShaderNodeTexNoise")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    color_noise.noise_dimensions = '3D'
+    color_noise.inputs["Scale"].default_value = 4.6
+    color_noise.inputs["Detail"].default_value = 4.0
+    color_noise.inputs["Roughness"].default_value = 0.72
+
+    ramp.color_ramp.elements[0].position = 0.20
+    ramp.color_ramp.elements[0].color = (0.055, 0.085, 0.012, 1.0)
+    ramp.color_ramp.elements[1].position = 0.82
+    ramp.color_ramp.elements[1].color = (0.19, 0.27, 0.055, 1.0)
+
+    bump_noise.noise_dimensions = '3D'
+    bump_noise.inputs["Scale"].default_value = 42.0
+    bump_noise.inputs["Detail"].default_value = 5.0
+    bump_noise.inputs["Roughness"].default_value = 0.82
+
+    bump.inputs["Strength"].default_value = 0.28
+    bump.inputs["Distance"].default_value = 0.045
+
+    bsdf.inputs["Roughness"].default_value = 0.82
+    bsdf.inputs["Specular IOR Level"].default_value = 0.22
+
+    links.new(texcoord.outputs["Generated"], color_noise.inputs["Vector"])
+    links.new(color_noise.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(texcoord.outputs["Generated"], bump_noise.inputs["Vector"])
+    links.new(bump_noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+skin = skin_material()
+dark = material("Dark Olive Speckles", (0.012, 0.022, 0.004, 1.0), 0.9)
+ridge_mat = material("Spinal Ridge", (0.085, 0.135, 0.018, 1.0), 0.82)
+eye_mat = material("Yellow Green Eyes", (0.62, 0.82, 0.09, 1.0), 0.45)
+pupil_mat = material("Black Pupils", (0.002, 0.004, 0.001, 1.0), 0.65)
+
+def smooth(obj):
+    if obj.type == 'MESH':
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+
+def sphere(name, location, scale, mat, segments=36, rings=22):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(mat)
+    smooth(obj)
+    created.append(obj)
+    return obj
+
+def ico(name, location, scale, mat, subdivisions=2):
+    bpy.ops.mesh.primitive_ico_sphere_add(
+        subdivisions=subdivisions,
+        radius=1.0,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(mat)
+    smooth(obj)
+    created.append(obj)
+    return obj
+
+def segment(name, start, end, radius_a, radius_b, mat, vertices=16):
+    a = Vector(start)
+    b = Vector(end)
+    direction = b - a
+    length = direction.length
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius_a,
+        radius2=radius_b,
+        depth=length,
+        location=(a + b) * 0.5
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized())
+    obj.data.materials.append(mat)
+    bevel = obj.modifiers.new("Rounded Organic Edges", 'BEVEL')
+    bevel.width = min(radius_a, radius_b) * 0.25
+    bevel.segments = 2
+    smooth(obj)
+    created.append(obj)
+    return obj
+
+body = sphere(
+    "Wide Compressed Torso",
+    (0.0, 0.0, 0.58),
+    (1.18, 1.92, 0.48),
+    skin,
+    56,
+    30
+)
+
+shoulders = sphere(
+    "Shoulder Mass",
+    (0.0, 1.35, 0.60),
+    (0.91, 0.86, 0.42),
+    skin,
+    44,
+    26
+)
+
+neck = sphere(
+    "Short Attached Neck",
+    (0.0, 1.88, 0.64),
+    (0.60, 0.62, 0.34),
+    skin,
+    40,
+    24
+)
+
+head = sphere(
+    "Small Rounded Head",
+    (0.0, 2.34, 0.71),
+    (0.72, 0.70, 0.43),
+    skin,
+    48,
+    28
+)
+
+snout = sphere(
+    "Blunt Rounded Snout",
+    (0.0, 2.86, 0.65),
+    (0.55, 0.49, 0.31),
+    skin,
+    44,
+    24
+)
+
+def tail_mesh():
+    centers = []
+    radii = []
+    steps = 58
+    for i in range(steps):
+        t = i / (steps - 1)
+        y = -1.65 - 6.25 * t
+        x = 0.18 * math.sin(math.pi * t) - 0.34 * math.sin(1.45 * math.pi * t) * t
+        z = 0.54 - 0.30 * t
+        centers.append(Vector((x, y, z)))
+        radii.append(0.43 * ((1.0 - t) ** 1.38) + 0.018)
+
+    sides = 20
+    verts = []
+    faces = []
+
+    for i, center in enumerate(centers):
+        if i == 0:
+            tangent = centers[1] - centers[0]
+        elif i == steps - 1:
+            tangent = centers[-1] - centers[-2]
+        else:
+            tangent = centers[i + 1] - centers[i - 1]
+        tangent.normalize()
+
+        side = Vector((-tangent.y, tangent.x, 0.0))
+        if side.length < 0.001:
+            side = Vector((1.0, 0.0, 0.0))
+        side.normalize()
+
+        for j in range(sides):
+            angle = math.tau * j / sides
+            offset = (
+                side * math.cos(angle) * radii[i] +
+                Vector((0.0, 0.0, 1.0)) * math.sin(angle) * radii[i] * 0.70
+            )
+            verts.append(tuple(center + offset))
+
+    for i in range(steps - 1):
+        for j in range(sides):
+            a = i * sides + j
+            b = i * sides + (j + 1) % sides
+            c = (i + 1) * sides + (j + 1) % sides
+            d = (i + 1) * sides + j
+            faces.append((a, b, c, d))
+
+    faces.append(tuple(reversed(range(sides))))
+    faces.append(tuple((steps - 1) * sides + j for j in range(sides)))
+
+    mesh = bpy.data.meshes.new("Long Tapered Tail Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new("Extremely Long Tapered Tail", mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(skin)
+    smooth(obj)
+    created.append(obj)
+    return centers, radii
+
+tail_centers, tail_radii = tail_mesh()
+
+def make_leg(side, front):
+    s = 1.0 if side == "Left" else -1.0
+
+    if front:
+        label = side + " Front"
+        hip = (s * 0.78, 1.14, 0.52)
+        elbow = (s * 1.34, 1.22, 0.34)
+        wrist = (s * 1.60, 0.86, 0.22)
+        palm = (s * 1.70, 0.76, 0.19)
+        forward = 1.0
+    else:
+        label = side + " Hind"
+        hip = (s * 0.88, -1.02, 0.49)
+        elbow = (s * 1.45, -1.14, 0.32)
+        wrist = (s * 1.70, -1.53, 0.21)
+        palm = (s * 1.78, -1.68, 0.18)
+        forward = -1.0
+
+    segment(label + " Upper Leg", hip, elbow, 0.22, 0.17, skin, 18)
+    sphere(label + " Elbow", elbow, (0.20, 0.19, 0.16), skin, 28, 16)
+    segment(label + " Lower Leg", elbow, wrist, 0.17, 0.11, skin, 16)
+    segment(label + " Wrist", wrist, palm, 0.12, 0.10, skin, 14)
+    sphere(label + " Palm", palm, (0.22, 0.25, 0.12), skin, 28, 16)
+
+    toe_ends = [
+        (palm[0] + s * 0.22, palm[1] + forward * 0.34, palm[2] - 0.01),
+        (palm[0] + s * 0.34, palm[1] + forward * 0.20, palm[2] - 0.01),
+        (palm[0] + s * 0.31, palm[1] - forward * 0.19, palm[2] - 0.01),
+        (palm[0] + s * 0.18, palm[1] - forward * 0.33, palm[2] - 0.01)
+    ]
+
+    for index, end in enumerate(toe_ends):
+        start = Vector(palm) + Vector((s * 0.06, 0.0, 0.0))
+        end_vec = Vector(end)
+        bend = start.lerp(end_vec, 0.58)
+        bend.z += 0.025
+        segment(label + " Toe %d Base" % index, start, bend, 0.058, 0.040, skin, 12)
+        segment(label + " Toe %d Tip" % index, bend, end_vec, 0.041, 0.017, skin, 12)
+
+for side_name in ("Left", "Right"):
+    make_leg(side_name, True)
+    make_leg(side_name, False)
+
+for s, side_name in ((1.0, "Left"), (-1.0, "Right")):
+    turret = (s * 0.50, 2.35, 0.94)
+    eyeball = (s * 0.55, 2.38, 1.10)
+    pupil = (s * 0.55, 2.42, 1.285)
+
+    sphere(side_name + " Eye Turret", turret, (0.34, 0.34, 0.31), skin, 40, 24)
+    sphere(side_name + " Prominent Yellow Green Eye", eyeball, (0.235, 0.235, 0.22), eye_mat, 40, 24)
+    sphere(side_name + " Dark Pupil", pupil, (0.083, 0.073, 0.036), pupil_mat, 28, 16)
+
+for s, side_name in ((1.0, "Left"), (-1.0, "Right")):
+    sphere(
+        side_name + " Nostril",
+        (s * 0.29, 3.19, 0.75),
+        (0.042, 0.032, 0.023),
+        pupil_mat,
+        20,
+        12
+    )
+
+mouth_points_left = [
+    (-0.47, 2.87, 0.61),
+    (-0.43, 3.08, 0.59),
+    (-0.17, 3.22, 0.59)
+]
+mouth_points_right = [
+    (0.47, 2.87, 0.61),
+    (0.43, 3.08, 0.59),
+    (0.17, 3.22, 0.59)
+]
+
+for side_name, points in (("Left", mouth_points_left), ("Right", mouth_points_right)):
+    for i in range(len(points) - 1):
+        segment(
+            side_name + " Mouth Seam %d" % i,
+            points[i],
+            points[i + 1],
+            0.014,
+            0.014,
+            pupil_mat,
+            8
+        )
+
+ridge_verts = []
+ridge_faces = []
+sections = 34
+
+for i in range(sections):
+    y = -1.62 + 4.17 * i / (sections - 1)
+
+    if y <= 1.45:
+        normalized = y / 1.92
+        top = 0.58 + 0.48 * math.sqrt(max(0.0, 1.0 - normalized * normalized))
+    else:
+        normalized = (y - 2.25) / 1.18
+        top = 0.70 + 0.41 * math.sqrt(max(0.0, 1.0 - normalized * normalized))
+
+    width = 0.045
+    height = 0.07 + 0.035 * math.sin(math.pi * i / (sections - 1))
+    ridge_verts.extend([
+        (-width, y, top - 0.012),
+        (0.0, y, top + height),
+        (width, y, top - 0.012)
+    ])
+
+for i in range(sections - 1):
+    a = i * 3
+    b = (i + 1) * 3
+    ridge_faces.extend([
+        (a, b, b + 1, a + 1),
+        (a + 1, b + 1, b + 2, a + 2)
+    ])
+
+ridge_mesh = bpy.data.meshes.new("Subtle Spinal Ridge Mesh")
+ridge_mesh.from_pydata(ridge_verts, [], ridge_faces)
+ridge_mesh.update()
+ridge = bpy.data.objects.new("Subtle Continuous Spinal Ridge", ridge_mesh)
+bpy.context.collection.objects.link(ridge)
+ridge.data.materials.append(ridge_mat)
+created.append(ridge)
+
+def scatter_on_ellipsoid(prefix, center, radii, count, dark_ratio):
+    cx, cy, cz = center
+    rx, ry, rz = radii
+
+    for i in range(count):
+        angle = random.uniform(0.0, math.tau)
+        radial = math.sqrt(random.uniform(0.03, 0.94))
+        nx = radial * math.cos(angle)
+        ny = radial * math.sin(angle)
+        nz = math.sqrt(max(0.0, 1.0 - nx * nx - ny * ny))
+
+        x = cx + rx * nx
+        y = cy + ry * ny
+        z = cz + rz * nz
+        size = random.uniform(0.024, 0.051)
+        chosen = dark if random.random() < dark_ratio else skin
+
+        ico(
+            prefix + " Surface Granule %03d" % i,
+            (x, y, z + size * 0.15),
+            (size, size, size * random.uniform(0.40, 0.72)),
+            chosen,
+            1
+        )
+
+scatter_on_ellipsoid("Torso", (0.0, 0.0, 0.58), (1.15, 1.86, 0.47), 95, 0.43)
+scatter_on_ellipsoid("Shoulder", (0.0, 1.35, 0.60), (0.86, 0.80, 0.40), 25, 0.38)
+scatter_on_ellipsoid("Head", (0.0, 2.34, 0.71), (0.68, 0.65, 0.41), 32, 0.38)
+scatter_on_ellipsoid("Snout", (0.0, 2.86, 0.65), (0.51, 0.45, 0.29), 15, 0.40)
+
+for i in range(3, len(tail_centers) - 5, 3):
+    center = tail_centers[i]
+    radius = tail_radii[i]
+    x_offset = random.uniform(-0.55, 0.55) * radius
+    z = center.z + radius * 0.71 * math.sqrt(
+        max(0.0, 1.0 - (x_offset / max(radius, 0.001)) ** 2)
+    )
+    size = max(0.012, min(0.036, radius * 0.12))
+    ico(
+        "Tail Speckle %03d" % i,
+        (center.x + x_offset, center.y, z),
+        (size, size * 1.15, size * 0.48),
+        dark if random.random() < 0.65 else skin,
+        1
+    )
+
+bpy.context.view_layer.update()
+
+minimum = Vector((1e9, 1e9, 1e9))
+maximum = Vector((-1e9, -1e9, -1e9))
+
+for obj in created:
+    if obj.type != 'MESH':
+        continue
+    for corner in obj.bound_box:
+        point = obj.matrix_world @ Vector(corner)
+        minimum.x = min(minimum.x, point.x)
+        minimum.y = min(minimum.y, point.y)
+        minimum.z = min(minimum.z, point.z)
+        maximum.x = max(maximum.x, point.x)
+        maximum.y = max(maximum.y, point.y)
+        maximum.z = max(maximum.z, point.z)
+
+offset = Vector((
+    -(minimum.x + maximum.x) * 0.5,
+    -(minimum.y + maximum.y) * 0.5,
+    -minimum.z
+))
+
+for obj in created:
+    obj.location += offset
+
+bpy.context.view_layer.update()
+bpy.context.scene.world.color = (0.055, 0.055, 0.055)
+
+bpy.ops.object.select_all(action='DESELECT')
+body.select_set(True)
+bpy.context.view_layer.objects.active = body

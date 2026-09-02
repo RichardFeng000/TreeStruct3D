@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Mussel_seed0/Mussel_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Mussel_seed0/glb/Mussel_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 4825.6,
+  "latency_s": 0.22,
+  "error": null
+}

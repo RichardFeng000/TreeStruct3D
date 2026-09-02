@@ -1,0 +1,4 @@
+- The leaf is too flat in the renders; the "cupped appearance" and "curved surface" are barely visible from side views.
+- The central vein is effectively invisible in the renders due to low magnitude.
+- The stem-to-blade connection is a bit abrupt/geometric.
+- I will increase curvature constants, amplify the central vein ridge, and refine the organic shape of the cupping.

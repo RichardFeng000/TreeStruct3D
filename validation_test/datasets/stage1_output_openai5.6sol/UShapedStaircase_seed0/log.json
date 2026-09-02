@@ -1,0 +1,35 @@
+{
+  "instance": "UShapedStaircase_seed0",
+  "timestamp": "2026-07-20T04:54:06+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 4.64,
+  "code_chars": 16242,
+  "input_tokens": 7170,
+  "output_tokens": 46,
+  "thoughts_tokens": 62,
+  "total_tokens": 7278,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The model clearly forms a complete U-shaped staircase with an intermediate landing, dark structural framing, and continuous brown-tinted glass balustrades.",
+      "raw_chars": 196
+    }
+  ],
+  "error": null
+}

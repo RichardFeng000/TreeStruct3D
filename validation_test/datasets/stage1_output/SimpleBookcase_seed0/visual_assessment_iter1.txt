@@ -1,0 +1,3 @@
+- The object is oriented incorrectly in the scene (height is along Y instead of Z), making it look like a long trough or bin rather than a standing bookcase.
+- Mounting holes are barely visible due to their size and placement relative to the camera.
+- The back panel dimensions were slightly off, creating an uneven edge.

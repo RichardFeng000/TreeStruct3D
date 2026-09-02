@@ -1,0 +1,426 @@
+Original text-to-3D task:
+
+A 3D model of a veratrum plant rendered from a slightly elevated perspective, featuring a leafy base with broad, ribbed leaves and a long, arching flower stalk extending outward from the center, topped with a slender raceme of small clustered florets, displayed in muted green tones.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(12)
+
+# Clear the entire scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks != bpy.data.materials:
+        for block in list(datablocks):
+            if block.users == 0:
+                datablocks.remove(block)
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.scale_length = 1.0
+
+def make_material(name, color, roughness=0.78):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.roughness = roughness
+    return mat
+
+leaf_mats = [
+    make_material("Leaf muted green", (0.19, 0.31, 0.13)),
+    make_material("Leaf olive green", (0.25, 0.37, 0.16)),
+    make_material("Leaf soft green", (0.29, 0.41, 0.20)),
+    make_material("Leaf deep green", (0.15, 0.27, 0.11)),
+]
+underside_mat = make_material("Leaf undersides", (0.24, 0.34, 0.18))
+rib_mat = make_material("Raised leaf ribs", (0.34, 0.45, 0.22))
+stem_mat = make_material("Arching stalk", (0.25, 0.39, 0.17))
+pedicel_mat = make_material("Flower pedicels", (0.36, 0.48, 0.23))
+flower_mat = make_material("Muted green florets", (0.54, 0.61, 0.32))
+flower_light_mat = make_material("Pale floret tips", (0.65, 0.68, 0.39))
+anther_mat = make_material("Floret centers", (0.66, 0.61, 0.25))
+
+def create_mesh_object(name, verts, faces, materials, smooth=True, material_indices=None):
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.clear()
+    for material in materials:
+        mesh.materials.append(material)
+    if material_indices:
+        for poly, idx in zip(mesh.polygons, material_indices):
+            poly.material_index = idx
+    if smooth:
+        for poly in mesh.polygons:
+            poly.use_smooth = True
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def append_tube(verts, faces, points, radii, sides=8):
+    if len(points) < 2:
+        return
+    start = len(verts)
+    frames = []
+    previous_n = None
+    for i, point in enumerate(points):
+        if i == 0:
+            tangent = (points[1] - points[0]).normalized()
+        elif i == len(points) - 1:
+            tangent = (points[-1] - points[-2]).normalized()
+        else:
+            tangent = (points[i + 1] - points[i - 1]).normalized()
+        if previous_n is None:
+            ref = Vector((0.0, 0.0, 1.0))
+            if abs(tangent.dot(ref)) > 0.88:
+                ref = Vector((1.0, 0.0, 0.0))
+            n = tangent.cross(ref).normalized()
+        else:
+            n = previous_n - tangent * previous_n.dot(tangent)
+            if n.length < 0.001:
+                ref = Vector((1.0, 0.0, 0.0))
+                n = tangent.cross(ref).normalized()
+            else:
+                n.normalize()
+        b = tangent.cross(n).normalized()
+        previous_n = n
+        frames.append((n, b))
+        radius = radii[i] if hasattr(radii, "__len__") else radii
+        for j in range(sides):
+            angle = 2.0 * math.pi * j / sides
+            verts.append(tuple(point + radius * (math.cos(angle) * n + math.sin(angle) * b)))
+    rings = len(points)
+    for i in range(rings - 1):
+        for j in range(sides):
+            a = start + i * sides + j
+            b = start + i * sides + (j + 1) % sides
+            c = start + (i + 1) * sides + (j + 1) % sides
+            d = start + (i + 1) * sides + j
+            faces.append((a, b, c, d))
+    faces.append(tuple(start + j for j in reversed(range(sides))))
+    end_start = start + (rings - 1) * sides
+    faces.append(tuple(end_start + j for j in range(sides)))
+
+rib_verts = []
+rib_faces = []
+
+def make_leaf(name, base, azimuth, length, max_width, rise, droop, twist, pleat,
+              material, nu=29, nv=17, rib_count=7):
+    direction = Vector((math.cos(azimuth), math.sin(azimuth), 0.0))
+    lateral = Vector((-math.sin(azimuth), math.cos(azimuth), 0.0))
+    phase = random.uniform(0.0, math.tau)
+
+    def surface(s, u, raised=0.0):
+        width_profile = math.sin(math.pi * max(0.0, min(1.0, s))) ** 0.60
+        width_profile *= 0.86 + 0.14 * (1.0 - s)
+        width = max_width * width_profile + 0.012
+        center = base + direction * (length * s)
+        center += lateral * (twist * math.sin(math.pi * s) * (0.25 + 0.75 * s))
+        center.z += rise * math.sin(math.pi * s) - droop * (s ** 1.55)
+        corrugation = pleat * math.cos(6.0 * math.pi * u)
+        corrugation *= (math.sin(math.pi * s) ** 0.42) * (0.30 + 0.70 * (1.0 - u * u))
+        subtle = 0.006 * math.sin(2.0 * math.pi * s + phase) * (1.0 - abs(u))
+        return center + lateral * (u * width) + Vector((0.0, 0.0, corrugation + subtle + raised))
+
+    verts = []
+    faces = []
+    thickness = 0.018
+    for i in range(nu):
+        s = i / (nu - 1)
+        for j in range(nv):
+            u = -1.0 + 2.0 * j / (nv - 1)
+            verts.append(tuple(surface(s, u, thickness * 0.5)))
+    bottom_offset = len(verts)
+    for i in range(nu):
+        s = i / (nu - 1)
+        for j in range(nv):
+            u = -1.0 + 2.0 * j / (nv - 1)
+            verts.append(tuple(surface(s, u, -thickness * 0.5)))
+
+    top_face_count = 0
+    for i in range(nu - 1):
+        for j in range(nv - 1):
+            a = i * nv + j
+            b = (i + 1) * nv + j
+            c = (i + 1) * nv + j + 1
+            d = i * nv + j + 1
+            faces.append((a, b, c, d))
+            top_face_count += 1
+    bottom_face_count = 0
+    for i in range(nu - 1):
+        for j in range(nv - 1):
+            a = bottom_offset + i * nv + j
+            b = bottom_offset + i * nv + j + 1
+            c = bottom_offset + (i + 1) * nv + j + 1
+            d = bottom_offset + (i + 1) * nv + j
+            faces.append((a, b, c, d))
+            bottom_face_count += 1
+
+    for i in range(nu - 1):
+        for j in (0, nv - 1):
+            ta = i * nv + j
+            tb = (i + 1) * nv + j
+            ba = bottom_offset + i * nv + j
+            bb = bottom_offset + (i + 1) * nv + j
+            if j == 0:
+                faces.append((ta, ba, bb, tb))
+            else:
+                faces.append((ta, tb, bb, ba))
+    for j in range(nv - 1):
+        faces.append((j, j + 1, bottom_offset + j + 1, bottom_offset + j))
+        ta = (nu - 1) * nv + j
+        tb = ta + 1
+        ba = bottom_offset + ta
+        bb = bottom_offset + tb
+        faces.append((ta, ba, bb, tb))
+
+    mat_indices = [0] * top_face_count + [1] * (len(faces) - top_face_count)
+    leaf_obj = create_mesh_object(name, verts, faces, [material, underside_mat], True, mat_indices)
+
+    rib_positions = [(-0.78 + 1.56 * k / (rib_count - 1)) for k in range(rib_count)]
+    for u in rib_positions:
+        path = []
+        samples = 22
+        for i in range(1, samples - 1):
+            s = i / (samples - 1)
+            path.append(surface(s, u, thickness * 0.62 + 0.008))
+        radii = []
+        for i in range(len(path)):
+            q = i / max(1, len(path) - 1)
+            radii.append(0.0085 * math.sin(math.pi * q) ** 0.35 + 0.002)
+        append_tube(rib_verts, rib_faces, path, radii, 5)
+    return leaf_obj
+
+# Broad, strongly pleated basal rosette.
+base_specs = []
+for i in range(13):
+    az = i * math.tau / 13.0 + random.uniform(-0.12, 0.12)
+    length = random.uniform(1.85, 2.75)
+    width = random.uniform(0.47, 0.72)
+    rise = random.uniform(0.25, 0.52)
+    droop = random.uniform(0.16, 0.34)
+    twist = random.uniform(-0.16, 0.16)
+    base_specs.append((az, length, width, rise, droop, twist))
+
+for i, spec in enumerate(base_specs):
+    az, length, width, rise, droop, twist = spec
+    base = Vector((0.035 * math.cos(az), 0.035 * math.sin(az), 0.24 + 0.018 * (i % 3)))
+    make_leaf(
+        "Basal leaf %02d" % (i + 1), base, az, length, width, rise, droop,
+        twist, random.uniform(0.032, 0.047), leaf_mats[i % len(leaf_mats)],
+        nu=31, nv=19, rib_count=7
+    )
+
+# More upright inner leaves enclosing the stalk base.
+for i in range(6):
+    az = i * math.tau / 6.0 + 0.28
+    make_leaf(
+        "Inner leaf %02d" % (i + 1),
+        Vector((0.025 * math.cos(az), 0.025 * math.sin(az), 0.28)),
+        az, random.uniform(1.15, 1.62), random.uniform(0.30, 0.43),
+        random.uniform(0.48, 0.70), random.uniform(0.04, 0.13),
+        random.uniform(-0.08, 0.08), 0.030,
+        leaf_mats[(i + 1) % len(leaf_mats)], nu=27, nv=17, rib_count=5
+    )
+
+# Raised parallel ribs collected as real tubular geometry.
+create_mesh_object("Parallel raised leaf ribs", rib_verts, rib_faces, [rib_mat], True)
+
+def stalk_point(t):
+    return Vector((
+        3.18 * (t ** 2.02),
+        -0.24 * t + 0.13 * math.sin(math.pi * t),
+        0.31 + 6.05 * t - 3.13 * t * t
+    ))
+
+# Main long arching stalk.
+stalk_points = [stalk_point(i / 86.0) for i in range(87)]
+stalk_radii = []
+for i in range(len(stalk_points)):
+    t = i / (len(stalk_points) - 1)
+    stalk_radii.append(0.060 * (1.0 - t) + 0.021 * t)
+stalk_verts = []
+stalk_faces = []
+append_tube(stalk_verts, stalk_faces, stalk_points, stalk_radii, 11)
+create_mesh_object("Long arching flower stalk", stalk_verts, stalk_faces, [stem_mat], True)
+
+# Alternate clasping leaves on the lower half of the stalk.
+stalk_leaf_data = [
+    (0.045, 2.28, 1.12, 0.35),
+    (0.105, 4.00, 1.02, 0.31),
+    (0.175, 5.45, 0.88, 0.27),
+    (0.255, 2.72, 0.75, 0.23),
+    (0.345, 4.70, 0.61, 0.18),
+    (0.435, 1.95, 0.49, 0.14),
+]
+for i, (t, az, length, width) in enumerate(stalk_leaf_data):
+    base = stalk_point(t)
+    make_leaf(
+        "Stalk leaf %02d" % (i + 1), base, az, length, width,
+        0.22 + 0.07 * (1.0 - t), 0.10 + 0.07 * t,
+        0.06 * (-1 if i % 2 else 1), 0.021,
+        leaf_mats[(i + 2) % len(leaf_mats)], nu=25, nv=15, rib_count=5
+    )
+
+def append_petal(verts, faces, center, axis, radial, scale):
+    radial = radial.normalized()
+    side = axis.cross(radial).normalized()
+    inner = center + radial * (0.010 * scale)
+    middle = center + radial * (0.052 * scale) + axis * (0.007 * scale)
+    tip = center + radial * (0.102 * scale) + axis * (0.020 * scale)
+    width = 0.027 * scale
+    thick = 0.006 * scale
+    polygon = [
+        inner,
+        middle - side * width,
+        tip,
+        middle + side * width
+    ]
+    start = len(verts)
+    for p in polygon:
+        verts.append(tuple(p + axis * thick))
+    for p in polygon:
+        verts.append(tuple(p - axis * thick))
+    faces.append((start, start + 1, start + 2, start + 3))
+    faces.append((start + 7, start + 6, start + 5, start + 4))
+    for k in range(4):
+        a = start + k
+        b = start + (k + 1) % 4
+        c = start + 4 + (k + 1) % 4
+        d = start + 4 + k
+        faces.append((a, b, c, d))
+
+def append_octahedron(verts, faces, center, axis, radius, length):
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(axis.dot(ref)) > 0.85:
+        ref = Vector((1.0, 0.0, 0.0))
+    u = axis.cross(ref).normalized()
+    v = axis.cross(u).normalized()
+    start = len(verts)
+    pts = [
+        center + axis * length,
+        center - axis * length * 0.55,
+        center + u * radius,
+        center + v * radius,
+        center - u * radius,
+        center - v * radius,
+    ]
+    verts.extend(tuple(p) for p in pts)
+    faces.extend([
+        (start, start + 2, start + 3),
+        (start, start + 3, start + 4),
+        (start, start + 4, start + 5),
+        (start, start + 5, start + 2),
+        (start + 1, start + 3, start + 2),
+        (start + 1, start + 4, start + 3),
+        (start + 1, start + 5, start + 4),
+        (start + 1, start + 2, start + 5),
+    ])
+
+ped_verts = []
+ped_faces = []
+flower_verts = []
+flower_faces = []
+flower_face_mats = []
+center_verts = []
+center_faces = []
+
+# Dense, slender terminal raceme with whorled green florets.
+node_count = 20
+golden = math.pi * (3.0 - math.sqrt(5.0))
+for node in range(node_count):
+    t = 0.47 + 0.51 * node / (node_count - 1)
+    p = stalk_point(t)
+    dt = 0.004
+    tangent = (stalk_point(min(1.0, t + dt)) - stalk_point(max(0.0, t - dt))).normalized()
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(tangent.dot(ref)) > 0.88:
+        ref = Vector((0.0, 1.0, 0.0))
+    n = tangent.cross(ref).normalized()
+    b = tangent.cross(n).normalized()
+    flowers_at_node = 3 if node < 17 else 2
+    for j in range(flowers_at_node):
+        angle = node * golden + j * math.tau / flowers_at_node
+        outward = (n * math.cos(angle) + b * math.sin(angle)).normalized()
+        outward = (outward + tangent * random.uniform(-0.13, 0.13)).normalized()
+        fullness = math.sin(math.pi * (node + 1) / (node_count + 2)) ** 0.45
+        length = (0.115 + 0.105 * fullness) * random.uniform(0.86, 1.10)
+        end = p + outward * length + tangent * random.uniform(-0.018, 0.028)
+        mid = p + outward * (length * 0.48) + tangent * 0.014
+        append_tube(
+            ped_verts, ped_faces, [p, mid, end],
+            [0.0105, 0.0080, 0.0048], 6
+        )
+        axis = outward
+        scale = (0.68 + 0.30 * fullness) * (0.68 if node >= 18 else 1.0)
+        face_start = len(flower_faces)
+        plane_ref = Vector((0.0, 0.0, 1.0))
+        if abs(axis.dot(plane_ref)) > 0.86:
+            plane_ref = Vector((1.0, 0.0, 0.0))
+        u = axis.cross(plane_ref).normalized()
+        v = axis.cross(u).normalized()
+        petal_rotation = random.uniform(0.0, math.tau)
+        for petal in range(6):
+            a = petal_rotation + petal * math.tau / 6.0
+            radial = u * math.cos(a) + v * math.sin(a)
+            append_petal(flower_verts, flower_faces, end, axis, radial, scale)
+        flower_face_mats.extend([0 if node % 3 else 1] * (len(flower_faces) - face_start))
+        append_octahedron(
+            center_verts, center_faces, end + axis * (0.010 * scale),
+            axis, 0.019 * scale, 0.031 * scale
+        )
+
+# Tight unopened buds at the extreme tip.
+tip = stalk_point(1.0)
+tip_tangent = (stalk_point(1.0) - stalk_point(0.99)).normalized()
+for i in range(7):
+    angle = i * golden
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(tip_tangent.dot(ref)) > 0.88:
+        ref = Vector((1.0, 0.0, 0.0))
+    n = tip_tangent.cross(ref).normalized()
+    b = tip_tangent.cross(n).normalized()
+    out = (n * math.cos(angle) + b * math.sin(angle)).normalized()
+    base = stalk_point(0.965 + 0.005 * i)
+    end = base + out * (0.060 + 0.006 * i)
+    append_tube(ped_verts, ped_faces, [base, end], [0.007, 0.004], 5)
+    append_octahedron(center_verts, center_faces, end, out, 0.024, 0.041)
+
+create_mesh_object("Fine raceme pedicels", ped_verts, ped_faces, [pedicel_mat], True)
+create_mesh_object(
+    "Six petaled clustered florets", flower_verts, flower_faces,
+    [flower_mat, flower_light_mat], True, flower_face_mats
+)
+create_mesh_object("Floret centers and terminal buds", center_verts, center_faces, [anther_mat], True)
+
+# Small sheathing collar at the crown.
+collar_verts = []
+collar_faces = []
+collar_points = [
+    Vector((0.0, 0.0, 0.20)),
+    Vector((0.0, 0.0, 0.32)),
+    Vector((0.0, 0.0, 0.46)),
+]
+append_tube(collar_verts, collar_faces, collar_points, [0.12, 0.105, 0.072], 12)
+create_mesh_object("Central leaf sheath", collar_verts, collar_faces, [leaf_mats[1]], True)
+
+# Ensure all generated geometry is visible and selected as a coherent assembly.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in bpy.context.scene.objects:
+    if obj.type == 'MESH':
+        obj.select_set(True)
+if bpy.context.selected_objects:
+    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

@@ -1,0 +1,48 @@
+{
+  "instance": "PlantBananaTree_seed0",
+  "timestamp": "2026-07-20T04:50:45+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 61.67,
+  "code_chars": 9637,
+  "input_tokens": 10056,
+  "output_tokens": 2858,
+  "thoughts_tokens": 1073,
+  "total_tokens": 13987,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Long vertical strands float behind and through the plant; remove the detached petiole ridges.\n- Fine parallel venation is effectively absent in most views; place visible veins directly across the upper blade.\n- The blade becomes extremely narrow edge-on and its petiole junction is abrupt; add stronger width/camber and a continuous tapered attachment.",
+      "raw_chars": 10049
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model clearly presents a single elongated banana leaf with dense parallel venation, a prominent midrib, and an attached slender petiole.",
+      "raw_chars": 181
+    }
+  ],
+  "error": null
+}

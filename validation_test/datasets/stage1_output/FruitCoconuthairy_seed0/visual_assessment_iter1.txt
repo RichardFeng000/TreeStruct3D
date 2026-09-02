@@ -1,0 +1,4 @@
+- The smooth white surface of the core sphere is clearly visible through the hairs, violating the "no smooth surface visible" requirement.
+- Fibers look like straight needles or angular sticks rather than organic curved fibers.
+- There is a sharp, unnatural color divide between the top and bottom halves.
+- Density is insufficient to create a "matted" look.

@@ -1,0 +1,4 @@
+- Missing geometric detail: The serrated edges are completely smoothed out by the Subdivision Surface modifier and appear smooth in renders.
+- Missing geometric detail: The central midrib is not visible/distinct enough; it blends into the blade surface.
+- Proportions: The leaf appears slightly too stunted/round rather than "elongated ovate".
+- To fix, I will implement a more aggressive sawtooth pattern for edges, increase resolution at peaks to survive smoothing (or remove Subdiv), and create a distinct raised ridge for the midrib.

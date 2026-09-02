@@ -1,0 +1,402 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear scene
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+# -------------------------------------------------------------------
+# Materials
+# -------------------------------------------------------------------
+
+def set_input(shader, name, value):
+    socket = shader.inputs.get(name)
+    if socket is not None:
+        socket.default_value = value
+
+def marble_material(name, roughness, coat):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    noise_large = nodes.new("ShaderNodeTexNoise")
+    noise_fine = nodes.new("ShaderNodeTexNoise")
+    wave = nodes.new("ShaderNodeTexWave")
+    mix = nodes.new("ShaderNodeMixRGB")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    texcoord.location = (-900, 80)
+    mapping.location = (-710, 80)
+    noise_large.location = (-520, 190)
+    noise_fine.location = (-520, -40)
+    wave.location = (-300, 210)
+    mix.location = (-80, 100)
+    ramp.location = (110, 110)
+    bump.location = (320, -130)
+    bsdf.location = (510, 80)
+    output.location = (750, 80)
+
+    mapping.inputs["Rotation"].default_value[2] = math.radians(24.0)
+    mapping.inputs["Scale"].default_value = (0.72, 1.0, 1.35)
+
+    noise_large.noise_dimensions = '3D'
+    noise_large.inputs["Scale"].default_value = 2.0
+    noise_large.inputs["Detail"].default_value = 7.0
+    noise_large.inputs["Roughness"].default_value = 0.72
+    noise_large.inputs["Distortion"].default_value = 0.35
+
+    noise_fine.noise_dimensions = '3D'
+    noise_fine.inputs["Scale"].default_value = 7.0
+    noise_fine.inputs["Detail"].default_value = 5.0
+    noise_fine.inputs["Roughness"].default_value = 0.68
+
+    wave.wave_type = 'BANDS'
+    wave.bands_direction = 'X'
+    wave.inputs["Scale"].default_value = 1.65
+    wave.inputs["Distortion"].default_value = 7.5
+    wave.inputs["Detail"].default_value = 5.0
+    wave.inputs["Detail Scale"].default_value = 1.8
+    wave.inputs["Detail Roughness"].default_value = 0.7
+
+    mix.blend_type = 'MULTIPLY'
+    mix.inputs[0].default_value = 0.72
+
+    color_ramp = ramp.color_ramp
+    color_ramp.interpolation = 'B_SPLINE'
+    color_ramp.elements.remove(color_ramp.elements[1])
+    colors = [
+        (0.00, (0.003, 0.018, 0.012, 1.0)),
+        (0.28, (0.008, 0.045, 0.027, 1.0)),
+        (0.48, (0.015, 0.085, 0.047, 1.0)),
+        (0.64, (0.035, 0.145, 0.083, 1.0)),
+        (0.75, (0.16, 0.31, 0.21, 1.0)),
+        (0.84, (0.52, 0.66, 0.56, 1.0)),
+        (1.00, (0.09, 0.20, 0.125, 1.0)),
+    ]
+    first = color_ramp.elements[0]
+    first.position = colors[0][0]
+    first.color = colors[0][1]
+    for position, color in colors[1:]:
+        element = color_ramp.elements.new(position)
+        element.color = color
+
+    set_input(bsdf, "Metallic", 0.0)
+    set_input(bsdf, "Roughness", roughness)
+    set_input(bsdf, "IOR", 1.48)
+    set_input(bsdf, "Coat Weight", coat)
+    set_input(bsdf, "Coat Roughness", max(0.025, roughness * 0.5))
+
+    bump.inputs["Strength"].default_value = 0.035
+    bump.inputs["Distance"].default_value = 0.018
+
+    links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], noise_large.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], noise_fine.inputs["Vector"])
+    links.new(noise_large.outputs["Fac"], wave.inputs["Vector"])
+    links.new(wave.outputs["Color"], mix.inputs[1])
+    links.new(noise_fine.outputs["Fac"], mix.inputs[2])
+    links.new(mix.outputs["Color"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(noise_fine.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+def simple_material(name, color, metallic=0.0, roughness=0.25):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    shader = mat.node_tree.nodes.get("Principled BSDF")
+    set_input(shader, "Base Color", color)
+    set_input(shader, "Metallic", metallic)
+    set_input(shader, "Roughness", roughness)
+    if metallic > 0.8:
+        set_input(shader, "Coat Weight", 0.35)
+        set_input(shader, "Coat Roughness", 0.025)
+    return mat
+
+stone_mat = marble_material("Dark Green Marble Exterior", 0.19, 0.28)
+bowl_mat = marble_material("Glossy Green Marble Bowl", 0.065, 0.7)
+chrome_mat = simple_material("Polished Chrome", (0.58, 0.63, 0.68, 1.0), 1.0, 0.045)
+dark_mat = simple_material("Dark Aerator", (0.006, 0.009, 0.008, 1.0), 0.15, 0.18)
+
+# -------------------------------------------------------------------
+# Carved stone basin
+# -------------------------------------------------------------------
+
+SEGMENTS = 112
+
+def superellipse(a, b, exponent, z):
+    result = []
+    power = 2.0 / exponent
+    for i in range(SEGMENTS):
+        angle = 2.0 * math.pi * i / SEGMENTS
+        c = math.cos(angle)
+        s = math.sin(angle)
+        x = a * math.copysign(abs(c) ** power, c)
+        y = b * math.copysign(abs(s) ** power, s)
+        result.append((x, y, z))
+    return result
+
+vertices = []
+faces = []
+material_indices = []
+smooth_flags = []
+
+def add_loop(points):
+    start = len(vertices)
+    vertices.extend(points)
+    return list(range(start, start + len(points)))
+
+def bridge(loop_a, loop_b, material_index, smooth=True):
+    for i in range(SEGMENTS):
+        j = (i + 1) % SEGMENTS
+        faces.append((loop_a[i], loop_a[j], loop_b[j], loop_b[i]))
+        material_indices.append(material_index)
+        smooth_flags.append(smooth)
+
+outer_top = add_loop(superellipse(2.10, 1.76, 5.3, 0.56))
+outer_round = add_loop(superellipse(2.16, 1.82, 5.3, 0.47))
+outer_low = add_loop(superellipse(2.16, 1.82, 5.3, -0.64))
+outer_bottom = add_loop(superellipse(2.09, 1.75, 5.3, -0.72))
+
+opening = add_loop(superellipse(1.52, 1.17, 4.5, 0.56))
+inner_lip = add_loop(superellipse(1.48, 1.13, 4.4, 0.43))
+bowl_upper = add_loop(superellipse(1.30, 0.98, 4.0, 0.08))
+bowl_lower = add_loop(superellipse(0.92, 0.68, 3.3, -0.39))
+bowl_floor = add_loop(superellipse(0.40, 0.31, 2.7, -0.61))
+drain_loop = add_loop(superellipse(0.22, 0.22, 2.0, -0.64))
+
+bridge(outer_top, opening, 0, False)
+bridge(outer_top, outer_round, 0, True)
+bridge(outer_round, outer_low, 0, False)
+bridge(outer_low, outer_bottom, 0, True)
+bridge(opening, inner_lip, 1, True)
+bridge(inner_lip, bowl_upper, 1, True)
+bridge(bowl_upper, bowl_lower, 1, True)
+bridge(bowl_lower, bowl_floor, 1, True)
+bridge(bowl_floor, drain_loop, 1, True)
+
+faces.append(tuple(reversed(outer_bottom)))
+material_indices.append(0)
+smooth_flags.append(False)
+
+mesh = bpy.data.meshes.new("Deep Carved Basin Mesh")
+mesh.from_pydata(vertices, [], faces)
+mesh.materials.append(stone_mat)
+mesh.materials.append(bowl_mat)
+mesh.update()
+
+basin = bpy.data.objects.new("Dark Green Stone Sink", mesh)
+bpy.context.collection.objects.link(basin)
+
+for polygon, material_index, smooth in zip(mesh.polygons, material_indices, smooth_flags):
+    polygon.material_index = material_index
+    polygon.use_smooth = smooth
+
+bevel = basin.modifiers.new("Rounded Stone Edges", 'BEVEL')
+bevel.width = 0.035
+bevel.segments = 3
+bevel.limit_method = 'ANGLE'
+bevel.angle_limit = math.radians(34.0)
+
+# -------------------------------------------------------------------
+# Primitive helpers
+# -------------------------------------------------------------------
+
+def add_cylinder(name, radius, depth, location, material, vertices=56, bevel_width=None):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+
+    width = bevel_width
+    if width is None:
+        width = min(radius * 0.10, depth * 0.10)
+    if width > 0:
+        modifier = obj.modifiers.new("Soft Edges", 'BEVEL')
+        modifier.width = width
+        modifier.segments = 2
+    return obj
+
+def cylinder_between(name, start, end, radius, material, vertices=48):
+    a = Vector(start)
+    b = Vector(end)
+    direction = b - a
+    obj = add_cylinder(
+        name,
+        radius,
+        direction.length,
+        (a + b) * 0.5,
+        material,
+        vertices
+    )
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = direction.to_track_quat('Z', 'Y')
+    return obj
+
+def add_uv_sphere(name, location, radius, material, scale=(1.0, 1.0, 1.0)):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=48,
+        ring_count=24,
+        radius=radius,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    return obj
+
+def add_torus(name, major_radius, minor_radius, location, material):
+    bpy.ops.mesh.primitive_torus_add(
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        major_segments=64,
+        minor_segments=16,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    return obj
+
+# -------------------------------------------------------------------
+# Drain
+# -------------------------------------------------------------------
+
+add_torus("Chrome Drain Rim", 0.225, 0.025, (0.0, 0.0, -0.607), chrome_mat)
+add_cylinder("Drain Stopper", 0.202, 0.035, (0.0, 0.0, -0.612), chrome_mat, 64)
+add_cylinder("Drain Center Detail", 0.047, 0.012, (0.0, 0.0, -0.589), dark_mat, 40)
+
+# -------------------------------------------------------------------
+# Faucet base on back-left rim
+# -------------------------------------------------------------------
+
+fx = -1.27
+fy = 1.40
+
+add_cylinder("Faucet Escutcheon", 0.235, 0.075, (fx, fy, 0.605), chrome_mat, 64)
+add_cylinder("Faucet Main Body", 0.155, 0.43, (fx, fy, 0.81), chrome_mat, 64)
+add_torus("Faucet Body Collar", 0.158, 0.018, (fx, fy, 1.015), chrome_mat)
+
+# Continuous gooseneck path
+curve_data = bpy.data.curves.new("Continuous Gooseneck Mesh Source", 'CURVE')
+curve_data.dimensions = '3D'
+curve_data.resolution_u = 20
+curve_data.bevel_depth = 0.112
+curve_data.bevel_resolution = 6
+curve_data.resolution_u = 24
+curve_data.materials.append(chrome_mat)
+
+spline = curve_data.splines.new('BEZIER')
+path = [
+    (-1.27, 1.40, 0.91),
+    (-1.27, 1.40, 1.55),
+    (-1.27, 1.21, 1.98),
+    (-1.25, 0.82, 2.18),
+    (-1.22, 0.43, 2.03),
+    (-1.20, 0.27, 1.63),
+    (-1.20, 0.27, 1.39),
+]
+spline.bezier_points.add(len(path) - 1)
+
+for point, coordinate in zip(spline.bezier_points, path):
+    point.co = coordinate
+    point.handle_left_type = 'AUTO'
+    point.handle_right_type = 'AUTO'
+
+gooseneck = bpy.data.objects.new("Chrome Gooseneck Faucet", curve_data)
+bpy.context.collection.objects.link(gooseneck)
+
+# Convert the faucet tube to final mesh geometry
+bpy.context.view_layer.objects.active = gooseneck
+gooseneck.select_set(True)
+bpy.ops.object.convert(target='MESH')
+gooseneck = bpy.context.object
+gooseneck.name = "Continuous Chrome Gooseneck"
+
+# Outlet overlaps the neck endpoint so it cannot appear detached
+add_cylinder(
+    "Connected Outlet Nozzle",
+    0.132,
+    0.22,
+    (-1.20, 0.27, 1.35),
+    chrome_mat,
+    64
+)
+add_torus(
+    "Outlet Chrome Ring",
+    0.106,
+    0.014,
+    (-1.20, 0.27, 1.235),
+    chrome_mat
+)
+add_cylinder(
+    "Recessed Aerator",
+    0.098,
+    0.018,
+    (-1.20, 0.27, 1.227),
+    dark_mat,
+    56,
+    0.004
+)
+
+# -------------------------------------------------------------------
+# Clearly attached single lever
+# -------------------------------------------------------------------
+
+pivot_center = (-1.10, 1.40, 0.91)
+add_uv_sphere(
+    "Lever Pivot",
+    pivot_center,
+    0.125,
+    chrome_mat,
+    (1.05, 0.92, 1.0)
+)
+
+lever_start = (-1.04, 1.39, 0.98)
+lever_end = (-0.76, 1.34, 1.27)
+cylinder_between(
+    "Attached Single Lever",
+    lever_start,
+    lever_end,
+    0.055,
+    chrome_mat,
+    48
+)
+add_uv_sphere(
+    "Lever End",
+    lever_end,
+    0.072,
+    chrome_mat,
+    (1.05, 0.9, 1.15)
+)
+
+# Ensure a clean final selection with the main mesh active
+bpy.ops.object.select_all(action='DESELECT')
+basin.select_set(True)
+bpy.context.view_layer.objects.active = basin

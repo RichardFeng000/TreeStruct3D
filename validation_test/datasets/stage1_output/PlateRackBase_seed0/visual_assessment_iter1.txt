@@ -1,0 +1,3 @@
+- Floating components: There are disconnected small blocks on the left side of the render that don't belong to the main structure.
+- Material color: The "dark wood" is appearing too light/grey; it needs a deeper, more saturated brown to match the description.
+- Proportions/Alignment: The base frame pieces aren't interlocking cleanly, creating visible gaps and misalignment.

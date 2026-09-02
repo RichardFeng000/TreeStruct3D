@@ -1,0 +1,4 @@
+- Leaves are far too narrow; they look like needles instead of the wide, ribbon-like leaves characteristic of maize.
+- The "ears" of corn are barely visible or obscured by other geometry.
+- The overall silhouette is too spindly and lacks the lush, arching form described.
+- Tassel lacks sufficient detail to be clearly identifiable as a textured tassel.

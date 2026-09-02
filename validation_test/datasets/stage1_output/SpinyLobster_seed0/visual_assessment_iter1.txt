@@ -1,0 +1,4 @@
+- The abdomen segments look like a string of spheres rather than overlapping carapace plates.
+- The tail fan is barely distinguishable from the body; it needs to be wider and flatter (fan-shaped).
+- Antennae are long but lack a pronounced "upward curve" described in the prompt.
+- Walking legs are too simplistic and don't clearly attach beneath the cephalothorax.

@@ -1,0 +1,3 @@
+- The mirror panel looks like a matte white/grey plastic sheet rather than a "reflective" panel with a "warm cream-beige to pale taupe tone".
+- The frame is slightly too thick for a "thin dark border" description.
+- Missing reflective properties (Metallic/Roughness) essential for it to be identified as a mirror in the render.

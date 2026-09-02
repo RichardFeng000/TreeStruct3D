@@ -1,0 +1,67 @@
+{
+  "instance": "MaizeMonocot_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "TypeError: extrude_face_region: keyword \"amount\" is invalid for this operator\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(pat\n\n... [truncated 662 chars] ...\n\nVector((0, 0, -0.01)))\nTypeError: extrude_face_region: keyword \"amount\" is invalid for this operator"
+    },
+    {
+      "stage": "trace",
+      "attempt": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "AttributeError: BMeshOpsModule: operator \"create_cylinder\" doesn't exist\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, ru\n\n... [truncated 711 chars] ...\n\n  ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: BMeshOpsModule: operator \"create_cylinder\" doesn't exist"
+    },
+    {
+      "stage": "trace",
+      "attempt": 2,
+      "status": "OK",
+      "n_meshes": 35,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 41,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "n_views_rendered": 0,
+      "error": "ValueError: faces.new(...): found the same (BMVert) used multiple times\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run\n\n... [truncated 779 chars] ...\n\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: faces.new(...): found the same (BMVert) used multiple times"
+    },
+    {
+      "stage": "trace",
+      "attempt": 1,
+      "status": "OK",
+      "n_meshes": 55,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Leaves are far too narrow; they look like needles instead of the wide, ribbon-like leaves characteristic of maize.\n- The \"ears\" of corn are barely visible or obscured by other geometry.\n- The overall silhouette is too spindly and lacks the lush, arching form described.\n- Tassel lacks sufficient detail to be clearly identifiable as a textured tassel."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Corn ears are almost invisible or appear as glitched geometry; they need a distinct cob and peeling husk structure.\n- Leaves intersect the center of the stalk unnaturally instead of emerging from the surface.\n- The tassel consists of straight spikes; it needs more organic curvature to match a real maize plant."
+    }
+  ]
+}

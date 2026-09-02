@@ -1,0 +1,330 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene completely.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks != bpy.data.materials:
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+# Materials.
+steel = bpy.data.materials.new("Brushed Stainless Steel")
+steel.diffuse_color = (0.43, 0.48, 0.52, 1.0)
+steel.metallic = 0.82
+steel.roughness = 0.28
+
+faucet_steel = bpy.data.materials.new("Polished Faucet Steel")
+faucet_steel.diffuse_color = (0.62, 0.67, 0.70, 1.0)
+faucet_steel.metallic = 0.92
+faucet_steel.roughness = 0.16
+
+dark_metal = bpy.data.materials.new("Drain Openings")
+dark_metal.diffuse_color = (0.055, 0.065, 0.07, 1.0)
+dark_metal.metallic = 0.55
+dark_metal.roughness = 0.34
+
+def rounded_rectangle_points(hx, hy, radius, segments_per_corner=16, z=0.0):
+    radius = min(radius, hx, hy)
+    centers = (
+        (hx - radius, hy - radius),
+        (-hx + radius, hy - radius),
+        (-hx + radius, -hy + radius),
+        (hx - radius, -hy + radius),
+    )
+    starts = (0.0, 90.0, 180.0, 270.0)
+    points = []
+    for center, start in zip(centers, starts):
+        for i in range(segments_per_corner):
+            angle = math.radians(start + 90.0 * i / segments_per_corner)
+            points.append((
+                center[0] + radius * math.cos(angle),
+                center[1] + radius * math.sin(angle),
+                z
+            ))
+    return points
+
+def add_loop(vertices, hx, hy, radius, z):
+    start = len(vertices)
+    vertices.extend(rounded_rectangle_points(hx, hy, radius, 16, z))
+    return list(range(start, len(vertices)))
+
+def connect_loops(faces, loop_a, loop_b, reverse=False):
+    count = len(loop_a)
+    for i in range(count):
+        j = (i + 1) % count
+        if reverse:
+            faces.append((loop_a[i], loop_b[i], loop_b[j], loop_a[j]))
+        else:
+            faces.append((loop_a[i], loop_a[j], loop_b[j], loop_b[i]))
+
+# Construct the basin as a closed rounded shell with a broad flat rim.
+verts = []
+faces = []
+
+outer_top = add_loop(verts, 3.00, 2.00, 0.30, 0.42)
+outer_mid = add_loop(verts, 3.00, 2.00, 0.30, -1.42)
+outer_bottom = add_loop(verts, 2.91, 1.91, 0.27, -1.64)
+
+inner_top = add_loop(verts, 2.54, 1.54, 0.48, 0.42)
+inner_lip = add_loop(verts, 2.51, 1.51, 0.48, 0.27)
+inner_wall_top = add_loop(verts, 2.48, 1.48, 0.49, 0.08)
+inner_wall_low = add_loop(verts, 2.42, 1.42, 0.52, -1.10)
+inner_curve = add_loop(verts, 2.29, 1.29, 0.56, -1.31)
+inner_floor = add_loop(verts, 2.14, 1.14, 0.62, -1.39)
+
+connect_loops(faces, outer_top, inner_top)
+connect_loops(faces, outer_top, outer_mid, reverse=True)
+connect_loops(faces, outer_mid, outer_bottom, reverse=True)
+connect_loops(faces, inner_top, inner_lip)
+connect_loops(faces, inner_lip, inner_wall_top)
+connect_loops(faces, inner_wall_top, inner_wall_low)
+connect_loops(faces, inner_wall_low, inner_curve)
+connect_loops(faces, inner_curve, inner_floor)
+
+# Close the interior floor and underside.
+faces.append(tuple(reversed(inner_floor)))
+faces.append(tuple(outer_bottom))
+
+basin_mesh = bpy.data.meshes.new("Deep Rounded Sink Basin")
+basin_mesh.from_pydata(verts, [], faces)
+basin_mesh.update()
+basin = bpy.data.objects.new("Deep Rectangular Sink Basin", basin_mesh)
+bpy.context.collection.objects.link(basin)
+basin.data.materials.append(steel)
+
+# Smooth curved wall strips while retaining the planar rim and bottom.
+rim_face_count = len(outer_top)
+outer_face_count = len(outer_top) * 2
+for index, polygon in enumerate(basin.data.polygons):
+    if index >= rim_face_count:
+        polygon.use_smooth = True
+
+bevel = basin.modifiers.new("Soft Manufactured Edges", 'BEVEL')
+bevel.width = 0.025
+bevel.segments = 2
+bevel.limit_method = 'ANGLE'
+
+def add_cylinder(name, radius, depth, location, material, vertices=48):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    bevel_mod = obj.modifiers.new("Edge Softening", 'BEVEL')
+    bevel_mod.width = min(radius * 0.12, depth * 0.12)
+    bevel_mod.segments = 2
+    bevel_mod.limit_method = 'ANGLE'
+    return obj
+
+def add_uv_sphere(name, radius, location, material, segments=32, rings=16):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        radius=radius,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    return obj
+
+def cylinder_between(name, point_a, point_b, radius, material, vertices=32):
+    a = Vector(point_a)
+    b = Vector(point_b)
+    direction = b - a
+    length = direction.length
+    midpoint = (a + b) * 0.5
+    obj = add_cylinder(name, radius, length, midpoint, material, vertices)
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized())
+    return obj
+
+# Drain flange and recessed drain plate.
+bpy.ops.mesh.primitive_torus_add(
+    major_radius=0.285,
+    minor_radius=0.045,
+    major_segments=64,
+    minor_segments=12,
+    location=(0.0, 0.0, -1.335)
+)
+drain_ring = bpy.context.object
+drain_ring.name = "Rounded Drain Flange"
+drain_ring.data.materials.append(faucet_steel)
+for polygon in drain_ring.data.polygons:
+    polygon.use_smooth = True
+
+drain_plate = add_cylinder(
+    "Drain Plate",
+    0.245,
+    0.035,
+    (0.0, 0.0, -1.355),
+    dark_metal,
+    64
+)
+
+# Drain plate radial slots as shallow inset details.
+for i in range(8):
+    angle = 2.0 * math.pi * i / 8.0
+    radius_from_center = 0.135
+    x = radius_from_center * math.cos(angle)
+    y = radius_from_center * math.sin(angle)
+    bpy.ops.mesh.primitive_cube_add(location=(x, y, -1.330))
+    slot = bpy.context.object
+    slot.name = "Drain Slot"
+    slot.scale = (0.065, 0.018, 0.009)
+    slot.rotation_euler[2] = angle
+    slot.data.materials.append(steel)
+    bevel_slot = slot.modifiers.new("Rounded Slot Ends", 'BEVEL')
+    bevel_slot.width = 0.018
+    bevel_slot.segments = 4
+
+add_cylinder("Drain Center Fastener", 0.038, 0.022, (0.0, 0.0, -1.319), faucet_steel, 32)
+
+# Faucet mounting escutcheon and lower collar on the rear rim.
+faucet_x = 1.18
+faucet_y = 1.72
+
+add_cylinder(
+    "Faucet Escutcheon",
+    0.31,
+    0.075,
+    (faucet_x, faucet_y, 0.475),
+    faucet_steel,
+    64
+)
+add_cylinder(
+    "Faucet Base Collar",
+    0.225,
+    0.34,
+    (faucet_x, faucet_y, 0.66),
+    faucet_steel,
+    56
+)
+
+# Smooth gooseneck generated from an automatically handled Bezier spline.
+curve_data = bpy.data.curves.new("Gooseneck Faucet Path", type='CURVE')
+curve_data.dimensions = '3D'
+curve_data.resolution_u = 18
+curve_data.bevel_depth = 0.135
+curve_data.bevel_resolution = 5
+curve_data.resolution_u = 24
+curve_data.use_fill_caps = True
+curve_data.materials.append(faucet_steel)
+
+spline = curve_data.splines.new(type='BEZIER')
+path_points = [
+    (faucet_x, faucet_y, 0.67),
+    (faucet_x, faucet_y, 1.45),
+    (faucet_x, faucet_y - 0.02, 2.43),
+    (faucet_x, faucet_y - 0.45, 3.04),
+    (faucet_x, faucet_y - 1.12, 3.13),
+    (faucet_x, faucet_y - 1.52, 2.78),
+    (faucet_x, faucet_y - 1.55, 2.31),
+]
+spline.bezier_points.add(len(path_points) - 1)
+for point, coordinate in zip(spline.bezier_points, path_points):
+    point.co = coordinate
+    point.handle_left_type = 'AUTO'
+    point.handle_right_type = 'AUTO'
+
+faucet = bpy.data.objects.new("Curved Gooseneck Faucet", curve_data)
+bpy.context.collection.objects.link(faucet)
+
+# Convert the faucet to mesh so the final assembly is entirely geometric.
+bpy.context.view_layer.objects.active = faucet
+faucet.select_set(True)
+bpy.ops.object.convert(target='MESH')
+faucet = bpy.context.object
+faucet.name = "Curved Gooseneck Faucet"
+
+# Downward aerator and dark outlet face.
+spout_y = faucet_y - 1.55
+add_cylinder(
+    "Faucet Aerator Housing",
+    0.165,
+    0.255,
+    (faucet_x, spout_y, 2.185),
+    faucet_steel,
+    48
+)
+add_cylinder(
+    "Aerator Outlet",
+    0.132,
+    0.018,
+    (faucet_x, spout_y, 2.050),
+    dark_metal,
+    48
+)
+
+# Compact single lever control beside the faucet base.
+handle_x = faucet_x + 0.55
+handle_y = faucet_y
+
+add_cylinder(
+    "Handle Valve Base",
+    0.205,
+    0.075,
+    (handle_x, handle_y, 0.475),
+    faucet_steel,
+    48
+)
+add_cylinder(
+    "Handle Valve Stem",
+    0.13,
+    0.31,
+    (handle_x, handle_y, 0.65),
+    faucet_steel,
+    40
+)
+add_uv_sphere(
+    "Handle Pivot",
+    0.145,
+    (handle_x, handle_y, 0.82),
+    faucet_steel,
+    32,
+    16
+)
+
+lever_start = (handle_x, handle_y, 0.84)
+lever_end = (handle_x + 0.42, handle_y - 0.02, 1.16)
+cylinder_between(
+    "Faucet Control Lever",
+    lever_start,
+    lever_end,
+    0.075,
+    faucet_steel,
+    32
+)
+add_uv_sphere(
+    "Lever Rounded Tip",
+    0.082,
+    lever_end,
+    faucet_steel,
+    28,
+    14
+)
+
+# Organize all generated geometry into one coherent assembly collection.
+assembly = bpy.data.collections.new("Kitchen Sink Assembly")
+bpy.context.scene.collection.children.link(assembly)
+for obj in list(bpy.context.scene.collection.objects):
+    if obj.type in {'MESH', 'CURVE'}:
+        bpy.context.scene.collection.objects.unlink(obj)
+        assembly.objects.link(obj)
+
+# Ensure useful object selection without adding cameras, lights, or context geometry.
+bpy.ops.object.select_all(action='DESELECT')
+basin.select_set(True)
+bpy.context.view_layer.objects.active = basin

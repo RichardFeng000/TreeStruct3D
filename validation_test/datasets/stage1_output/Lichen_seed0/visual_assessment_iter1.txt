@@ -1,0 +1,3 @@
+- Missing Color: The description specifies "muted sage green," but the render is plain white/grey because no material was defined.
+- Geometric Detail: The lobes are a bit too "blobby" and lack the thin, crisp leaf-like edges characteristic of lichen; need thinner solidification and more erratic curling.
+- Base Structure: The central base is somewhat indistinct; needs tighter clustering at the origin.

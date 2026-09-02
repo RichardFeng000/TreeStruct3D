@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model convincingly forms a low, wide cauliflower-like coral mass with dense rounded lobes, knobby clusters, granular texture, and appropriate sandy coloration.
+</assessment>

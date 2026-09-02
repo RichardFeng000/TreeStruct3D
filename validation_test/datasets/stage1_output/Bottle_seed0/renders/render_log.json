@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/output fix/glm_5_2_code_qwen_vl_visual/Bottle_seed0/Bottle_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 74,
+  "extent": 4.529139995574951,
+  "n_views_rendered": 4,
+  "latency_s": 4.28,
+  "error": null
+}

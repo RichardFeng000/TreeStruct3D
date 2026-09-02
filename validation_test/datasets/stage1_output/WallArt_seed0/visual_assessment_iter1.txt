@@ -1,0 +1,3 @@
+- Missing parts: The orange block and organic green/olive patches are completely absent in the renders.
+- Misalignment/Z-fighting: These elements were created inside the volume of the canvas background mesh, making them invisible.
+- Color visibility: The pale blue-teal background appears too light (nearly white) in renders; I will adjust colors and positioning to ensure they are distinct.

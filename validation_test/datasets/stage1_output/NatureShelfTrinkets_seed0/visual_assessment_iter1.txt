@@ -1,0 +1,3 @@
+- The dark charcoal base disc is virtually invisible because no materials were assigned; everything renders as a single white mass.
+- The colors specified in the description (cream/beige and charcoal) are missing entirely.
+- The distinction between the upper and lower discs is too subtle to be visually apparent without color.

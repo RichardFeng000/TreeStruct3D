@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Microwave_seed0/Microwave_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 29,
+  "extent": 2.4000000953674316,
+  "n_views_rendered": 4,
+  "latency_s": 2.73,
+  "error": null
+}

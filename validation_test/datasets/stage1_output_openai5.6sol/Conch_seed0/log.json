@@ -1,0 +1,48 @@
+{
+  "instance": "Conch_seed0",
+  "timestamp": "2026-07-20T04:47:57+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 84.2,
+  "code_chars": 17781,
+  "input_tokens": 15024,
+  "output_tokens": 5520,
+  "thoughts_tokens": 1555,
+  "total_tokens": 22099,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Numerous ridge curves float above the shell, especially around the spire; replace them with fewer ridges tightly conforming to the surface.\n- The axial and transverse curves form an unnatural basket-like cage rather than shell growth ridges.\n- Several spire seams and the topmost pieces are visibly disconnected; overlap and integrate all whorls into a continuous pointed spire.\n- The aperture resembles an attached oval plate; recess it into a genuine body opening with a thick contiguous lip.",
+      "raw_chars": 18335
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The shell clearly has a rounded body whorl, pointed spire, strong wavy ridges, wide aperture, and convincing brown-and-cream patterning.",
+      "raw_chars": 177
+    }
+  ],
+  "error": null
+}

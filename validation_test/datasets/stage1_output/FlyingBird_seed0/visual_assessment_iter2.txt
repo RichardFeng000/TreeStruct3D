@@ -1,0 +1,1 @@
+The model faithfully captures the soaring pose, wingspan silhouette, color gradients (white to black), and individual trailing edge feather geometry as described.

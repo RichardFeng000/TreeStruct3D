@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitContainer_seed0/FruitContainer_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/FruitContainer_seed0/glb/FruitContainer_seed0.glb",
+  "status": "OK",
+  "n_meshes": 29,
+  "size_kb": 685.3,
+  "latency_s": 0.27,
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Seaweed_seed0/Seaweed_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Seaweed_seed0/glb/Seaweed_seed0.glb",
+  "status": "OK",
+  "n_meshes": 9,
+  "size_kb": 651.0,
+  "latency_s": 0.12,
+  "error": null
+}

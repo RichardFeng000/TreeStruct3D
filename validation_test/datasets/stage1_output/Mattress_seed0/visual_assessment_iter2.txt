@@ -1,0 +1,2 @@
+- Missing geometric detail: The quilted/tufted surface pattern is completely invisible in the renders; it's just a smooth block.
+- Wrong color: The mattress appears white or off-white rather than light mint-green.

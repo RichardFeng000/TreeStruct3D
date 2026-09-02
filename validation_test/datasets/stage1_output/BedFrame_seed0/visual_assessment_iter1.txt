@@ -1,0 +1,3 @@
+- Major geometry errors: Strange white streaks/lines shoot out from the model, caused by incorrect vertex indexing (slicing bm.verts[-34:]) when shifting parts.
+- Distorted components: The tapered legs and metallic accents are improperly placed or stretched due to the same indexing bug.
+- Lack of detail: The "carved" panel is just overlapping boxes; it needs better definition to look decorative.

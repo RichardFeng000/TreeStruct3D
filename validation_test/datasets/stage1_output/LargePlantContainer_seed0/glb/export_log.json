@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LargePlantContainer_seed0/LargePlantContainer_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LargePlantContainer_seed0/glb/LargePlantContainer_seed0.glb",
+  "status": "OK",
+  "n_meshes": 14,
+  "size_kb": 127.5,
+  "latency_s": 0.11,
+  "error": null
+}

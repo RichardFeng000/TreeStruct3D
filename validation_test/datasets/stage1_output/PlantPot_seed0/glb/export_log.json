@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PlantPot_seed0/PlantPot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/PlantPot_seed0/glb/PlantPot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1494.6,
+  "latency_s": 0.29,
+  "error": null
+}

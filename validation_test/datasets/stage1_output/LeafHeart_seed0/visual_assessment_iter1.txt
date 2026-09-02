@@ -1,0 +1,3 @@
+- The leaf is oriented upside down; the description specifies rounded lobes at the top and a pointed tip at the bottom, but the render shows the opposite.
+- The midrib crease is barely visible as a tiny central dimple rather than a longitudinal line.
+- Vein details are too subtle to be seen in the renders.

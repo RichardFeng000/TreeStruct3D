@@ -1,0 +1,56 @@
+{
+  "instance": "Blanket_seed0",
+  "timestamp": "2026-07-09T15:57:19+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 143.12,
+  "code_chars": 6880,
+  "input_tokens": 8854,
+  "output_tokens": 4985,
+  "thoughts_tokens": null,
+  "total_tokens": 13839,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Pattern is too faint and washed out; pastel patches lack contrast against white base.\n- Rumpling is overly subtle; surface looks almost flat instead of softly rumpled.\n- No visible thickness or fabric edge detail; solidify modifier isn\u2019t visually apparent.\n- Color attribute isn\u2019t driving strong enough visual variation; needs higher saturation or contrast.",
+      "raw_chars": 7284
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- Pattern is too faint; pastel colors blend into white base instead of standing out.\n- Ruffling is overly subtle \u2014 needs stronger, more visible undulations.\n- No visible thickness or bevel; blanket looks like a flat plane.\n- Edge curling is insufficient \u2014 corners should lift more visibly.\n- Material roughness is too high, muting color vibrancy.",
+      "raw_chars": 7292
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

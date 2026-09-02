@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LargeShelf_seed0/LargeShelf_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LargeShelf_seed0/glb/LargeShelf_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 91.8,
+  "latency_s": 0.09,
+  "error": null
+}

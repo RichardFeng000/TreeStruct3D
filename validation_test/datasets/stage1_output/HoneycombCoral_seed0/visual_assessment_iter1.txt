@@ -1,0 +1,4 @@
+- Missing geometric detail: The "honeycomb" effect is absent; it looks like a lumpy sphere rather than a porous, pitted coral structure.
+- Wrong material placement: Green tints should be in the deep pits, but are currently scattered randomly or on polyps.
+- Polyp distribution: Polyps are uniformly random instead of forming organic clusters.
+- Proportions: The surface detail is too coarse and lacks the "cellular" look described.

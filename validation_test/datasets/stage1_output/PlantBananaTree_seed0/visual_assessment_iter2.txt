@@ -1,0 +1,3 @@
+- The midrib is not "prominent"; it appears as a slightly curved flat surface rather than a distinct structural ridge.
+- Parallel venation is virtually invisible in the renders; the amplitude of the veins needs to be increased significantly to be noticeable.
+- The leaf arch is a bit too abrupt; it should have a more natural, graceful curve from the petiole.

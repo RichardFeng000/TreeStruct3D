@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/WheatMonocot_seed0/WheatMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/WheatMonocot_seed0/glb/WheatMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 12,
+  "size_kb": 99.9,
+  "latency_s": 0.09,
+  "error": null
+}

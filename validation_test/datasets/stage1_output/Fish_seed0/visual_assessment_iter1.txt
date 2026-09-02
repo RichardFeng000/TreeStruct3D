@@ -1,0 +1,4 @@
+- Wrong proportions: The body is too thick; it needs to be much thinner in X to be "laterally compressed".
+- Missing geometric detail: Fins are simple rectangles; they must be "fan-shaped" with varying heights for the ribs.
+- Missing part: No visible mouth opening or distinct pointed snout tip.
+- Missing detail: The body color is a flat shade; it needs subtle cloud-like variation using procedural nodes.

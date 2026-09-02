@@ -1,0 +1,48 @@
+{
+  "instance": "Bed_seed0",
+  "timestamp": "2026-07-20T04:46:47+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 60.56,
+  "code_chars": 10844,
+  "input_tokens": 14306,
+  "output_tokens": 4683,
+  "thoughts_tokens": 426,
+  "total_tokens": 19415,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 107,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Numerous piping and seam curves float several feet above the bed; remove them or place them directly on the bedding.\n- The folded comforter looks like rigid stacked tubes rather than a soft folded quilt; flatten and widen the folds.\n- Pillow placement is inconsistent between views and some pillows resemble bars; use fuller, clearly separated pillow forms at the head.\n- Preserve the decorative boards while keeping all ornament physically attached.",
+      "raw_chars": 11354
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The complete bed has a well-proportioned wooden frame, decorative boards, tapered legs, green mattress, layered pink bedding, folded comforter, and arranged pillows.",
+      "raw_chars": 206
+    }
+  ],
+  "error": null
+}

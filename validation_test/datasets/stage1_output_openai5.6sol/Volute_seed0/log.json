@@ -1,0 +1,54 @@
+{
+  "instance": "Volute_seed0",
+  "timestamp": "2026-07-20T04:54:14+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 146.66,
+  "code_chars": 13629,
+  "input_tokens": 9947,
+  "output_tokens": 6790,
+  "thoughts_tokens": 3043,
+  "total_tokens": 19780,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 2,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    },
+    {
+      "iter": 2,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The aperture is an enormous circular horn, overwhelming the shell; replace it with a narrow, elongated volute opening along the body.\n- The inflated body and aperture read as intersecting lobes rather than one continuous shell.\n- Stripes wrap horizontally like bands; make them wavy longitudinal/radiating markings converging toward the spire.\n- Refine the low spire into several broad, connected whorls without the pinched central depression.",
+      "raw_chars": 9544
+    },
+    {
+      "iter": 2,
+      "decision": "FIX",
+      "assessment": "- The body is boxy and vertically stretched; reshape it into a rounded, globular inflated whorl.\n- The tall stacked spire contradicts the requested low spire; reduce it to a few broad, overlapping whorls.\n- The aperture rim reads as a detached hoop; conform and embed it against the shell surface.\n- Stripe boundaries are visibly pixelated; use a smooth procedural wavy brown-and-cream pattern.",
+      "raw_chars": 14081
+    }
+  ],
+  "error": null
+}

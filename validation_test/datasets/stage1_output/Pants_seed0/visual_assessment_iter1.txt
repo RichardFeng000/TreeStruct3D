@@ -1,0 +1,3 @@
+- The renders are almost entirely black; the object is virtually invisible due to lack of lighting/emissive properties.
+- The geometry is a basic N-gon with poor topology, which likely causes artifacts when subdivided.
+- The shape is too simplistic and lacks organic curves characteristic of fabric laid flat.

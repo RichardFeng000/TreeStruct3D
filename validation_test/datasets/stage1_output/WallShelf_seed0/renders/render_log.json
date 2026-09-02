@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/WallShelf_seed0/WallShelf_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 3,
+  "extent": 2.0,
+  "n_views_rendered": 4,
+  "latency_s": 1.9,
+  "error": null
+}

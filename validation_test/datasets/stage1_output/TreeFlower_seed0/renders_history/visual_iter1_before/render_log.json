@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TreeFlower_seed0/TreeFlower_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 43,
+  "extent": 8.007522583007812,
+  "n_views_rendered": 4,
+  "latency_s": 2.13,
+  "error": null
+}

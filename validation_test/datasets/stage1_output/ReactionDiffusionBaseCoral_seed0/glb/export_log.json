@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ReactionDiffusionBaseCoral_seed0/ReactionDiffusionBaseCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/ReactionDiffusionBaseCoral_seed0/glb/ReactionDiffusionBaseCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 9103.8,
+  "latency_s": 41.04,
+  "error": null
+}

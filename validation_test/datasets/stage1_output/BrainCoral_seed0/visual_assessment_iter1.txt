@@ -1,0 +1,3 @@
+- Missing geometric detail: The render is a smooth blob; the required labyrinthine groove-and-ridge patterns are completely absent.
+- Wrong coloring: The object appears greyish/white instead of the requested warm beige, tan, and pale green tones.
+- Lack of form: It looks like an egg rather than a textured dome-shaped brain coral.

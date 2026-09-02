@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/MaizeMonocot_seed0/MaizeMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 41,
+  "extent": 6.5361926555633545,
+  "n_views_rendered": 4,
+  "latency_s": 2.21,
+  "error": null
+}

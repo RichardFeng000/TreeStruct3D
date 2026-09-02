@@ -1,0 +1,3 @@
+- Clipping: Several leaves clip through the bottom and sides of the bowl, appearing as if they are growing from underneath rather than from the soil.
+- Proportions: The container is too shallow, resembling a plate or saucer rather than a "shallow plant container."
+- Leaf placement: Leaves originate at (0,0,0) without consideration for the height of the soil surface.

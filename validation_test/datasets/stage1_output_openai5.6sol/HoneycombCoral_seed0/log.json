@@ -1,0 +1,44 @@
+{
+  "instance": "HoneycombCoral_seed0",
+  "timestamp": "2026-07-20T04:49:26+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 74.25,
+  "code_chars": 12123,
+  "input_tokens": 5803,
+  "output_tokens": 4144,
+  "thoughts_tokens": 1202,
+  "total_tokens": 11149,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "error_brief": "TypeError: bpy_struct: item.attr = val: enum \"Medium High Contrast\" not found in ('None', 'AgX - Punchy', 'AgX - Greyscale', 'AgX - Very High Contrast', 'AgX - High Contrast', 'AgX - Medium High Contrast', 'AgX - Base Contrast', 'AgX - Medium Low Contrast', 'AgX - Low Contrast', 'AgX - Very Low Cont..."
+    }
+  ],
+  "final_render_status": "OK_REVERTED",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The cells read as raised polygon rings pasted onto a smooth shell, not genuinely pitted porous cavities; deepen the bowls and broaden their irregular walls.\n- Large smooth gaps weaken the honeycomb texture; increase cell coverage and add stronger geometric surface erosion.\n- Polyp clusters are barely visible; add more distinct attached nodules along selected cell rims.\n- The renders have a black background despite the requested plain white presentation; explicitly configure an opaque white world.",
+      "raw_chars": 16044,
+      "reverted": true,
+      "note": "post-fix render failed (ERR_EXEC); reverted to previous good code (renders_history/attempt0/)"
+    }
+  ],
+  "error": null
+}

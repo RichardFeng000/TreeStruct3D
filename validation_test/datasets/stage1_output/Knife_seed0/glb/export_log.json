@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Knife_seed0/Knife_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Knife_seed0/glb/Knife_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 405.3,
+  "latency_s": 0.11,
+  "error": null
+}

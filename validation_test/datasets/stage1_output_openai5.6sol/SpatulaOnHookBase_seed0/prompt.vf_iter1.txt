@@ -1,0 +1,318 @@
+Original text-to-3D task:
+
+A 3D model of spatulas hanging on a wall-mounted hook rack, rendered from a three-quarter perspective, featuring a rectangular backplate panel with a dark frame border and multiple curved hooks along the bottom from which kitchen spatulas are suspended.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    pass
+
+# Materials.
+def make_material(name, color, metallic=0.0, roughness=0.4):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Metallic"].default_value = metallic
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+panel_mat = make_material("Warm Backplate", (0.34, 0.25, 0.17), 0.0, 0.34)
+frame_mat = make_material("Dark Frame", (0.035, 0.042, 0.048), 0.45, 0.24)
+steel_mat = make_material("Brushed Steel", (0.48, 0.53, 0.56), 0.82, 0.27)
+dark_steel_mat = make_material("Darkened Steel", (0.12, 0.14, 0.15), 0.75, 0.25)
+black_mat = make_material("Black Handles", (0.025, 0.028, 0.032), 0.05, 0.32)
+red_mat = make_material("Red Silicone", (0.52, 0.035, 0.025), 0.0, 0.4)
+blue_mat = make_material("Blue Silicone", (0.025, 0.15, 0.26), 0.0, 0.38)
+cream_mat = make_material("Cream Handle", (0.72, 0.65, 0.49), 0.0, 0.42)
+
+def assign_material(obj, mat):
+    obj.data.materials.append(mat)
+
+def rounded_box(name, location, dimensions, mat, bevel=0.06, segments=3):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if bevel > 0:
+        mod = obj.modifiers.new("Rounded edges", 'BEVEL')
+        mod.width = min(bevel, min(dimensions) * 0.42)
+        mod.segments = segments
+    assign_material(obj, mat)
+    return obj
+
+def cylinder_y(name, location, radius, depth, mat, vertices=32, bevel=0.0):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location,
+        rotation=(math.pi / 2.0, 0.0, 0.0)
+    )
+    obj = bpy.context.object
+    obj.name = name
+    assign_material(obj, mat)
+    if bevel:
+        mod = obj.modifiers.new("Edge rounding", 'BEVEL')
+        mod.width = bevel
+        mod.segments = 3
+    return obj
+
+def make_torus_y(name, location, major_radius, minor_radius, mat):
+    bpy.ops.mesh.primitive_torus_add(
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        major_segments=36,
+        minor_segments=10,
+        location=location,
+        rotation=(math.pi / 2.0, 0.0, 0.0)
+    )
+    obj = bpy.context.object
+    obj.name = name
+    assign_material(obj, mat)
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    return obj
+
+def tube_curve(name, points, radius, mat):
+    curve = bpy.data.curves.new(name + " Curve", 'CURVE')
+    curve.dimensions = '3D'
+    curve.resolution_u = 16
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 4
+    curve.resolution_u = 20
+    spline = curve.splines.new('BEZIER')
+    spline.bezier_points.add(len(points) - 1)
+    for bp, co in zip(spline.bezier_points, points):
+        bp.co = co
+        bp.handle_left_type = 'AUTO'
+        bp.handle_right_type = 'AUTO'
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    assign_material(obj, mat)
+    return obj
+
+def extruded_profile(name, profile_xz, center_x, center_y, depth, mat, bevel=0.035):
+    count = len(profile_xz)
+    verts = []
+    for y in (center_y - depth / 2.0, center_y + depth / 2.0):
+        verts.extend([(center_x + x, y, z) for x, z in profile_xz])
+
+    faces = []
+    faces.append(tuple(range(count - 1, -1, -1)))
+    faces.append(tuple(range(count, count * 2)))
+    for i in range(count):
+        j = (i + 1) % count
+        faces.append((i, j, count + j, count + i))
+
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    assign_material(obj, mat)
+
+    if bevel:
+        mod = obj.modifiers.new("Soft perimeter", 'BEVEL')
+        mod.width = bevel
+        mod.segments = 3
+    return obj
+
+def apply_modifier(obj, modifier_name):
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    try:
+        bpy.ops.object.modifier_apply(modifier=modifier_name)
+    except RuntimeError:
+        pass
+    obj.select_set(False)
+
+def cut_rounded_slots(target, slots):
+    for index, (x, z, width, height, angle) in enumerate(slots):
+        cutter = rounded_box(
+            "Temporary slot",
+            (x, -0.79, z),
+            (width, 0.34, height),
+            frame_mat,
+            bevel=min(width * 0.42, 0.065),
+            segments=5
+        )
+        cutter.rotation_euler[1] = angle
+        bpy.context.view_layer.objects.active = cutter
+        apply_modifier(cutter, "Rounded edges")
+        mod = target.modifiers.new("Slot Boolean " + str(index), 'BOOLEAN')
+        mod.operation = 'DIFFERENCE'
+        mod.solver = 'EXACT'
+        mod.object = cutter
+        apply_modifier(target, mod.name)
+        bpy.data.objects.remove(cutter, do_unlink=True)
+
+# Backplate panel and raised border.
+rounded_box("Backplate Panel", (0.0, 0.0, 3.61), (7.45, 0.22, 2.28), panel_mat, 0.12, 5)
+rounded_box("Frame Top", (0.0, -0.16, 4.69), (7.48, 0.20, 0.19), frame_mat, 0.075, 4)
+rounded_box("Frame Bottom", (0.0, -0.16, 2.53), (7.48, 0.20, 0.19), frame_mat, 0.075, 4)
+rounded_box("Frame Left", (-3.64, -0.16, 3.61), (0.19, 0.20, 2.12), frame_mat, 0.075, 4)
+rounded_box("Frame Right", (3.64, -0.16, 3.61), (0.19, 0.20, 2.12), frame_mat, 0.075, 4)
+
+# Mounting screw heads and their slots.
+for sx in (-3.28, 3.28):
+    for sz in (2.87, 4.35):
+        cylinder_y("Mounting Screw", (sx, -0.285, sz), 0.105, 0.075, dark_steel_mat, 28, 0.012)
+        rounded_box("Screw Slot", (sx, -0.333, sz), (0.115, 0.018, 0.023), frame_mat, 0.008, 2)
+
+# Curved rack hooks.
+hook_positions = [-2.75, -1.38, 0.0, 1.38, 2.75]
+for i, x in enumerate(hook_positions):
+    cylinder_y("Hook Base " + str(i + 1), (x, -0.315, 2.69), 0.155, 0.11, dark_steel_mat, 36, 0.018)
+    tube_curve(
+        "Curved Hook " + str(i + 1),
+        [
+            (x, -0.35, 2.69),
+            (x, -0.51, 2.62),
+            (x, -0.73, 2.45),
+            (x, -0.87, 2.25),
+            (x, -0.91, 2.11),
+            (x, -0.91, 2.29),
+            (x, -0.88, 2.45)
+        ],
+        0.067,
+        dark_steel_mat
+    )
+    # Rounded hook tip.
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=20,
+        ring_count=12,
+        radius=0.071,
+        location=(x, -0.88, 2.45)
+    )
+    tip = bpy.context.object
+    tip.name = "Hook Tip " + str(i + 1)
+    assign_material(tip, dark_steel_mat)
+
+# Spatula suspension rings.
+ring_z = 2.37
+for i, x in enumerate(hook_positions):
+    make_torus_y("Spatula Hanging Ring " + str(i + 1), (x, -0.895, ring_z), 0.145, 0.035, steel_mat)
+
+# Spatula 1: broad slotted turner.
+x = hook_positions[0]
+rounded_box("Turner 1 Handle", (x, -0.90, 1.72), (0.30, 0.15, 1.02), red_mat, 0.105, 5)
+rounded_box("Turner 1 Upper Tang", (x, -0.90, 2.18), (0.17, 0.12, 0.34), steel_mat, 0.05, 4)
+rounded_box("Turner 1 Lower Tang", (x, -0.90, 1.12), (0.17, 0.12, 0.32), steel_mat, 0.045, 4)
+profile = [
+    (-0.34, 1.05), (-0.54, 0.91), (-0.58, 0.16),
+    (-0.49, 0.06), (0.49, 0.06), (0.58, 0.16),
+    (0.54, 0.91), (0.34, 1.05)
+]
+head1 = extruded_profile("Slotted Turner Head", profile, x, -0.90, 0.105, steel_mat, 0.045)
+apply_modifier(head1, "Soft perimeter")
+cut_rounded_slots(head1, [
+    (x - 0.28, 0.53, 0.12, 0.58, 0.0),
+    (x - 0.09, 0.53, 0.12, 0.64, 0.0),
+    (x + 0.10, 0.53, 0.12, 0.64, 0.0),
+    (x + 0.29, 0.53, 0.12, 0.58, 0.0)
+])
+mod = head1.modifiers.new("Final edge softness", 'BEVEL')
+mod.width = 0.022
+mod.segments = 2
+
+# Spatula 2: solid offset turner.
+x = hook_positions[1]
+rounded_box("Turner 2 Handle", (x, -0.91, 1.73), (0.27, 0.145, 1.04), black_mat, 0.09, 5)
+rounded_box("Turner 2 Upper Tang", (x, -0.91, 2.18), (0.15, 0.11, 0.34), steel_mat, 0.045, 4)
+rounded_box("Turner 2 Neck", (x, -0.91, 1.10), (0.15, 0.105, 0.32), steel_mat, 0.04, 3)
+profile = [
+    (-0.29, 1.04), (-0.49, 0.86), (-0.47, 0.17),
+    (-0.38, 0.09), (0.38, 0.09), (0.47, 0.17),
+    (0.49, 0.86), (0.29, 1.04)
+]
+extruded_profile("Solid Turner Head", profile, x, -0.91, 0.095, steel_mat, 0.05)
+
+# Spatula 3: long fish turner with diagonal slots.
+x = hook_positions[2]
+rounded_box("Fish Turner Handle", (x, -0.92, 1.77), (0.25, 0.14, 0.95), cream_mat, 0.085, 5)
+rounded_box("Fish Turner Upper Tang", (x, -0.92, 2.19), (0.14, 0.105, 0.32), steel_mat, 0.04, 3)
+rounded_box("Fish Turner Lower Tang", (x, -0.92, 1.22), (0.13, 0.10, 0.35), steel_mat, 0.035, 3)
+profile = [
+    (-0.13, 1.10), (-0.42, 0.88), (-0.52, 0.21),
+    (-0.43, 0.08), (0.43, 0.08), (0.52, 0.21),
+    (0.42, 0.88), (0.13, 1.10)
+]
+head3 = extruded_profile("Fish Turner Head", profile, x, -0.92, 0.085, steel_mat, 0.04)
+apply_modifier(head3, "Soft perimeter")
+cut_rounded_slots(head3, [
+    (x - 0.27, 0.49, 0.105, 0.52, -0.16),
+    (x - 0.09, 0.54, 0.105, 0.62, -0.12),
+    (x + 0.09, 0.54, 0.105, 0.62, 0.12),
+    (x + 0.27, 0.49, 0.105, 0.52, 0.16)
+])
+mod = head3.modifiers.new("Final edge softness", 'BEVEL')
+mod.width = 0.018
+mod.segments = 2
+
+# Spatula 4: blue silicone scraper with a broad flexible blade.
+x = hook_positions[3]
+rounded_box("Silicone Spatula Handle", (x, -0.91, 1.68), (0.28, 0.15, 1.12), black_mat, 0.10, 5)
+rounded_box("Silicone Spatula Upper Stem", (x, -0.91, 2.18), (0.16, 0.12, 0.34), steel_mat, 0.045, 4)
+rounded_box("Silicone Spatula Neck", (x, -0.91, 1.04), (0.20, 0.13, 0.34), blue_mat, 0.06, 4)
+profile = [
+    (-0.25, 0.99), (-0.43, 0.85), (-0.46, 0.18),
+    (-0.37, 0.08), (0.37, 0.08), (0.46, 0.18),
+    (0.43, 0.85), (0.25, 0.99)
+]
+extruded_profile("Silicone Scraper Blade", profile, x, -0.91, 0.15, blue_mat, 0.075)
+
+# Spatula 5: compact slotted grill turner.
+x = hook_positions[4]
+rounded_box("Grill Turner Handle", (x, -0.90, 1.75), (0.29, 0.15, 0.99), black_mat, 0.095, 5)
+rounded_box("Grill Turner Upper Tang", (x, -0.90, 2.18), (0.16, 0.115, 0.34), steel_mat, 0.045, 4)
+rounded_box("Grill Turner Lower Tang", (x, -0.90, 1.17), (0.16, 0.11, 0.36), steel_mat, 0.04, 3)
+profile = [
+    (-0.31, 1.08), (-0.50, 0.88), (-0.53, 0.20),
+    (-0.43, 0.10), (0.43, 0.10), (0.53, 0.20),
+    (0.50, 0.88), (0.31, 1.08)
+]
+head5 = extruded_profile("Grill Turner Head", profile, x, -0.90, 0.105, steel_mat, 0.045)
+apply_modifier(head5, "Soft perimeter")
+cut_rounded_slots(head5, [
+    (x - 0.23, 0.56, 0.13, 0.56, 0.0),
+    (x, 0.56, 0.13, 0.64, 0.0),
+    (x + 0.23, 0.56, 0.13, 0.56, 0.0)
+])
+mod = head5.modifiers.new("Final edge softness", 'BEVEL')
+mod.width = 0.022
+mod.segments = 2
+
+# Small handle collars and end details.
+for i, x in enumerate(hook_positions):
+    cylinder_y("Handle Collar " + str(i + 1), (x, -0.995, 2.03), 0.105, 0.035, dark_steel_mat, 28, 0.01)
+    # A small central rivet on each handle.
+    cylinder_y("Handle Rivet " + str(i + 1), (x, -1.002, 1.86), 0.040, 0.028, steel_mat, 24, 0.006)
+
+# Smooth suitable mesh surfaces.
+for obj in bpy.context.scene.objects:
+    if obj.type == 'MESH' and any(word in obj.name for word in ("Screw", "Base", "Collar", "Rivet")):
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
+
+# Set a useful three-quarter inspection view without adding a camera.
+bpy.context.scene.cursor.location = (0.0, 0.0, 2.35)
+bpy.context.scene.world.color = (0.035, 0.035, 0.035)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

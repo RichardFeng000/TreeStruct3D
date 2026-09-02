@@ -1,0 +1,199 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector, Matrix, Quaternion
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_principled.inputs['Base Color'].default_value = color
+    mat.node_tree.links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def get_rotation_from_vector(direction, up=Vector((0, 0, 1))):
+    """Calculates a rotation matrix to align the Z-axis with 'direction'."""
+    z = direction.normalized()
+    if abs(z.dot(up)) > 0.99:
+        up = Vector((0, 1, 0))
+    x = up.cross(z).normalized()
+    y = z.cross(x).normalized()
+    return Matrix((x, y, z)).transposed()
+
+def build_tube(name, points, radius, material):
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    bm = bmesh.new()
+    res = 8
+    prev_ring = []
+    for i, p in enumerate(points):
+        if i == 0:
+            dir_vec = (points[1] - points[0]).normalized() if len(points) > 1 else Vector((0,0,1))
+        else:
+            dir_vec = (p - points[i-1]).normalized()
+        
+        up = Vector((0, 0, 1)) if abs(dir_vec.z) < 0.9 else Vector((0, 1, 0))
+        right = dir_vec.cross(up).normalized()
+        forward = right.cross(dir_vec).normalized()
+        
+        ring = []
+        for j in range(res):
+            angle = (2 * math.pi / res) * j
+            v_pos = p + (right * math.cos(angle) + forward * math.sin(angle)) * radius
+            ring.append(bm.verts.new(v_pos))
+        if prev_ring:
+            for j in range(res):
+                bm.faces.new((prev_ring[j], prev_ring[(j+1)%res], ring[(j+1)%res], ring[j]))
+        prev_ring = ring
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.data.materials.append(material)
+    return obj
+
+def create_broad_leaf(pos, direction, scale, material):
+    mesh = bpy.data.meshes.new("Leaf")
+    obj = bpy.data.objects.new("Leaf", mesh)
+    bpy.context.collection.objects.link(obj)
+    bm = bmesh.new()
+    # Create a broad elliptical leaf shape using a sphere base
+    bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=12, radius=1.0)
+    for v in bm.verts:
+        v.co.z *= 0.05 # Very flat
+        # Transform sphere to leaf shape (tapered ellipse)
+        # x is length, y is width
+        t = (v.co.x + 1) / 2
+        width_factor = math.sin(t * math.pi) * 0.8 # Broad middle, tapered ends
+        v.co.y *= width_factor
+        # Taper the tip more than the base
+        v.co.x = (v.co.x + 1) * 2.0 - 1.0 # Stretch length
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj.location = pos
+    # Align leaf X-axis with direction
+    rot_mat = get_rotation_from_vector(direction)
+    # The default sphere is centered at 0, stretched along x.
+    # We want the "length" (X axis of the modified mesh) to align with 'direction'.
+    # The rotation matrix currently aligns Z. We need to adjust it for X.
+    rot_quat = Quaternion(rot_mat).to_euler()
+    # Rotate by 90 deg around Y to make X point in direction Z was pointing
+    obj.rotation_mode = 'XYZ'
+    obj.rotation_euler = (math.radians(90), 0, 0) # Initial offset if needed
+    
+    # A simpler way: align the object's local X to 'direction'
+    z_axis = direction.normalized()
+    up = Vector((0,0,1)) if abs(z_axis.dot(Vector((0,0,1)))) < 0.9 else Vector((0,1,0))
+    x_axis = z_axis # We want leaf length along this vector
+    y_axis = x_axis.cross(up).normalized()
+    z_axis_final = y_axis.cross(x_axis).normalized()
+    
+    mat = Matrix((x_axis, y_axis, z_axis_final)).transposed()
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Quaternion(mat)
+    
+    obj.scale = scale
+    obj.data.materials.append(material)
+    return obj
+
+def create_flower(pos, material_white):
+    # Center of the bloom
+    mesh_center = bpy.data.meshes.new("Center")
+    obj_center = bpy.data.objects.new("Center", mesh_center)
+    bpy.context.collection.objects.link(obj_center)
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=8, radius=0.05)
+    bm.to_mesh(mesh_center)
+    bm.free()
+    obj_center.location = pos
+    obj_center.data.materials.append(material_white)
+
+    # Petals (small flattened spheres)
+    num_petals = 6
+    for i in range(num_petals):
+        mesh_p = bpy.data.meshes.new("Petal")
+        obj_p = bpy.data.objects.new("Petal", mesh_p)
+        bpy.context.collection.objects.link(obj_p)
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=8, radius=0.12)
+        for v in bm.verts:
+            v.co.z *= 0.1  # Flatten
+            v.co.y *= 0.4  # Narrow
+        bm.to_mesh(mesh_p)
+        bm.free()
+        
+        angle = (2 * math.pi / num_petals) * i
+        # Offset petal from center
+        offset = Vector((math.cos(angle)*0.08, math.sin(angle)*0.08, 0))
+        obj_p.location = pos + offset
+        
+        # Rotate petal to face outward from center
+        rot_mat = Matrix.Rotation(angle, 4, 'Z') @ Matrix.Rotation(math.radians(90), 4, 'X')
+        obj_p.rotation_mode = 'QUATERNION'
+        obj_p.rotation_quaternion = Quaternion(rot_mat)
+        
+        obj_p.data.materials.append(material_white)
+
+def build_plant():
+    clear_scene()
+    mat_green = create_material("Green", (0.1, 0.45, 0.1, 1.0))
+    mat_white = create_material("White", (0.9, 0.9, 0.9, 1.0))
+    
+    # Tall main stem - slightly curved for natural look
+    main_pts = [
+        Vector((0, 0, 0)),
+        Vector((0.05, 0.02, 0.8)),
+        Vector((-0.03, 0.06, 1.6)),
+        Vector((0.02, -0.02, 2.4))
+    ]
+    build_tube("MainStem", main_pts, 0.05, mat_green)
+    
+    # Branching stalks and leaves
+    num_branches = 8
+    for i in range(num_branches):
+        # Distribute branches along the stem height
+        t_param = (i + 1) / (num_branches + 1)
+        z_pos = t_param * 2.4
+        # Simple linear interpolation for branch start point
+        p_start = Vector((0, 0, z_pos)) # Approximation of stem position
+        
+        angle = i * 1.3  # spiral phyllotaxis
+        dir_vec = Vector((math.cos(angle), math.sin(angle), 0.5)).normalized()
+        branch_len = 0.4 + random.uniform(0, 0.2)
+        p_end = p_start + dir_vec * branch_len
+        
+        # Branch stem
+        build_tube(f"Branch_{i}", [p_start, p_end], 0.025, mat_green)
+        
+        # Leaves along the branch
+        num_leaves = 3
+        for l_idx in range(num_leaves):
+            l_t = (l_idx + 1) / (num_leaves + 1)
+            l_pos = p_start + (p_end - p_start) * l_t
+            # Leaf direction: slightly angled away from the branch axis
+            l_dir = (dir_vec + Vector((math.cos(angle), math.sin(angle), -0.2))).normalized()
+            create_broad_leaf(l_pos, l_dir, (0.3, 0.6, 0.15), mat_green)
+
+        # Flower at end of branch
+        create_flower(p_end, mat_white)
+
+    # Topmost bloom on main stem
+    create_flower(main_pts[-1], mat_white)
+    
+    # Base cluster leaves
+    num_base_leaves = 6
+    for i in range(num_base_leaves):
+        angle = (2 * math.pi / num_base_leaves) * i
+        dir_vec = Vector((math.cos(angle), math.sin(angle), 0.4)).normalized()
+        create_broad_leaf(Vector((0, 0, 0.1)), dir_vec, (0.5, 0.9, 0.25), mat_green)
+
+if __name__ == "__main__":
+    build_plant()

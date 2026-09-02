@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Jellyfish_seed0/Jellyfish_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 7.536271572113037,
+  "n_views_rendered": 4,
+  "latency_s": 2.6,
+  "error": null
+}

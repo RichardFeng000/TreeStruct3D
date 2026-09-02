@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 7,
+  "extent": 1.5100823044776917,
+  "n_views_rendered": 4,
+  "latency_s": 3.8,
+  "error": null
+}

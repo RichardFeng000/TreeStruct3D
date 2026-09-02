@@ -1,0 +1,228 @@
+Original text-to-3D task:
+
+A 3D model of a wheat plant rendered from a slightly elevated perspective, featuring a tall central stalk with long, narrow, golden-brown leaves arching outward and a grain-bearing ear at the top, capturing the characteristic form of mature wheat with its warm amber coloring.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def create_wheat_plant():
+    # Colors (Warm amber/golden-brown)
+    stalk_color = (0.6, 0.45, 0.2, 1.0)
+    grain_color = (0.8, 0.6, 0.3, 1.0)
+    leaf_color = (0.5, 0.4, 0.2, 1.0)
+
+    mat_stalk = create_material("Mat_Stalk", stalk_color)
+    mat_grain = create_material("Mat_Grain", grain_color)
+    mat_leaf = create_material("Mat_Leaf", leaf_color)
+
+    # --- Main Stalk ---
+    # We'll use a bmesh to create a slightly curved central stem
+    stalk_obj = bpy.data.objects.new("WheatStalk", None)
+    bpy.context.collection.objects.link(stalk_obj)
+    bm = bmesh.new()
+
+    segments = 20
+    height = 3.0
+    radius = 0.015
+    
+    # Create the stalk path with slight organic curvature
+    verts = []
+    for i in range(segments + 1):
+        z = (i / segments) * height
+        # Add some noise to X and Y for natural bend
+        x = math.sin(z * 1.5) * 0.05 + random.uniform(-0.02, 0.02)
+        y = math.cos(z * 1.2) * 0.05 + random.uniform(-0.02, 0.02)
+        verts.append(bm.verts.new(Vector((x, y, z))))
+
+    # Connect vertices into edges
+    for i in range(segments):
+        bm.edges.new((verts[i], verts[i+1]))
+
+    # Extrude the stalk to give it volume (skin-like)
+    # Instead of a skin modifier, we'll create small circles at each point
+    bmesh.ops.context_set(bm, context=bpy.types.MESH_OT_skin()) # Not available in bmesh ops directly
+    
+    # Since Skin is a modifier, let's rebuild the stalk as a tube using BMesh manually
+    bm.clear()
+    res = 8
+    for i in range(segments + 1):
+        z = (i / segments) * height
+        cx = math.sin(z * 1.5) * 0.05
+        cy = math.cos(z * 1.2) * 0.05
+        
+        ring = []
+        for j in range(res):
+            angle = (j / res) * 2 * math.pi
+            vx = cx + math.cos(angle) * radius * (1.0 - z/height*0.5)
+            vy = cy + math.sin(angle) * radius * (1.0 - z/height*0.5)
+            ring.append(bm.verts.new(Vector((vx, vy, z))))
+        verts.append(ring) # Reuse verts list for ring storage
+
+    # Bridge the rings
+    for i in range(segments):
+        for j in range(res):
+            v1 = verts[i][j]
+            v2 = verts[i+1][j]
+            v3 = verts[i+1][(j+1)%res]
+            v4 = verts[i][(j+1)%res]
+            bm.faces.new((v1, v2, v3, v4))
+
+    # Cap the bottom
+    bottom_ring = verts[0]
+    center_bot = bm.verts.new(Vector((0, 0, 0)))
+    for j in range(res):
+        bm.faces.new((center_bot, bottom_ring[j], bottom_ring[(j+1)%res]))
+
+    stalk_mesh = bpy.data.meshes.new("StalkMesh")
+    bm.to_mesh(stalk_mesh)
+    stalk_obj.data = stalk_mesh
+    bm.free()
+    stalk_obj.data.materials.append(mat_stalk)
+
+    # --- Leaves ---
+    num_leaves = 7
+    leaf_length = 1.2
+    leaf_width = 0.04
+
+    for i in range(num_leaves):
+        # Distribute leaves along the lower and middle part of the stalk
+        z_pos = (i / num_leaves) * height * 0.6
+        angle = (i / num_leaves) * 2 * math.pi
+        
+        leaf_obj = bpy.data.objects.new(f"Leaf_{i}", None)
+        bpy.context.collection.objects.link(leaf_obj)
+        bm_l = bmesh.new()
+        
+        # Create a tapered ribbon for the leaf
+        segments_l = 10
+        width_verts = 2 # thin strip
+        
+        l_verts = []
+        for s in range(segments_l + 1):
+            t = s / segments_l
+            # Arching shape: parabolic curve outward and then down
+            lx = t * leaf_length * math.cos(angle)
+            ly = t * leaf_length * math.sin(angle)
+            lz = z_pos + (t * 0.3) - (t**2 * 0.8) # arch up slightly then down
+            
+            # Taper width
+            w = leaf_width * (1.0 - t*0.8)
+            
+            v1 = bm_l.verts.new(Vector((lx + w, ly + w, lz)))
+            v2 = bm_l.verts.new(Vector((lx - w, ly - w, lz)))
+            l_verts.append((v1, v2))
+            
+        for s in range(segments_l):
+            bm_l.faces.new((l_verts[s][0], l_verts[s+1][0], l_verts[s+1][1], l_verts[s][1]))
+            
+        leaf_mesh = bpy.data.meshes.new(f"LeafMesh_{i}")
+        bm_l.to_mesh(leaf_mesh)
+        leaf_obj.data = leaf_mesh
+        bm_l.free()
+        leaf_obj.data.materials.append(mat_leaf)
+
+    # --- The Ear (Grain head) ---
+    grain_count = 32
+    ear_start_z = height * 0.7
+    ear_end_z = height
+    ear_length = ear_end_z - ear_start_z
+    
+    head_obj = bpy.data.objects.new("WheatHead", None)
+    bpy.context.collection.objects.link(head_obj)
+    bm_h = bmesh.new()
+
+    for g in range(grain_count):
+        t = g / grain_count
+        z_g = ear_start_z + t * ear_length
+        # Alternate sides for the grains
+        side = 1 if (g % 2 == 0) else -1
+        angle_offset = math.pi/4 # Shift from main axes
+        
+        gx = side * 0.03 * math.cos(angle_offset)
+        gy = side * 0.03 * math.sin(angle_offset)
+        gz = z_g
+
+        # Create a small grain (ellipsoid)
+        grain_res = 6
+        grain_verts = []
+        for i in range(grain_res):
+            theta = (i / grain_res) * 2 * math.pi
+            vx = gx + math.cos(theta) * 0.015
+            vy = gy + math.sin(theta) * 0.015
+            vz = gz
+            grain_verts.append(bm_h.verts.new(Vector((vx, vy, vz))))
+        
+        # Cap the grain top and bottom to make it a seed shape
+        top_v = bm_h.verts.new(Vector((gx, gy, gz + 0.02)))
+        bot_v = bm_h.verts.new(Vector((gx, gy, gz - 0.02)))
+        
+        for i in range(grain_res):
+            bm_h.faces.new((top_v, grain_verts[i], grain_verts[(i+1)%grain_res]))
+            bm_h.faces.new((bot_v, grain_verts[(i+1)%grain_res], grain_verts[i]))
+
+        # Create the Awn (the long bristle)
+        awn_len = 0.2 + random.uniform(0, 0.1)
+        awn_dir = Vector((side * 0.5, side * 0.2, 0.8)).normalized()
+        awn_end = Vector((gx, gy, gz)) + awn_dir * awn_len
+        v_awn_start = bm_h.verts.new(Vector((gx, gy, gz)))
+        v_awn_end = bm_h.verts.new(awn_end)
+        bm_h.edges.new((v_awn_start, v_awn_end))
+
+    head_mesh = bpy.data.meshes.new("HeadMesh")
+    bm_h.to_mesh(head_mesh)
+    head_obj.data = head_mesh
+    bm_h.free()
+    head_obj.data.materials.append(mat_grain)
+
+if __name__ == "__main__":
+    clear_scene()
+    create_wheat_plant()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: BMeshOpsModule: operator "context_set" doesn't exist
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/WheatMonocot_seed0/WheatMonocot_seed0.py", line 191, in <module>
+    create_wheat_plant()
+  File "/Users/fengruiding/Downloads/3d_code/Output/WheatMonocot_seed0/WheatMonocot_seed0.py", line 55, in create_wheat_plant
+    bmesh.ops.context_set(bm, context=bpy.types.MESH_OT_skin()) # Not available in bmesh ops directly
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: BMeshOpsModule: operator "context_set" doesn't exist
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SnakePlant_seed0/SnakePlant_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 14,
+  "extent": 4.552453935146332,
+  "n_views_rendered": 4,
+  "latency_s": 2.11,
+  "error": null
+}

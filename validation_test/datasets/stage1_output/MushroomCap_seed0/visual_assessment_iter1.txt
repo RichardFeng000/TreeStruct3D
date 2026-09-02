@@ -1,0 +1,3 @@
+- The color is too light (appears white), missing the beige-tan requirement.
+- "Organic wavy line patterns" are nearly invisible; they need more pronounced geometric relief.
+- Gills appear as jagged spikes on the outer rim rather than a cohesive underside structure.

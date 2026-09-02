@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TV_seed0/TV_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 5,
+  "extent": 1.5144528150558472,
+  "n_views_rendered": 4,
+  "latency_s": 2.37,
+  "error": null
+}

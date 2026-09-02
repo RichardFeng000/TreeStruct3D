@@ -1,0 +1,22 @@
+{
+  "instance": "GlobularCactus_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "ERR_VISUAL_CODE_PARSE",
+      "error": "SyntaxError: unterminated string literal (detected at line 123) (<unknown>, line 123)"
+    }
+  ]
+}

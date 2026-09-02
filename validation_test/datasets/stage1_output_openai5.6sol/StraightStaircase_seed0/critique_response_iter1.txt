@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a straight single-flight maroon structural staircase with attached semi-transparent brownish-grey glass railings on both sides.
+</assessment>

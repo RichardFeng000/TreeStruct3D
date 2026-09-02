@@ -1,0 +1,3 @@
+- Color is completely wrong; the render shows a white/light blue plate instead of dark navy blue.
+- The geometry has an unnaturally sharp 90-degree transition between the well and the rim.
+- Surface variation requested in the description is not visible due to overexposure or incorrect material mapping.

@@ -1,0 +1,35 @@
+{
+  "instance": "CoconutTree_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 13,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 16,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Fronds lack proper \"feathery\" structure; leaflets look like stiff, disconnected slats rather than natural foliage.\n- The main spine (rachis) of the fronds is barely visible as it lacks mesh volume.\n- Missing a \"rough fibrous crown base\"; fronds emerge directly from a mathematical point.\n- Leaflets need better drooping and orientation to match \"pinnate\" descriptions."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The model faithfully represents the description with a curved ringed trunk and detailed pinnate fronds."
+    }
+  ]
+}

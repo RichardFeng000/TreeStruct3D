@@ -1,0 +1,3 @@
+- The current legs are square posts; "sled-style" requires flat, ribbon-like rectangular profiles to be visually accurate.
+- The "shelf structure" consists only of two thin bars; it needs a physical surface (a shelf) to properly represent a "structure".
+- The wood-grain simulation (planks) is too subtle; increasing the number of planks and adjusting gaps will make the detail more apparent in renders.

@@ -1,0 +1,3 @@
+- Missing textures/colors: The render is plain gray, ignoring the "brown-and-cream surface patterns" requirement.
+- Geometric detail: The shape is a bit too "industrial spring" and lacks organic shell characteristics.
+- Material implementation: Needs procedural shaders to create wavy bands following the spiral growth lines.

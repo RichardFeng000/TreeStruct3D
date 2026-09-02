@@ -1,0 +1,406 @@
+```
+NEEDS_FIX: YES
+<assessment>
+- Missing granular texture: surface is smooth, no polyp bumps or roughness visible.
+- Wrong color: lacks warm pink-salmon to sandy beige gradient; appears flat beige.
+- Branches too thin and sparse: should be thick, finger-like, and bushy, not twiggy.
+- No complex shadow: lighting is too even, missing depth and shadow casting.
+</assessment>
+<code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector, Matrix
+
+# Clear scene
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for mesh_data in list(bpy.data.meshes):
+    bpy.data.meshes.remove(mesh_data)
+for mat in list(bpy.data.materials):
+    bpy.data.materials.remove(mat)
+
+random.seed(42)
+
+# ========== Branch path generation ==========
+def generate_branches(start_pos, direction, radius, length_budget, depth, max_depth, segments=10):
+    branches = []
+    pos = Vector(start_pos)
+    dir_vec = Vector(direction).normalized()
+    r = radius
+    path = [(Vector(pos), r)]
+    seg_len = length_budget / segments
+
+    for i in range(segments):
+        p_scale = 0.10 + 0.04 * depth
+        if random.random() < 0.08:
+            p_scale *= 2.5
+        perturb = Vector((
+            random.uniform(-p_scale, p_scale),
+            random.uniform(-p_scale, p_scale),
+            random.uniform(-0.04, 0.12),
+        ))
+        dir_vec = (dir_vec + perturb * 0.5).normalized()
+        pos = pos + dir_vec * seg_len
+        t = (i + 1) / segments
+        r = radius * (1.0 - 0.35 * t)
+        path.append((Vector(pos), r))
+
+    branches.append(path)
+
+    if depth < max_depth and r > 0.035:
+        n_sub = random.choice([2, 2, 2, 3])
+        for b in range(n_sub):
+            if depth == 0:
+                angle_off = random.uniform(0.5, 1.0)
+            else:
+                angle_off = random.uniform(0.3, 0.75)
+            axis = Vector((random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-0.2, 0.5))).normalized()
+            new_dir = dir_vec.copy()
+            rot = Matrix.Rotation(angle_off * (1 if b % 2 == 0 else -1), 4, axis)
+            new_dir = (rot @ new_dir).normalized()
+            new_dir.z += random.uniform(0.05, 0.2)
+            new_dir = new_dir.normalized()
+            new_len = length_budget * random.uniform(0.6, 0.8)
+            new_r = r * random.uniform(0.62, 0.78)
+            sub = generate_branches(pos, new_dir, new_r, new_len, depth + 1, max_depth, segments)
+            branches.extend(sub)
+
+    return branches
+
+all_branches = []
+num_main = 5
+for i in range(num_main):
+    angle = 2 * math.pi * i / num_main + random.uniform(-0.3, 0.3)
+    tilt = random.uniform(0.25, 0.55)
+    direction = Vector((
+        math.cos(angle) * math.sin(tilt),
+        math.sin(angle) * math.sin(tilt),
+        math.cos(tilt)
+    ))
+    offset = Vector((math.cos(angle), math.sin(angle), 0)) * random.uniform(0, 0.08)
+    branches = generate_branches(offset, direction, 0.32, 2.5, 0, 3, 10)
+    all_branches.extend(branches)
+
+# ========== Mesh building functions ==========
+def create_tube(bm, path, segments=16):
+    if len(path) < 2:
+        return
+    rings = []
+    for i, (point, radius) in enumerate(path):
+        if i == 0:
+            tangent = (path[1][0] - point).normalized()
+        elif i == len(path) - 1:
+            tangent = (point - path[i - 1][0]).normalized()
+        else:
+            tangent = (path[i + 1][0] - path[i - 1][0]).normalized()
+        up = Vector((0, 0, 1))
+        if abs(tangent.dot(up)) > 0.95:
+            up = Vector((1, 0, 0))
+        right = tangent.cross(up).normalized()
+        up = right.cross(tangent).normalized()
+        ring = []
+        for j in range(segments):
+            ang = 2 * math.pi * j / segments
+            offset = (right * math.cos(ang) + up * math.sin(ang)) * radius
+            v = bm.verts.new(point + offset)
+            ring.append(v)
+        rings.append(ring)
+
+    c_start = bm.verts.new(path[0][0])
+    for j in range(segments):
+        bm.faces.new([c_start, rings[0][(j + 1) % segments], rings[0][j]])
+
+    for i in range(len(rings) - 1):
+        for j in range(segments):
+            bm.faces.new([
+                rings[i][j],
+                rings[i][(j + 1) % segments],
+                rings[i + 1][(j + 1) % segments],
+                rings[i + 1][j]
+            ])
+
+    c_end = bm.verts.new(path[-1][0])
+    for j in range(segments):
+        bm.faces.new([rings[-1][j], rings[-1][(j + 1) % segments], c_end])
+
+
+def create_base(bm, radius=0.55, height=0.2, segments=20):
+    rings = []
+    num_rings = 4
+    for i in range(num_rings + 1):
+        t = i / num_rings
+        r = radius * (1.0 - t * 0.6)
+        z = height * t
+        ring = []
+        for j in range(segments):
+            ang = 2 * math.pi * j / segments
+            noise_r = r * (1.0 + 0.12 * math.sin(ang * 3 + t * 5) + 0.06 * math.sin(ang * 7 + t * 3))
+            x = noise_r * math.cos(ang)
+            y = noise_r * math.sin(ang)
+            v = bm.verts.new((x, y, z))
+            ring.append(v)
+        rings.append(ring)
+
+    c_bottom = bm.verts.new((0, 0, 0))
+    for j in range(segments):
+        bm.faces.new([c_bottom, rings[0][(j + 1) % segments], rings[0][j]])
+
+    for i in range(len(rings) - 1):
+        for j in range(segments):
+            bm.faces.new([
+                rings[i][j],
+                rings[i][(j + 1) % segments],
+                rings[i + 1][(j + 1) % segments],
+                rings[i + 1][j]
+            ])
+
+    c_top = bm.verts.new((0, 0, height))
+    for j in range(segments):
+        bm.faces.new([rings[-1][j], rings[-1][(j + 1) % segments], c_top])
+
+
+def add_dome(bm, center, normal, radius, height, segments=8, num_rings=2):
+    up = normal.normalized()
+    ref = Vector((1, 0, 0))
+    if abs(up.dot(ref)) > 0.95:
+        ref = Vector((0, 1, 0))
+    right = up.cross(ref).normalized()
+    forward = right.cross(up).normalized()
+    center = center - up * 0.003
+
+    all_rings = []
+    for r_i in range(num_rings + 1):
+        t = r_i / num_rings
+        rr = radius * math.cos(t * math.pi * 0.5)
+        rh = height * math.sin(t * math.pi * 0.5)
+        ring = []
+        if rr < 0.001:
+            v = bm.verts.new(center + up * rh)
+            ring.append(v)
+        else:
+            for j in range(segments):
+                ang = 2 * math.pi * j / segments
+                offset = (right * math.cos(ang) + forward * math.sin(ang)) * rr
+                v = bm.verts.new(center + offset + up * rh)
+                ring.append(v)
+        all_rings.append(ring)
+
+    for i in range(len(all_rings) - 1):
+        r1 = all_rings[i]
+        r2 = all_rings[i + 1]
+        if len(r2) == 1:
+            for j in range(len(r1)):
+                bm.faces.new([r1[j], r1[(j + 1) % len(r1)], r2[0]])
+        elif len(r1) == 1:
+            for j in range(len(r2)):
+                bm.faces.new([r1[0], r2[(j + 1) % len(r2)], r2[j]])
+        else:
+            for j in range(len(r1)):
+                bm.faces.new([
+                    r1[j],
+                    r1[(j + 1) % len(r1)],
+                    r2[(j + 1) % len(r2)],
+                    r2[j]
+                ])
+
+
+# ========== Build mesh ==========
+bm = bmesh.new()
+create_base(bm, 0.55, 0.2, 20)
+for path in all_branches:
+    create_tube(bm, path, 16)
+
+bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+bm.normal_update()
+
+# ========== Granular surface displacement ==========
+for v in bm.verts:
+    n1 = (math.sin(v.co.x * 8.3 + v.co.y * 5.1) +
+          math.sin(v.co.y * 7.7 + v.co.z * 6.3) +
+          math.sin(v.co.z * 9.1 + v.co.x * 4.7)) / 3.0
+    n2 = (math.sin(v.co.x * 23.0 + v.co.y * 17.0) +
+          math.sin(v.co.y * 21.0 + v.co.z * 19.0) +
+          math.sin(v.co.z * 25.0 + v.co.x * 15.0)) / 3.0
+    n3 = (math.sin(v.co.x * 50.0 + v.co.y * 40.0) +
+          math.sin(v.co.y * 45.0 + v.co.z * 55.0)) / 2.0
+    disp = n1 * 0.022 + n2 * 0.009 + n3 * 0.003
+    v.co += v.normal * disp
+
+bm.normal_update()
+bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+
+# ========== Polyp bumps ==========
+faces_list = list(bm.faces)
+target_polyps = 1400
+polyp_count = 0
+attempts = 0
+max_attempts = target_polyps * 8
+
+while polyp_count < target_polyps and attempts < max_attempts:
+    attempts += 1
+    f = random.choice(faces_list)
+    verts_f = list(f.verts)
+    if len(verts_f) < 3:
+        continue
+    if f.normal.z < -0.4 and random.random() < 0.7:
+        continue
+    r1, r2 = random.random(), random.random()
+    if r1 + r2 > 1:
+        r1, r2 = 1 - r1, 1 - r2
+    r3 = 1 - r1 - r2
+    if len(verts_f) == 3:
+        point = verts_f[0].co * r1 + verts_f[1].co * r2 + verts_f[2].co * r3
+    else:
+        if random.random() < 0.5:
+            point = verts_f[0].co * r1 + verts_f[1].co * r2 + verts_f[2].co * r3
+        else:
+            point = verts_f[0].co * r1 + verts_f[2].co * r2 + verts_f[3].co * r3
+    normal = f.normal
+    if normal.length < 0.01:
+        continue
+    bump_r = random.uniform(0.009, 0.022)
+    bump_h = random.uniform(0.005, 0.016)
+    add_dome(bm, point, normal, bump_r, bump_h, 8, 2)
+    polyp_count += 1
+
+# ========== Larger warts on lower branches ==========
+wart_count = 45
+wart_added = 0
+wart_attempts = 0
+while wart_added < wart_count and wart_attempts < wart_count * 10:
+    wart_attempts += 1
+    f = random.choice(faces_list)
+    verts_f = list(f.verts)
+    if len(verts_f) < 3:
+        continue
+    r1, r2 = random.random(), random.random()
+    if r1 + r2 > 1:
+        r1, r2 = 1 - r1, 1 - r2
+    r3 = 1 - r1 - r2
+    if len(verts_f) == 3:
+        point = verts_f[0].co * r1 + verts_f[1].co * r2 + verts_f[2].co * r3
+    else:
+        if random.random() < 0.5:
+            point = verts_f[0].co * r1 + verts_f[1].co * r2 + verts_f[2].co * r3
+        else:
+            point = verts_f[0].co * r1 + verts_f[2].co * r2 + verts_f[3].co * r3
+    if point.z > 0.8:
+        continue
+    normal = f.normal
+    if normal.length < 0.01:
+        continue
+    wart_r = random.uniform(0.03, 0.06)
+    wart_h = random.uniform(0.018, 0.035)
+    add_dome(bm, point, normal, wart_r, wart_h, 12, 3)
+    wart_added += 1
+
+bm.normal_update()
+bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+
+# ========== Create object ==========
+mesh = bpy.data.meshes.new("CoralMesh")
+bm.to_mesh(mesh)
+bm.free()
+
+obj = bpy.data.objects.new("Coral", mesh)
+bpy.context.collection.objects.link(obj)
+
+# ========== Vertex colors ==========
+vcol = mesh.color_attributes.new(name="Color", type='FLOAT_COLOR', domain='POINT')
+
+base_col = Vector((0.82, 0.72, 0.58, 1.0))
+tip_col = Vector((0.95, 0.58, 0.52, 1.0))
+deep_col = Vector((0.68, 0.48, 0.42, 1.0))
+bright_col = Vector((0.98, 0.72, 0.62, 1.0))
+
+zs = [v.co.z for v in mesh.vertices]
+z_min, z_max = min(zs), max(zs)
+z_range = max(z_max - z_min, 0.001)
+
+for i, v in enumerate(mesh.vertices):
+    t = (v.co.z - z_min) / z_range
+    color = base_col.lerp(tip_col, t ** 1.3)
+    noise = (math.sin(v.co.x * 3.0 + v.co.y * 2.0) +
+             math.sin(v.co.y * 4.0 + v.co.z * 3.0) +
+             math.sin(v.co.x * 5.0 + v.co.z * 4.0)) / 3.0
+    depth_factor = 0.5 + 0.5 * noise
+    color = color.lerp(deep_col, depth_factor * 0.35)
+    bright_noise = math.sin(v.co.x * 6.0 + v.co.y * 5.0 + v.co.z * 4.0)
+    if bright_noise > 0.6:
+        color = color.lerp(bright_col, (bright_noise - 0.6) * 0.5)
+    color.x += random.uniform(-0.04, 0.04)
+    color.y += random.uniform(-0.04, 0.04)
+    color.z += random.uniform(-0.04, 0.04)
+    color.x = max(0.0, min(1.0, color.x))
+    color.y = max(0.0, min(1.0, color.y))
+    color.z = max(0.0, min(1.0, color.z))
+    vcol.data[i].color = (color.x, color.y, color.z, 1.0)
+
+# ========== Material ==========
+mat = bpy.data.materials.new(name="CoralMaterial")
+mat.use_nodes = True
+nodes = mat.node_tree.nodes
+links = mat.node_tree.links
+
+for n in list(nodes):
+    nodes.remove(n)
+
+output = nodes.new('ShaderNodeOutputMaterial')
+output.location = (400, 0)
+
+bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+bsdf.location = (200, 0)
+bsdf.inputs['Roughness'].default_value = 0.85
+
+for ss_key in ['Subsurface Weight', 'Subsurface']:
+    if ss_key in bsdf.inputs:
+        bsdf.inputs[ss_key].default_value = 0.15
+        break
+if 'Subsurface Radius' in bsdf.inputs:
+    bsdf.inputs['Subsurface Radius'].default_value = (0.4, 0.3, 0.2)
+
+vcol_node = nodes.new('ShaderNodeVertexColor')
+vcol_node.layer_name = "Color"
+vcol_node.location = (-200, 0)
+
+noise_tex = nodes.new('ShaderNodeTexNoise')
+noise_tex.location = (-400, -200)
+noise_tex.inputs['Scale'].default_value = 90.0
+noise_tex.inputs['Detail'].default_value = 4.0
+
+bump = nodes.new('ShaderNodeBump')
+bump.location = (0, -200)
+bump.inputs['Strength'].default_value = 0.15
+
+links.new(noise_tex.outputs['Fac'], bump.inputs['Height'])
+links.new(bump.outputs['Normal'], bsdf.inputs['Normal'])
+links.new(vcol_node.outputs['Color'], bsdf.inputs['Base Color'])
+links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+obj.data.materials.append(mat)
+
+for poly in mesh.polygons:
+    poly.use_smooth = True
+
+# ========== Lighting and shadow setup ==========
+light_data = bpy.data.lights.new(name="CoralLight", type='SUN')
+light_data.energy = 5.0
+light_data.angle = 0.5
+light_obj = bpy.data.objects.new(name="CoralLight", object_data=light_data)
+light_obj.location = (2, -2, 3)
+light_obj.rotation_euler = (math.radians(45), math.radians(30), math.radians(45))
+bpy.context.collection.objects.link(light_obj)
+
+# ========== Camera setup ==========
+cam_data = bpy.data.cameras.new(name="CoralCamera")
+cam_obj = bpy.data.objects.new(name="CoralCamera", object_data=cam_data)
+cam_obj.location = (3, -3, 3)
+cam_obj.rotation_euler = (math.radians(60), 0, math.radians(45))
+bpy.context.collection.objects.link(cam_obj)
+bpy.context.scene.camera = cam_obj
+
+print(f"Coral complete. Verts: {len(mesh.vertices)}, Faces: {len(mesh.polygons)}")
+</code>
+```

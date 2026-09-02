@@ -1,0 +1,192 @@
+NEEDS_FIX: YES
+<assessment>
+- The model renders gray rather than the required uniform dark brown; set the Principled BSDF base color explicitly.
+- The blade-to-handle connector forms incorrect sideways tabs; replace it with a clean tapered shoulder integrated into the silhouette.
+- The handle and blade transitions look segmented; use a continuous beveled body while retaining the real hanging hole.
+</assessment>
+<code>
+import bpy
+import math
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+# Uniform dark brown material with an explicit shader color.
+material = bpy.data.materials.new("Uniform Dark Brown")
+material.diffuse_color = (0.12, 0.035, 0.012, 1.0)
+material.use_nodes = True
+
+principled = material.node_tree.nodes.get("Principled BSDF")
+if principled:
+    principled.inputs["Base Color"].default_value = (0.12, 0.035, 0.012, 1.0)
+    principled.inputs["Roughness"].default_value = 0.48
+    principled.inputs["Metallic"].default_value = 0.0
+
+parts = []
+
+# Continuous outline consisting of rectangular blade, tapered shoulders,
+# and a long straight handle.
+outline = [
+    (-1.40, -4.80),
+    ( 1.40, -4.80),
+    ( 1.40, -1.82),
+    ( 0.34, -1.42),
+    ( 0.34,  4.28),
+    (-0.34,  4.28),
+    (-0.34, -1.42),
+    (-1.40, -1.82),
+]
+
+half_thickness = 0.12
+vertex_count = len(outline)
+verts = []
+
+for x, y in outline:
+    verts.append((x, y, -half_thickness))
+for x, y in outline:
+    verts.append((x, y, half_thickness))
+
+faces = []
+
+# Bottom and top faces.
+faces.append(tuple(reversed(range(vertex_count))))
+faces.append(tuple(range(vertex_count, vertex_count * 2)))
+
+# Side faces.
+for i in range(vertex_count):
+    j = (i + 1) % vertex_count
+    faces.append((i, j, vertex_count + j, vertex_count + i))
+
+body_mesh = bpy.data.meshes.new("Continuous Spatula Body Mesh")
+body_mesh.from_pydata(verts, [], faces)
+body_mesh.update()
+
+body = bpy.data.objects.new("Continuous Blade and Handle", body_mesh)
+bpy.context.collection.objects.link(body)
+body.data.materials.append(material)
+
+body_bevel = body.modifiers.new("Rounded Body Edges", 'BEVEL')
+body_bevel.width = 0.075
+body_bevel.segments = 5
+body_bevel.limit_method = 'ANGLE'
+
+bpy.context.view_layer.objects.active = body
+body.select_set(True)
+bpy.ops.object.modifier_apply(modifier=body_bevel.name)
+
+for polygon in body.data.polygons:
+    polygon.use_smooth = True
+
+parts.append(body)
+
+# Circular hanging ring with a genuine through-hole.
+segment_count = 64
+outer_radius = 0.50
+inner_radius = 0.20
+center_y = 4.62
+ring_half_depth = 0.13
+
+ring_verts = []
+
+for z in (-ring_half_depth, ring_half_depth):
+    for radius in (outer_radius, inner_radius):
+        for i in range(segment_count):
+            angle = 2.0 * math.pi * i / segment_count
+            ring_verts.append((
+                radius * math.cos(angle),
+                center_y + radius * math.sin(angle),
+                z
+            ))
+
+outer_bottom = 0
+inner_bottom = segment_count
+outer_top = segment_count * 2
+inner_top = segment_count * 3
+
+ring_faces = []
+
+for i in range(segment_count):
+    j = (i + 1) % segment_count
+
+    ring_faces.append((
+        outer_bottom + j,
+        outer_bottom + i,
+        inner_bottom + i,
+        inner_bottom + j
+    ))
+    ring_faces.append((
+        outer_top + i,
+        outer_top + j,
+        inner_top + j,
+        inner_top + i
+    ))
+    ring_faces.append((
+        outer_bottom + i,
+        outer_bottom + j,
+        outer_top + j,
+        outer_top + i
+    ))
+    ring_faces.append((
+        inner_bottom + j,
+        inner_bottom + i,
+        inner_top + i,
+        inner_top + j
+    ))
+
+ring_mesh = bpy.data.meshes.new("Hanging Ring Mesh")
+ring_mesh.from_pydata(ring_verts, [], ring_faces)
+ring_mesh.update()
+
+ring = bpy.data.objects.new("Circular Hanging Hole", ring_mesh)
+bpy.context.collection.objects.link(ring)
+ring.data.materials.append(material)
+
+ring_bevel = ring.modifiers.new("Rounded Ring Edges", 'BEVEL')
+ring_bevel.width = 0.04
+ring_bevel.segments = 4
+ring_bevel.limit_method = 'ANGLE'
+
+bpy.context.view_layer.objects.active = ring
+ring.select_set(True)
+bpy.ops.object.modifier_apply(modifier=ring_bevel.name)
+
+for polygon in ring.data.polygons:
+    polygon.use_smooth = True
+
+parts.append(ring)
+
+# Join into one coherent final mesh object.
+bpy.ops.object.select_all(action='DESELECT')
+for part in parts:
+    part.select_set(True)
+
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.join()
+
+spatula = bpy.context.object
+spatula.name = "Dark_Brown_Kitchen_Spatula"
+
+# Keep one uniform material assignment.
+while len(spatula.data.materials) > 1:
+    spatula.data.materials.pop(index=len(spatula.data.materials) - 1)
+
+if len(spatula.data.materials) == 0:
+    spatula.data.materials.append(material)
+
+for polygon in spatula.data.polygons:
+    polygon.material_index = 0
+
+# Center the completed assembly at the origin.
+bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+spatula.location = (0.0, 0.0, 0.0)
+bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+spatula.select_set(True)
+bpy.context.view_layer.objects.active = spatula
+</code>

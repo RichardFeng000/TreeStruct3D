@@ -1,0 +1,3 @@
+- Missing geometric detail: Ventilation slots along the front lower edge are not visible in the renders (they are buried inside the body).
+- Color accuracy: The "dark brown" body appears too light/tan in the render; it needs to be a richer, deeper dark brown.
+- Alignment: The ventilation slots should be clearly placed on the surface of the front face.

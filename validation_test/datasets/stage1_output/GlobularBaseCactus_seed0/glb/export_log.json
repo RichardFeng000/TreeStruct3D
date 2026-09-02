@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/GlobularBaseCactus_seed0/GlobularBaseCactus_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/GlobularBaseCactus_seed0/glb/GlobularBaseCactus_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1134.9,
+  "latency_s": 0.23,
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FoodBag_seed0/FoodBag_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 2.515998601913452,
+  "n_views_rendered": 4,
+  "latency_s": 3.96,
+  "error": null
+}

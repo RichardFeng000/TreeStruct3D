@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Flower_seed0/Flower_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Flower_seed0/glb/Flower_seed0.glb",
+  "status": "OK",
+  "n_meshes": 45,
+  "size_kb": 1155.1,
+  "latency_s": 0.23,
+  "error": null
+}

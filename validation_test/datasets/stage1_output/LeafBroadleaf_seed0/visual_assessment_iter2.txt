@@ -1,0 +1,3 @@
+- The leaf silhouette is too narrow and pointed at both ends, resembling a willow leaf rather than a "broad ovate" (egg-shaped) leaf.
+- The central vein is barely visible in the renders; it needs to be more pronounced as a physical ridge.
+- The cupping (curvature) is very subtle and could be slightly more defined for better visibility from 3/4 perspective.

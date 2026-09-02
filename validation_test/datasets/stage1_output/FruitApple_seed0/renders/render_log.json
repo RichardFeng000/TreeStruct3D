@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 3,
+  "extent": 2.1999998092651367,
+  "n_views_rendered": 4,
+  "latency_s": 6.06,
+  "error": null
+}

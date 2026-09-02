@@ -1,0 +1,4 @@
+- The second flight of stairs is incorrectly offset from the landing, causing a disconnected gap in the L-shape layout.
+- The "brown tint" of the glass panels is nearly invisible/too light; it needs higher saturation to be clearly brown.
+- Railing alignment on Flight 2 is slightly off compared to the structural framing.
+- Some gaps exist between steps and stringers.

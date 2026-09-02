@@ -1,0 +1,314 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    pass
+
+# Materials.
+def make_material(name, color, roughness=0.75):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = color
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = color
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+fabric_mat = make_material("Blush Pink Fabric", (0.82, 0.46, 0.52, 1.0), 0.88)
+fabric_light_mat = make_material("Raised Blush Highlights", (0.96, 0.67, 0.70, 1.0), 0.82)
+fabric_shadow_mat = make_material("Subtle Fabric Folds", (0.63, 0.28, 0.34, 1.0), 0.9)
+trim_mat = make_material("Dark Plum Patterned Trim", (0.12, 0.025, 0.055, 1.0), 0.72)
+stitch_mat = make_material("Pink Stitching", (0.97, 0.61, 0.66, 1.0), 0.78)
+
+def polygon_area(points):
+    return 0.5 * sum(
+        points[i][0] * points[(i + 1) % len(points)][1]
+        - points[(i + 1) % len(points)][0] * points[i][1]
+        for i in range(len(points))
+    )
+
+def make_prism(name, points, bottom_z, top_z, material, bevel=0.0, z_offsets=None):
+    points = list(points)
+    if polygon_area(points) < 0:
+        points.reverse()
+        if z_offsets is not None:
+            z_offsets = list(reversed(z_offsets))
+
+    n = len(points)
+    if z_offsets is None:
+        z_offsets = [0.0] * n
+
+    vertices = []
+    for x, y in points:
+        vertices.append((x, y, bottom_z))
+    for i, (x, y) in enumerate(points):
+        vertices.append((x, y, top_z + z_offsets[i]))
+
+    faces = [tuple(reversed(range(n))), tuple(range(n, 2 * n))]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i, j, n + j, n + i))
+
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+
+    if bevel > 0:
+        mod = obj.modifiers.new("Soft Fabric Edge", 'BEVEL')
+        mod.width = bevel
+        mod.segments = 3
+        mod.limit_method = 'ANGLE'
+
+    for poly in mesh.polygons:
+        poly.use_smooth = False
+    return obj
+
+def make_curve(name, splines, material, bevel_depth=0.02, resolution=2):
+    curve = bpy.data.curves.new(name + "Curve", 'CURVE')
+    curve.dimensions = '3D'
+    curve.resolution_u = resolution
+    curve.bevel_depth = bevel_depth
+    curve.bevel_resolution = 3
+    curve.resolution_u = 2
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+
+    for coords in splines:
+        spline = curve.splines.new('BEZIER')
+        spline.bezier_points.add(len(coords) - 1)
+        for point, co in zip(spline.bezier_points, coords):
+            point.co = co
+            point.handle_left_type = 'AUTO'
+            point.handle_right_type = 'AUTO'
+        spline.resolution_u = resolution
+    return obj
+
+def dashed_line(a, b, count, duty=0.53, z=0.2):
+    a = Vector(a)
+    b = Vector(b)
+    result = []
+    for i in range(count):
+        t0 = (i + (1.0 - duty) * 0.5) / count
+        t1 = (i + (1.0 + duty) * 0.5) / count
+        p0 = a.lerp(b, t0)
+        p1 = a.lerp(b, t1)
+        result.append([(p0.x, p0.y, z), (p1.x, p1.y, z)])
+    return result
+
+# Main torso, gently tapered toward the lower hem.
+body_points = [
+    (-2.03, -3.30),
+    (2.03, -3.30),
+    (2.20, 1.18),
+    (2.92, 2.36),
+    (1.27, 2.69),
+    (0.0, 2.74),
+    (-1.27, 2.69),
+    (-2.92, 2.36),
+    (-2.20, 1.18),
+]
+body = make_prism("Shirt Body", body_points, 0.0, 0.13, fabric_mat, bevel=0.055)
+
+# Cut an open, rounded neckline into the top edge.
+bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=1.0, depth=0.8, location=(0.0, 2.48, 0.12))
+neck_cutter = bpy.context.object
+neck_cutter.name = "Temporary Neck Cutter"
+neck_cutter.scale = (0.70, 0.57, 1.0)
+bpy.context.view_layer.objects.active = body
+boolean = body.modifiers.new("Open Neckline", 'BOOLEAN')
+boolean.operation = 'DIFFERENCE'
+boolean.solver = 'EXACT'
+boolean.object = neck_cutter
+try:
+    bpy.ops.object.modifier_apply(modifier=boolean.name)
+except RuntimeError:
+    pass
+bpy.data.objects.remove(neck_cutter, do_unlink=True)
+
+# Long tapered sleeves, raised slightly above the torso and rising toward the cuffs.
+right_sleeve_points = [
+    (2.15, 2.42),
+    (2.88, 2.50),
+    (6.18, 1.57),
+    (6.00, 0.52),
+    (2.28, 1.17),
+    (1.98, 1.66),
+]
+right_offsets = [0.00, 0.01, 0.09, 0.09, 0.00, 0.00]
+right_sleeve = make_prism(
+    "Right Raised Sleeve", right_sleeve_points, 0.075, 0.185,
+    fabric_mat, bevel=0.05, z_offsets=right_offsets
+)
+
+left_sleeve_points = [(-x, y) for x, y in right_sleeve_points]
+left_offsets = list(right_offsets)
+left_sleeve = make_prism(
+    "Left Raised Sleeve", left_sleeve_points, 0.075, 0.185,
+    fabric_mat, bevel=0.05, z_offsets=left_offsets
+)
+
+# Dark lower hem band.
+bottom_band = make_prism(
+    "Dark Bottom Hem",
+    [(-2.04, -3.30), (2.04, -3.30), (2.03, -3.08), (-2.03, -3.08)],
+    0.125, 0.173, trim_mat, bevel=0.018
+)
+
+# Sleeve cuff bands.
+right_cuff_points = [
+    (6.18, 1.57), (6.00, 0.52), (5.67, 0.58), (5.82, 1.67)
+]
+right_cuff = make_prism(
+    "Right Dark Cuff", right_cuff_points, 0.245, 0.305,
+    trim_mat, bevel=0.025
+)
+left_cuff_points = [(-x, y) for x, y in right_cuff_points]
+left_cuff = make_prism(
+    "Left Dark Cuff", left_cuff_points, 0.245, 0.305,
+    trim_mat, bevel=0.025
+)
+
+# U-shaped dark ribbed collar around the open neck.
+collar_center_y = 2.48
+collar_outer_x = 0.84
+collar_outer_y = 0.70
+collar_inner_x = 0.68
+collar_inner_y = 0.54
+steps = 32
+outer_arc = []
+inner_arc = []
+for i in range(steps + 1):
+    angle = math.pi + math.pi * i / steps
+    outer_arc.append((
+        collar_outer_x * math.cos(angle),
+        collar_center_y + collar_outer_y * math.sin(angle)
+    ))
+for i in range(steps, -1, -1):
+    angle = math.pi + math.pi * i / steps
+    inner_arc.append((
+        collar_inner_x * math.cos(angle),
+        collar_center_y + collar_inner_y * math.sin(angle)
+    ))
+collar = make_prism(
+    "Dark Ribbed Neck Trim", outer_arc + inner_arc,
+    0.137, 0.205, trim_mat, bevel=0.015
+)
+
+# Repeating blush diamonds create a geometric pattern on the dark bottom trim.
+for i in range(11):
+    x = -1.76 + i * 0.352
+    cy = -3.19
+    diamond = [
+        (x, cy + 0.070),
+        (x + 0.080, cy),
+        (x, cy - 0.070),
+        (x - 0.080, cy),
+    ]
+    make_prism(
+        "Bottom Hem Diamond %02d" % i, diamond,
+        0.174, 0.191, fabric_light_mat, bevel=0.008
+    )
+
+# Small contrasting diamond pattern along both cuffs.
+def cuff_pattern(mirror=False):
+    outer_top = Vector((6.18, 1.57))
+    outer_bottom = Vector((6.00, 0.52))
+    inner_top = Vector((5.82, 1.67))
+    inner_bottom = Vector((5.67, 0.58))
+    for i, t in enumerate((0.20, 0.50, 0.80)):
+        edge_outer = outer_top.lerp(outer_bottom, t)
+        edge_inner = inner_top.lerp(inner_bottom, t)
+        c = edge_outer.lerp(edge_inner, 0.48)
+        x = -c.x if mirror else c.x
+        y = c.y
+        diamond = [
+            (x, y + 0.095),
+            (x + 0.075, y),
+            (x, y - 0.095),
+            (x - 0.075, y),
+        ]
+        make_prism(
+            ("Left" if mirror else "Right") + " Cuff Diamond %02d" % i,
+            diamond, 0.307, 0.326, fabric_light_mat, bevel=0.007
+        )
+
+cuff_pattern(False)
+cuff_pattern(True)
+
+# Dashed plum edging follows the torso sides and both long sleeve edges.
+edge_dashes = []
+edge_dashes += dashed_line((-2.02, -3.02, 0), (-2.18, 1.05, 0), 11, z=0.188)
+edge_dashes += dashed_line((2.02, -3.02, 0), (2.18, 1.05, 0), 11, z=0.188)
+edge_dashes += dashed_line((2.90, 2.44, 0), (5.77, 1.65, 0), 9, z=0.286)
+edge_dashes += dashed_line((2.35, 1.21, 0), (5.64, 0.64, 0), 10, z=0.286)
+edge_dashes += dashed_line((-2.90, 2.44, 0), (-5.77, 1.65, 0), 9, z=0.286)
+edge_dashes += dashed_line((-2.35, 1.21, 0), (-5.64, 0.64, 0), 10, z=0.286)
+make_curve("Patterned Dashed Edge Trim", edge_dashes, trim_mat, bevel_depth=0.026)
+
+# Fine pink stitches sit on top of the dark hem and cuffs.
+stitch_splines = []
+stitch_splines += dashed_line((-1.93, -3.105, 0), (1.93, -3.105, 0), 18, duty=0.42, z=0.198)
+stitch_splines += dashed_line((5.79, 1.59, 0), (5.68, 0.66, 0), 7, duty=0.42, z=0.334)
+stitch_splines += dashed_line((-5.79, 1.59, 0), (-5.68, 0.66, 0), 7, duty=0.42, z=0.334)
+make_curve("Visible Hem Stitching", stitch_splines, stitch_mat, bevel_depth=0.012)
+
+# Fine rib marks around the collar.
+collar_ribs = []
+for i in range(16):
+    a = math.pi + math.pi * (i + 0.5) / 16.0
+    p0 = (
+        collar_inner_x * math.cos(a),
+        collar_center_y + collar_inner_y * math.sin(a),
+        0.214
+    )
+    p1 = (
+        collar_outer_x * math.cos(a),
+        collar_center_y + collar_outer_y * math.sin(a),
+        0.214
+    )
+    collar_ribs.append([p0, p1])
+make_curve("Collar Rib Pattern", collar_ribs, stitch_mat, bevel_depth=0.010)
+
+# Subtle raised fabric fold lines suggest soft cloth without changing the flat silhouette.
+fold_splines = [
+    [(-0.54, 1.70, 0.153), (-0.66, 0.65, 0.157), (-0.47, -0.55, 0.154), (-0.58, -2.25, 0.151)],
+    [(0.58, 1.68, 0.153), (0.72, 0.55, 0.157), (0.52, -0.70, 0.154), (0.65, -2.20, 0.151)],
+    [(-1.70, 1.10, 0.151), (-1.38, 0.55, 0.155), (-1.47, -0.10, 0.152)],
+    [(1.70, 1.10, 0.151), (1.38, 0.55, 0.155), (1.47, -0.10, 0.152)],
+    [(2.65, 1.82, 0.270), (3.72, 1.76, 0.279), (4.76, 1.39, 0.290), (5.45, 1.27, 0.298)],
+    [(-2.65, 1.82, 0.270), (-3.72, 1.76, 0.279), (-4.76, 1.39, 0.290), (-5.45, 1.27, 0.298)],
+]
+make_curve("Soft Fabric Fold Highlights", fold_splines, fabric_light_mat, bevel_depth=0.018)
+
+# Slightly darker short creases near the underarms and lower torso.
+crease_splines = [
+    [(-2.08, 1.12, 0.158), (-1.67, 0.88, 0.162), (-1.45, 0.53, 0.158)],
+    [(2.08, 1.12, 0.158), (1.67, 0.88, 0.162), (1.45, 0.53, 0.158)],
+    [(-1.12, -2.78, 0.153), (-0.88, -2.55, 0.157), (-0.78, -2.25, 0.153)],
+    [(1.12, -2.78, 0.153), (0.88, -2.55, 0.157), (0.78, -2.25, 0.153)],
+]
+make_curve("Soft Fabric Creases", crease_splines, fabric_shadow_mat, bevel_depth=0.010)
+
+# Organize all geometry as one coherent garment assembly.
+for obj in bpy.context.selected_objects:
+    obj.select_set(False)
+
+garment_objects = [obj for obj in bpy.context.scene.objects if obj.type in {'MESH', 'CURVE'}]
+if garment_objects:
+    root = bpy.data.objects.new("Blush Long Sleeve Shirt Assembly", None)
+    bpy.context.collection.objects.link(root)
+    root.empty_display_type = 'PLAIN_AXES'
+    root.empty_display_size = 0.35
+    for obj in garment_objects:
+        if obj != root:
+            obj.parent = root
+    root.location = (0.0, 0.25, 0.0)

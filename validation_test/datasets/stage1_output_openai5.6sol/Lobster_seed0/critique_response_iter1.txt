@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a complete reddish-brown lobster with segmented body, unequal claws, raised antennae, walking legs, tail fan, and glossy textured shell.
+</assessment>

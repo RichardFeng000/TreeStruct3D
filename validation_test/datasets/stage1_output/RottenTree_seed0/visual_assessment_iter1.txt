@@ -1,0 +1,4 @@
+- The pitchfork silhouette is too wide; the primary branches should be nearly vertical.
+- Surface detail lacks "deeply fissured" decay; it looks too smooth and tubular.
+- Lacks "fine twigs"; secondary branching is too sparse and thick.
+- Missing material; should be dark brown-black as per description.

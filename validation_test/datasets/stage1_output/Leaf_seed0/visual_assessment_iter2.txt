@@ -1,0 +1,3 @@
+- The midrib is too subtle and barely visible in renders; it needs more height/definition.
+- The leaf silhouette is perfectly symmetrical (spindle-shaped), whereas a natural leaf typically has a slightly wider base than tip.
+- The overall dimensions are slightly too chunky for "slender"; increasing the length relative to width will improve the elongated look.

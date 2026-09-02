@@ -1,0 +1,242 @@
+Original text-to-3D task:
+
+A 3D model of a low-profile coffee table rendered from an elevated three-quarter perspective, featuring a wide rectangular top with rounded corners, a matching bottom shelf, and two short pedestal legs with flared circular bases connecting the two surfaces.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Clears all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_rounded_slab(name, length, width, thickness, radius, z_pos):
+    """Creates a rectangular slab with rounded corners."""
+    # Create mesh and object
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+    
+    # Start with a cube scaled to the dimensions
+    bmesh.ops.create_cube(bm, size=1.0)
+    
+    # Scale to match requested dimensions
+    # Blender's default cube is 2x2x2, so we scale by length/2 etc.
+    # But create_cube with size=1 makes it -0.5 to 0.5 (total width 1).
+    bm.transform(bpy.types.Object.matrix_world @ bpy.mathutils.Matrix.Scale(length, 4), 
+                 # This is conceptually wrong for a simple scale; let's use basic vertex manipulation
+                 # or simply scale the whole object later. Let's just move vertices manually for precision.
+                 )
+    
+    # Redo with manual BMesh creation for clarity
+    bm = bmesh.new()
+    # Create a box centered at origin
+    bmesh.ops.create_cube(bm, size=1.0)
+    
+    # Scale the dimensions manually on vertices
+    for v in bm.verts:
+        v.co.x *= length
+        v.co.y *= width
+        v.co.z *= thickness
+
+    # To create rounded corners, we identify the 4 vertical edges
+    # Vertical edges are those where x and y are constant at +/- L/2, W/2
+    edges_to_bevel = []
+    for e in bm.edges:
+        if abs(e.verts[0].co.z - e.verts[1].co.z) > 0.01: # Vertical edge
+            edges_to_bevel.append(e)
+            
+    # Bevel the vertical edges to create rounded corners
+    bmesh.ops.bevel(bm, 
+                    geom=edges_to_bevel, 
+                    offset=radius, 
+                    segments=8, 
+                    affect='EDGES')
+
+    # Also bevel all other edges slightly for a high-fidelity finish (softening)
+    # We target the remaining sharp edges
+    all_edges = [e for e in bm.edges]
+    bmesh.ops.bevel(bm, 
+                    geom=all_edges, 
+                    offset=0.005, 
+                    segments=2, 
+                    affect='EDGES')
+
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj.location.z = z_pos
+    return obj
+
+def create_pedestal_leg(name, x_pos, height, shaft_radius, base_radius):
+    """Creates a pedestal leg with a flared circular base."""
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+    
+    # Create cylinder (shaft)
+    bmesh.ops.create_cone(bm, 
+                          cap_ends=True, 
+                          segments=32, 
+                          radius1=shaft_radius, 
+                          radius2=shaft_radius, 
+                          depth=height)
+
+    # The cylinder is created along Z axis from -height/2 to height/2
+    # Identify the bottom face (lowest z value)
+    bottom_face = None
+    min_z = float('inf')
+    for f in bm.faces:
+        center_z = sum(v.co.z for v in f.verts) / len(f.verts)
+        if center_z < min_z:
+            min_z = center_z
+            bottom_face = f
+
+    # Scale the bottom face to create the flare
+    # We extrude the bottom face slightly then scale it, or just move vertices
+    # Let's use a small extrusion for better geometry
+    res = bmesh.ops.extrude_face(bm, face=[bottom_face])
+    verts_to_move = res['geom'].verts
+    faces_to_move = res['geom'].faces
+    
+    # Move the extruded face down slightly and scale it out
+    for v in verts_to_move:
+        v.co.z -= 0.02 # Tiny offset for the base plate thickness
+        v.co.x *= (base_radius / shaft_radius)
+        v.co.y *= (base_radius / shaft_radius)
+
+    # To make the flare smooth, we can create a transition between 
+    # the bottom of the shaft and the outer edge of the base.
+    # We'll do this by adding more segments to the cone or simply beveling.
+    # Since it's a pedestal, let's refine the shape:
+    # Let's restart the leg logic slightly for a "flared" look rather than a flat plate.
+    
+    bm = bmesh.new()
+    # Use create_cone as a way to make a truncated cone (frustum) for the base
+    # Base flare part (Bottom)
+    bmesh.ops.create_cone(bm, 
+                          cap_ends=True, 
+                          segments=32, 
+                          radius1=base_radius, 
+                          radius2=shaft_radius, 
+                          depth=0.05) # Flare height
+    
+    # Shaft part (Top)
+    # We can't easily stack cones in BMesh without manual vertex merging.
+    # Let's just manually manipulate vertices of a cylinder.
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=shaft_radius, radius2=shaft_radius, depth=height)
+    
+    # Move bottom face to flare
+    bottom_face = None
+    min_z = float('inf')
+    for f in bm.faces:
+        cz = sum(v.co.z for v in f.verts)/len(f.verts)
+        if cz < min_z: 
+            min_z = cz
+            bottom_face = f
+            
+    # Instead of a flat plate, let's make the bottom part of the cylinder conical
+    # Select vertices at the bottom and scale them out
+    for v in bottom_face.verts:
+        v.co.x *= (base_radius / shaft_radius)
+        v.co.y *= (base_radius / shaft_radius)
+        
+    # Bevel the flared edge for smoothness
+    edges_to_bevel = [e for e in bm.edges if any(v.co.z < -height/2 + 0.01 for v in e.verts)]
+    bmesh.ops.bevel(bm, geom=edges_to_bevel, offset=0.01, segments=3, affect='EDGES')
+
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj.location = (x_pos, 0, 0)
+    return obj
+
+def main():
+    clear_scene()
+    
+    # Parameters
+    TABLE_LENGTH = 1.2
+    TABLE_WIDTH = 0.6
+    TABLE_THICKNESS = 0.035
+    CORNER_RADIUS = 0.08
+    
+    TOTAL_HEIGHT = 0.35
+    GAP = TOTAL_HEIGHT - (2 * TABLE_THICKNESS)
+    
+    LEG_SHAFT_RADIUS = 0.04
+    LEG_BASE_RADIUS = 0.12
+    LEG_X_OFFSET = 0.3  # Distance from center
+    
+    # Create Top Slab
+    top_z = (TOTAL_HEIGHT / 2) - (TABLE_THICKNESS / 2)
+    create_rounded_slab("TableTop", TABLE_LENGTH, TABLE_WIDTH, TABLE_THICKNESS, CORNER_RADIUS, top_z)
+    
+    # Create Bottom Shelf
+    bottom_z = -(TOTAL_HEIGHT / 2) + (TABLE_THICKNESS / 2)
+    create_rounded_slab("BottomShelf", TABLE_LENGTH, TABLE_WIDTH, TABLE_THICKNESS, CORNER_RADIUS, bottom_z)
+    
+    # Create Legs
+    leg_height = GAP
+    # Center the legs vertically so they fit perfectly between slabs
+    # The create_pedestal_leg creates a cylinder centered at 0,0,0.
+    # We need to shift them up by half of (Total Height - thickness)
+    # Actually we just set the location in main and let them be.
+    
+    # Leg 1
+    leg1 = create_pedestal_leg("LegLeft", -LEG_X_OFFSET, leg_height, LEG_SHAFT_RADIUS, LEG_BASE_RADIUS)
+    leg1.location.z = 0 # Centered at origin, height extends +/- GAP/2
+    
+    # Leg 2
+    leg2 = create_pedestal_leg("LegRight", LEG_X_OFFSET, leg_height, LEG_SHAFT_RADIUS, LEG_BASE_RADIUS)
+    leg2.location.z = 0
+
+    # Final adjustments: Move the whole assembly so the bottom shelf is just above Z=0 
+    # for a better viewing position if needed, but prompt says "at origin".
+    # Let's shift everything up by TOTAL_HEIGHT/2 so it sits on the floor.
+    offset = TOTAL_HEIGHT / 2
+    for obj in bpy.data.objects:
+        obj.location.z += offset
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: type object 'Object' has no attribute 'matrix_world'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/CoffeeTable_seed0/CoffeeTable_seed0.py", line 203, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/CoffeeTable_seed0/CoffeeTable_seed0.py", line 174, in main
+    create_rounded_slab("TableTop", TABLE_LENGTH, TABLE_WIDTH, TABLE_THICKNESS, CORNER_RADIUS, top_z)
+  File "/Users/fengruiding/Downloads/3d_code/Output/CoffeeTable_seed0/CoffeeTable_seed0.py", line 25, in create_rounded_slab
+    bm.transform(bpy.types.Object.matrix_world @ bpy.mathutils.Matrix.Scale(length, 4),
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'Object' has no attribute 'matrix_world'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

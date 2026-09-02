@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/AgaveMonocot_seed0/AgaveMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 71,
+  "extent": 5.433704137802124,
+  "n_views_rendered": 4,
+  "latency_s": 3.18,
+  "error": null
+}

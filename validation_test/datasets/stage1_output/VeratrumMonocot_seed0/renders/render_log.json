@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/VeratrumMonocot_seed0/VeratrumMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 53,
+  "extent": 9.487890720367432,
+  "n_views_rendered": 4,
+  "latency_s": 2.23,
+  "error": null
+}

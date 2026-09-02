@@ -1,0 +1,2 @@
+- The color is far too light; it looks like tan/beige rather than the requested "dark wood-grain (espresso to walnut)". It needs to be a much deeper, darker brown.
+- The finish lacks the depth associated with high-end dark wood furniture. I will darken the base color and adjust the roughness for a more realistic polished espresso finish.

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "TypeError: bpy_struct: item.attr = val: enum \"AUTOMATIC\" not found in ('FREE', 'VECTOR', 'ALIGNED', 'AUTO')\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py\", line 154, in <module>\n    run()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py\", line 148, in run\n    create_handrail(num_steps, outer_radius, step_height, angle_per_step, rail_height)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py\", line 86, in create_handrail\n    p.handle_left_type = 'AUTOMATIC'\n    ^^^^^^^^^^^^^^^^^^\nTypeError: bpy_struct: item.attr = val: enum \"AUTOMATIC\" not found in ('FREE', 'VECTOR', 'ALIGNED', 'AUTO')\n"
+}

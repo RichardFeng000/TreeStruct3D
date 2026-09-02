@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SingleCabinet_seed0/SingleCabinet_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 2.0999999046325684,
+  "n_views_rendered": 4,
+  "latency_s": 2.19,
+  "error": null
+}

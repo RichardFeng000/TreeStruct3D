@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/Dishwasher_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Dishwasher_seed0/glb/Dishwasher_seed0.glb",
+  "status": "OK",
+  "n_meshes": 49,
+  "size_kb": 284.5,
+  "latency_s": 0.16,
+  "error": null
+}

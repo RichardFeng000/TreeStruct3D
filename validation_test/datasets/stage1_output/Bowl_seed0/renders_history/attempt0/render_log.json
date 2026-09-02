@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/output fix/glm_5_2_code_qwen_vl_visual/Bowl_seed0/Bowl_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 2.200000047683716,
+  "n_views_rendered": 4,
+  "latency_s": 8.71,
+  "error": null
+}

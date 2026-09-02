@@ -1,0 +1,4 @@
+- The render shows fragmented, floating shards instead of coherent fronds; it looks like green noise.
+- Missing geometric structure: the "stems" are single edges and thus invisible or nearly invisible in renders.
+- Leaflets are too small and disconnected, failing to create the "pinnate" look.
+- Need to implement a continuous mesh for stems and larger, more elongated blades for leaflets.

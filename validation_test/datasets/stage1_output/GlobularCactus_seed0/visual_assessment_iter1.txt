@@ -1,0 +1,3 @@
+- The cactus is too sparsely covered with spines; it needs to be "densely covered" as per the description.
+- Areole distribution is random/sparse rather than systematically arranged along the vertical ribs.
+- Ribbing is a bit too smooth; increasing amplitude will give it a more characteristic barrel cactus look.

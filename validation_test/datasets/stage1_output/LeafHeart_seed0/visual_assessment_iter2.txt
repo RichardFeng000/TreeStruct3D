@@ -1,0 +1,4 @@
+- The topology is radial (fan-like), creating a sharp artifact point in the center instead of a linear midrib.
+- The "midrib crease" appears as a single central spike rather than a continuous ridge from tip to base.
+- Lateral veins are barely visible and look like triangulation artifacts rather than organic leaf veins.
+- Need to change topology to a grid mapped to the heart shape for better control over linear features.

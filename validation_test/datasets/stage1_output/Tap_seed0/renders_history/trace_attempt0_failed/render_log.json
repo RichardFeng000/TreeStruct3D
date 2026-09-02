@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Tap_seed0/Tap_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "AttributeError: 'Vector' object has no attribute 'to_matrix'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tap_seed0/Tap_seed0.py\", line 147, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tap_seed0/Tap_seed0.py\", line 139, in main\n    handle = create_handle()\n             ^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Tap_seed0/Tap_seed0.py\", line 93, in create_handle\n    bmesh.ops.create_cone(bm, cap_ends=True, segments=16, diameter=0.03, depth=0.04, matrix=bpy.types.Object.matrix_world @ Vector((0,0,0)).to_matrix().to_4x4() if False else Vector((0,0,0)).to_matrix().to_4x4())\n                                                                                                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Vector' object has no attribute 'to_matrix'\n"
+}

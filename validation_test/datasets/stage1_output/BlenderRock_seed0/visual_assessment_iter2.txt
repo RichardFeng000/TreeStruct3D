@@ -1,0 +1,4 @@
+- The overall shape is too blobby/smooth, resembling a cupcake rather than a weathered rock.
+- Missing distinct "layered surface ridges and crevices" as requested.
+- Surface detail is lacking; it needs sharper edges and deeper cracks to look like stone.
+- Tonal variation is not evident in the renders (too uniform gray).

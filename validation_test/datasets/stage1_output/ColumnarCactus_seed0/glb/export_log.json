@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/ColumnarCactus_seed0/ColumnarCactus_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/ColumnarCactus_seed0/glb/ColumnarCactus_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 1013.9,
+  "latency_s": 0.12,
+  "error": null
+}

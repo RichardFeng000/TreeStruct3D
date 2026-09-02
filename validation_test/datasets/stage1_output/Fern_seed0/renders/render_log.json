@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Fern_seed0/Fern_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 8.528288841247559,
+  "n_views_rendered": 4,
+  "latency_s": 3.6,
+  "error": null
+}

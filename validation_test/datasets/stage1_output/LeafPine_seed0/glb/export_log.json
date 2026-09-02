@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafPine_seed0/LeafPine_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LeafPine_seed0/glb/LeafPine_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 193.5,
+  "latency_s": 0.1,
+  "error": null
+}

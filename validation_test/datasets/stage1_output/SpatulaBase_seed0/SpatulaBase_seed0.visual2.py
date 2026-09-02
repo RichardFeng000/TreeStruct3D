@@ -1,0 +1,151 @@
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Clears all default objects from the scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+    for block in bpy.data.meshes:
+        if block.users == 0:
+            bpy.data.meshes.remove(block)
+    for block in bpy.data.materials:
+        if block.users == 0:
+            bpy.data.materials.remove(block)
+
+def create_material(name, color):
+    """Creates a material with the specified base color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.4
+        bsdf.inputs['Specular IOR Level'].default_value = 0.1
+    return mat
+
+def create_spatula():
+    # Dimensions (meters)
+    blade_w = 0.08
+    blade_l = 0.12
+    blade_t = 0.006
+    handle_w = 0.025
+    handle_l = 0.25
+    handle_t = 0.012
+    hole_r = 0.007
+
+    # Create a BMesh for the main body
+    bm = bmesh.new()
+    
+    # --- BLADE ---
+    # Center it at origin, extend along Y from -blade_l/2 to blade_l/2
+    bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co.x *= (blade_w / 2)
+        v.co.y *= (blade_l / 2)
+        v.co.z *= (blade_t / 2)
+
+    # --- HANDLE ---
+    # The handle should start where the blade ends: Y = blade_l/2
+    # It extends along Y for handle_l distance.
+    handle_matrix = bpy.types.Object().matrix_world # dummy just to think about translation
+    # We create another cube and translate its vertices manually in BMesh
+    bm_h = bmesh.new()
+    bmesh.ops.create_cube(bm_h, size=1.0)
+    for v in bm_h.verts:
+        v.co.x *= (handle_w / 2)
+        # Center the cube then shift it by half handle length + half blade length
+        v.co.y = (v.co.y * (handle_l / 2)) + (blade_l / 2 + handle_l / 2)
+        v.co.z *= (handle_t / 2)
+    
+    # Merge the handle into the main BMesh
+    bm.from_mesh(bpy.data.meshes.new("tmp")) # Dummy to clear state if needed, but simpler:
+    # Since from_mesh is clunky for simple merges, let's just use bmesh ops directly on bm
+    
+    # Clear the dummy merge attempt and just add handle vertices to bm
+    bm.free()
+    bm = bmesh.new()
+    
+    # Re-do Blade in one BM
+    bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co.x *= (blade_w / 2)
+        v.co.y *= (blade_l / 2)
+        v.co.z *= (blade_t / 2)
+
+    # Add Handle to same BM
+    res = bmesh.ops.create_cube(bm, size=1.0)
+    for v in res['verts']:
+        v.co.x *= (handle_w / 2)
+        v.co.y = (v.co.y * (handle_l / 2)) + (blade_l / 2 + handle_l / 2)
+        v.co.z *= (handle_t / 2)
+
+    # Clean up overlapping vertices at the junction
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+    
+    mesh = bpy.data.meshes.new("SpatulaMesh")
+    obj = bpy.data.objects.new("Spatula", mesh)
+    bpy.context.collection.objects.link(obj)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # --- HOLE ---
+    # Hole is at the top of the handle: Y = blade_l/2 + handle_l - offset
+    hole_y = (blade_l / 2) + handle_l - 0.03
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=hole_r, 
+        depth=handle_t * 2, 
+        location=(0, hole_y, 0), 
+        rotation=(1.5708, 0, 0) # Align Z-axis of cylinder to X (though we want it vertical through the handle thickness)
+    )
+    # Actually, the default Cylinder is along Z. Our handle thickness is along Z.
+    # So no rotation needed if depth is aligned with the spatula's Z axis.
+    cutter = bpy.context.active_object
+    cutter.location = (0, hole_y, 0)
+    cutter.rotation_euler = (0, 0, 0)
+
+    # Apply Boolean difference
+    bpy.context.view_layer.objects.active = obj
+    bool_mod = obj.modifiers.new(name="Hole", type='BOOLEAN')
+    bool_mod.operation = 'DIFFERENCE'
+    bool_mod.object = cutter
+    
+    with bpy.context.temp_override(active_object=obj, selected_objects=[obj]):
+        bpy.ops.object.modifier_apply(modifier="Hole")
+
+    # Clean up the cutter object
+    bpy.data.objects.remove(cutter, do_unlink=True)
+
+    # Bevel for realism
+    bevel_mod = obj.modifiers.new(name="Bevel", type='BEVEL')
+    bevel_mod.width = 0.002
+    bevel_mod.segments = 3
+    with bpy.context.temp_override(active_object=obj, selected_objects=[obj]):
+        bpy.ops.object.modifier_apply(modifier="Bevel")
+
+    # Shading and Normals
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    wn_mod = obj.modifiers.new(name="WeightedNormal", type='WEIGHTED_NORMAL')
+    wn_mod.keep_sharp = True
+    with bpy.context.temp_override(active_object=obj, selected_objects=[obj]):
+        bpy.ops.object.modifier_apply(modifier="WeightedNormal")
+
+    return obj
+
+def main():
+    clear_scene()
+    
+    # Dark brown color (sRGB)
+    dark_brown = (0.15, 0.07, 0.03, 1.0)
+    mat = create_material("DarkBrown", dark_brown)
+    
+    spatula = create_spatula()
+    if not spatula.data.materials:
+        spatula.data.materials.append(mat)
+    else:
+        spatula.data.materials[0] = mat
+
+if __name__ == "__main__":
+    main()

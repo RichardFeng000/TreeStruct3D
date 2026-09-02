@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Oven_seed0/Oven_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Oven_seed0/glb/Oven_seed0.glb",
+  "status": "OK",
+  "n_meshes": 45,
+  "size_kb": 499.4,
+  "latency_s": 0.17,
+  "error": null
+}

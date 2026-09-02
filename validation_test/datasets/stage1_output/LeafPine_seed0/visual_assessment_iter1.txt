@@ -1,0 +1,4 @@
+- The pine needles are too short and sparse, looking more like spikes than elongated foliage.
+- They lack clear "bundles" or "pairs," appearing randomly scattered instead of clustered.
+- The curvature (droop) is overly simplistic (just a Z-offset), resulting in an unnatural look.
+- The geometry for the needles is constructed as discrete segments rather than smooth, tapered forms.

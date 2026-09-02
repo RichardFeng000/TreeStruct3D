@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/StraightStaircase_seed0/StraightStaircase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 115,
+  "extent": 4.999428257346153,
+  "n_views_rendered": 4,
+  "latency_s": 2.77,
+  "error": null
+}

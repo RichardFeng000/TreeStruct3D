@@ -1,0 +1,4 @@
+- The render is almost entirely empty; the green cactus body (pads) is completely missing.
+- Only scattered white fragments (spines) are visible, and they appear to be floating in space without a structure.
+- No materials are applied, failing the "bright green" requirement from the description.
+- The overall shape of a tall stacked column is not present.

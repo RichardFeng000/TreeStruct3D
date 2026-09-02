@@ -1,0 +1,3 @@
+- The chopsticks are currently oriented almost vertically along the Z-axis; they should be "laid" horizontally to properly fit a top-down perspective.
+- The crossing angle is too narrow, making them look nearly parallel rather than clearly crossed.
+- The current orientation makes them look like they are standing up rather than resting on a surface.

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/Jellyfish_seed0/Jellyfish_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 5,
+  "extent": 8.245000123977661,
+  "n_views_rendered": 4,
+  "latency_s": 10.57,
+  "error": null
+}

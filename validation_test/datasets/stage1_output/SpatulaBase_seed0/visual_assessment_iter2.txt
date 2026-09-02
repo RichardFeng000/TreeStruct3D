@@ -1,0 +1,4 @@
+- Disconnected pieces: The blade and handle are completely separated with a gap between them.
+- Wrong color: The model appears white/grey instead of the requested dark brown.
+- Missing detail: The hanging hole is not visible or was not correctly booleaned due to geometry offsets.
+- Proportions: The parts are floating, which ruins the overall shape and silhouette.

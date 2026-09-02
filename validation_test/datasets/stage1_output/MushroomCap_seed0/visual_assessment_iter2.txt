@@ -1,0 +1,4 @@
+- Wrong overall shape: The current model looks like a steamed bun (Baozi) rather than a mushroom cap due to excessive deformation at the top.
+- Color issue: The beige-tan is too light, appearing nearly white in renders.
+- Patterning: The "organic wavy lines" are rendered as large, deep folds/lumps instead of surface patterns.
+- Gills visibility: The underside gills are too recessed and barely visible.

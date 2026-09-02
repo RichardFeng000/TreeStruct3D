@@ -1,0 +1,3 @@
+- Floating pieces: The chimney is disconnected from the canopy base with a visible gap.
+- Wrong colors: The body appears light grey instead of dark, and the blue top surface is not clearly visible or assigned correctly.
+- Proportions: Canopy height is shorter than specified in comments (0.2 instead of 0.4).

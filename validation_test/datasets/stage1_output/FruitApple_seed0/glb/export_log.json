@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/glb/FruitApple_seed0.glb",
+  "status": "OK",
+  "n_meshes": 3,
+  "size_kb": 1454.2,
+  "latency_s": 0.28,
+  "error": null
+}

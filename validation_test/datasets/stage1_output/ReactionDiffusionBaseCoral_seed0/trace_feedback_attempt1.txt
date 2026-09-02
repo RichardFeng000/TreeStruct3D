@@ -1,0 +1,150 @@
+Original text-to-3D task:
+
+A coral structure. The object displays a rounded dome shape with a surface patterned by deeply pitted cells and raised ridges, creating an irregular, organic cellular texture across the entire dome. The geometry reveals the complex network of small concave cells and interconnecting ridges at varying scales, with a dark shadow at the base contrasting with the white geometry above.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears default objects from the scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_coral_dome():
+    # Parameters
+    radius = 2.0
+    segments = 160
+    rings = 80
+    num_seeds = 250
+    
+    ridge_strength = 0.4
+    pit_depth = 0.5
+    sigma_ridge = 0.12
+    sigma_pit = 0.35
+    
+    # Create UV Sphere
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=radius, 
+        segments=segments, 
+        ring_count=rings, 
+        location=(0, 0, 0)
+    )
+    obj = bpy.context.active_object
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+
+    # Cut the sphere into a dome (remove bottom half)
+    verts_to_delete = [v for v in bm.verts if v.co.z < -0.1]
+    bmesh.ops.delete(bm, geom=verts_to_delete, context='VERTS')
+
+    # Generate seed points on the surface of the dome for Voronoi cells
+    # We distribute them randomly over a hemisphere
+    seeds = []
+    for _ in range(num_seeds):
+        phi = random.uniform(0, 2 * math.pi)
+        costheta = random.uniform(0, 1) # Only upper half
+        theta = math.acos(costheta)
+        
+        x = radius * math.sin(theta) * math.cos(phi)
+        y = radius * math.sin(theta) * math.sin(phi)
+        z = radius * math.cos(theta)
+        seeds.append(Vector((x, y, z)))
+
+    # We'll store distance information to avoid repeated calculations
+    # For each vertex, find the two nearest seeds (d1 and d2)
+    for v in bm.verts:
+        # Calculate distances to all seed points
+        # To optimize, we could use a k-d tree, but for ~250 seeds it's okay
+        dists = sorted([ (v.co - s).length for s in seeds ])
+        d1 = dists[0] # Distance to closest seed
+        d2 = dists[1] # Distance to second closest seed
+        delta = d2 - d1 # Distance from Voronoi boundary
+        
+        # Calculate displacement based on the derived formulas:
+        # Ridge peaks when delta is small (near cell boundaries)
+        # Pit dips when d1 is small (at center of cells)
+        
+        ridge_val = math.exp(-(delta**2) / (2 * sigma_ridge**2))
+        pit_val = math.exp(-(d1**2) / (2 * sigma_pit**2))
+        
+        # Influence varies slightly by height to create the "dark shadow" density at base
+        # Higher Z -> potentially slightly different scaling for organic feel
+        height_factor = (v.co.z / radius) * 0.5 + 0.5
+        current_ridge = ridge_strength * height_factor
+        current_pit = pit_depth * (1.2 - height_factor * 0.4)
+
+        offset = (current_ridge * ridge_val) - (current_pit * pit_val)
+        
+        # Apply displacement along the normal
+        v.co += v.normal * offset
+
+    # Finish BMesh and update mesh
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Smoothing and polishing
+    # 1. Shade Smooth
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+        
+    # 2. Add a Subdivision Surface modifier for the "organic" rounded look
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.rental_type = 'CATMULL_CLARK'
+
+    # Apply a slight Bevel to edges if needed, but Subsurf is better for organic coral
+    
+    return obj
+
+def main():
+    clear_scene()
+    coral = create_coral_dome()
+    
+    # Final object centering and scale check
+    coral.location = (0, 0, 0)
+    
+    # Since we are not applying materials/textures as per constraint "Leave geometry untextured",
+    # the complex cellular pitting will naturally create deep shadows in the concave areas.
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'SubsurfModifier' object has no attribute 'rental_type'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/ReactionDiffusionBaseCoral_seed0/ReactionDiffusionBaseCoral_seed0.py", line 110, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/ReactionDiffusionBaseCoral_seed0/ReactionDiffusionBaseCoral_seed0.py", line 101, in main
+    coral = create_coral_dome()
+            ^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/ReactionDiffusionBaseCoral_seed0/ReactionDiffusionBaseCoral_seed0.py", line 93, in create_coral_dome
+    subsurf.rental_type = 'CATMULL_CLARK'
+    ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SubsurfModifier' object has no attribute 'rental_type'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

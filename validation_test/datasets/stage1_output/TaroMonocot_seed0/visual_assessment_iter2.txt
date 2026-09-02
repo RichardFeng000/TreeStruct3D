@@ -1,0 +1,3 @@
+- The leaves have a "pinched" or "fan-like" appearance because they are triangulated to a single center point; they need smoother organic geometry.
+- Leaves overlap too much in the center; petioles and leaves should be angled further outward to achieve the "drooping slightly outward" look.
+- Leaf attachment points appear slightly disconnected from the petioles.

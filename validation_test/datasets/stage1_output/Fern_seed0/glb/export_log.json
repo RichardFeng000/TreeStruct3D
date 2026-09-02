@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Fern_seed0/Fern_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Fern_seed0/glb/Fern_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 341.6,
+  "latency_s": 0.09,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- The color is too pale and looks almost white in renders; it needs to be a more distinct muted sage green.
+- The structure is too clumped and vertical; it lacks the "low rosette" appearance where lobes radiate outward horizontally from a central base.
+- Geometry resembles crumpled paper/sheets rather than organic, leaf-like lichen lobes.

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CoconutTree_seed0/CoconutTree_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/CoconutTree_seed0/glb/CoconutTree_seed0.glb",
+  "status": "OK",
+  "n_meshes": 16,
+  "size_kb": 210.4,
+  "latency_s": 0.1,
+  "error": null
+}

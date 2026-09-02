@@ -1,0 +1,209 @@
+{
+  "model": "stage1_output",
+  "siglip_model": "3dcodebench/models/siglip2-so400m-patch16-naflex",
+  "prompt_type": "description",
+  "n_instances": 9,
+  "n_full_render": 9,
+  "n_full_gt": 0,
+  "render": {
+    "conditional_mean_of_view_mean": 0.15846863389015198,
+    "conditional_mean_of_view_max": 0.1751675084233284,
+    "penalized_mean_of_view_mean": 0.15846863389015198,
+    "penalized_mean_of_view_max": 0.1751675084233284
+  },
+  "gt_baseline": {
+    "mean_of_view_mean": null,
+    "mean_of_view_max": null
+  },
+  "per_instance": [
+    {
+      "instance": "Bird_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.09695739112794399,
+      "render_max": 0.10405630618333817,
+      "render_per_view": [
+        0.09718837589025497,
+        0.10405630618333817,
+        0.09840205311775208,
+        0.08818282932043076
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Chameleon_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.15572210773825645,
+      "render_max": 0.18067578971385956,
+      "render_per_view": [
+        0.1800791472196579,
+        0.18067578971385956,
+        0.1352435201406479,
+        0.12688997387886047
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Conch_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.13351902179419994,
+      "render_max": 0.1584867537021637,
+      "render_per_view": [
+        0.1584867537021637,
+        0.12649968266487122,
+        0.11696075648069382,
+        0.13212889432907104
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Crab_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.1691388227045536,
+      "render_max": 0.17378588020801544,
+      "render_per_view": [
+        0.16364626586437225,
+        0.17233330011367798,
+        0.17378588020801544,
+        0.16678984463214874
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Fish_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.12127859890460968,
+      "render_max": 0.12794789671897888,
+      "render_per_view": [
+        0.12794789671897888,
+        0.12479692697525024,
+        0.11584518849849701,
+        0.11652438342571259
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Lobster_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.18447238951921463,
+      "render_max": 0.18900200724601746,
+      "render_per_view": [
+        0.1811826080083847,
+        0.18900200724601746,
+        0.1830184906721115,
+        0.18468645215034485
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Mussel_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.19420351833105087,
+      "render_max": 0.2278440296649933,
+      "render_per_view": [
+        0.17662478983402252,
+        0.17739860713481903,
+        0.2278440296649933,
+        0.19494664669036865
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Nautilus_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.19313564524054527,
+      "render_max": 0.21249228715896606,
+      "render_per_view": [
+        0.17657023668289185,
+        0.19432514905929565,
+        0.21249228715896606,
+        0.18915490806102753
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "instance": "Scallop_seed0",
+      "n_renders": 4,
+      "n_gt": 0,
+      "render_mean": 0.17779020965099335,
+      "render_max": 0.20221662521362305,
+      "render_per_view": [
+        0.20221662521362305,
+        0.1855337917804718,
+        0.1860288679599762,
+        0.13738155364990234
+      ],
+      "gt_mean": null,
+      "gt_max": null,
+      "gt_per_view": [
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ]
+}

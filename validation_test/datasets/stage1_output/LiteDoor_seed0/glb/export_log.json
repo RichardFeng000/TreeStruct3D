@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LiteDoor_seed0/LiteDoor_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LiteDoor_seed0/glb/LiteDoor_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 32.4,
+  "latency_s": 0.11,
+  "error": null
+}

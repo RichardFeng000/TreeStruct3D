@@ -1,0 +1,244 @@
+Original text-to-3D task:
+
+A chameleon rendered as a textured 3D model. The creature is viewed from above in a flattened resting pose, showing an elongated body with a wide, compressed torso, four small stubby limbs with multi-toed grasping feet, and an extremely long tapered tail extending out behind. The coloring is deep olive-green with scattered dark speckles across the entire surface, and a subtle ridge runs along the spine. The head is small and rounded with large prominent yellow-green eyes. The smooth but bumpy skin surface captures the characteristic leathery texture of a chameleon.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+    return mat
+
+def add_bumpy_texture(obj):
+    # Create a procedural noise texture for displacement to simulate leathery skin
+    tex = bpy.data.textures.new("SkinNoise", type='NOISE')
+    tex.noise_scale = 0.05
+    
+    mod = obj.modifiers.new(name="Bumps", type='DISPLACE')
+    mod.texture = tex
+    mod.strength = 0.03
+    
+    # Apply the modifier to make it real geometry as requested
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier="Bumps")
+
+def create_chameleon():
+    clear_scene()
+
+    # Materials
+    olive_green = create_material("OliveGreen", (0.15, 0.25, 0.05, 1.0))
+    yellow_green = create_material("YellowGreen", (0.4, 0.6, 0.1, 1.0))
+    dark_speckle = create_material("DarkSpeckle", (0.05, 0.1, 0.02, 1.0))
+
+    # --- BODY & TAIL ---
+    # Main body: elongated and compressed torso
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
+    body = bpy.context.active_object
+    body.name = "ChameleonBody"
+    body.scale = (0.6, 1.8, 0.4)
+    bpy.ops.object.transform_apply(scale=True)
+
+    # Tail: long and tapered
+    tail_mesh = bpy.data.meshes.new("TailMesh")
+    tail_obj = bpy.data.objects.new("Tail", tail_mesh)
+    bpy.context.collection.objects.link(tail_obj)
+    
+    bm = bmesh.new()
+    # Tail is a series of rings tapering down
+    segments = 30
+    rings = 8
+    radius_start = 0.25
+    radius_end = 0.02
+    length = 4.0
+    
+    for i in range(segments + 1):
+        t = i / segments
+        r = radius_start * (1 - t) + radius_end * t
+        y_pos = -1.8 - (t * length)
+        
+        # Create ring
+        verts = []
+        for j in range(rings):
+            angle = (2 * math.pi / rings) * j
+            vx = math.cos(angle) * r
+            vz = math.sin(angle) * r
+            verts.append(bm.verts.new((vx, y_pos, vz)))
+        
+        # Connect to previous ring
+        if i > 0:
+            prev_ring_start = (i-1) * rings
+            for j in range(rings):
+                v1 = bm.verts[prev_ring_start + j]
+                v2 = bm.verts[i * rings + j]
+                # Since we are doing indices, it's safer to track ring lists
+                pass 
+
+    # Re-do tail with explicit list for connectivity
+    bm = bmesh.new()
+    all_rings = []
+    for i in range(segments + 1):
+        t = i / segments
+        r = radius_start * (1 - t) + radius_end * t
+        y_pos = -1.8 - (t * length)
+        ring = []
+        for j in range(rings):
+            angle = (2 * math.pi / rings) * j
+            ring.append(bm.verts.new((math.cos(angle)*r, y_pos, math.sin(angle)*r)))
+        all_rings.append(ring)
+        
+        if i > 0:
+            for j in range(rings):
+                v1 = all_rings[i-1][j]
+                v2 = all_rings[i][j]
+                v3 = all_rings[i][(j+1)%rings]
+                v4 = all_rings[i-1][(j+1)%rings]
+                bm.faces.new((v1, v2, v3, v4))
+    
+    # Cap the end of the tail
+    last_ring = all_rings[-1]
+    bm.faces.new(last_ring)
+    
+    bm.to_mesh(tail_mesh)
+    bm.free()
+    
+    tail_obj.data.materials.append(olive_green)
+
+    # --- HEAD ---
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.4, location=(0, 2.1, 0))
+    head = bpy.context.active_object
+    head.name = "Head"
+    head.scale = (0.8, 1.0, 0.7)
+    bpy.ops.object.transform_apply(scale=True)
+    head.data.materials.append(olive_green)
+
+    # Eyes: Large and prominent
+    for side in [-1, 1]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.15, location=(0.3 * side, 2.2, 0.2))
+        eye = bpy.context.active_object
+        eye.name = f"Eye_{'L' if side == -1 else 'R'}"
+        eye.scale = (1, 1, 1.2)
+        eye.data.materials.append(yellow_green)
+
+    # --- LIMBS ---
+    def create_limb(pos, rot_z, flip_x=1):
+        # Simple stubby limb
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.1, depth=0.8, location=pos)
+        limb = bpy.context.active_object
+        limb.rotation_euler[1] = math.radians(45 * flip_x)
+        limb.rotation_euler[2] = rot_z
+        limb.data.materials.append(olive_green)
+        
+        # Feet: Zygodactylous (grouped toes)
+        foot_pos = limb.location + Vector((0, 0, -0.4)) # Approximate end of cylinder
+        # Just a simplified clump for the grasping feet
+        for offset in [(-0.05, 0.05), (0.05, 0.05), (-0.05, -0.05)]:
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=0.06, location=(
+                pos[0] + offset[0]*flip_x, pos[1] + offset[1], pos[2] - 0.3
+            ))
+            toe = bpy.context.active_object
+            toe.data.materials.append(olive_green)
+
+    # Position limbs diagonally
+    create_limb((0.5, 1.0, 0), math.radians(-30), flip_x=1)   # Front Right
+    create_limb((-0.5, 1.0, 0), math.radians(30), flip_x=-1)  # Front Left
+    create_limb((0.5, -1.0, 0), math.radians(-10), flip_x=1)  # Back Right
+    create_limb((-0.5, -1.0, 0), math.radians(10), flip_x=-1) # Back Left
+
+    # --- SPINE RIDGE ---
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.05, depth=3.6, location=(0, 0, 0.4))
+    ridge = bpy.context.active_object
+    ridge.rotation_euler[1] = math.radians(90)
+    ridge.scale = (1, 1, 1)
+    ridge.data.materials.append(olive_green)
+
+    # Apply olive green to body
+    body.data.materials.append(olive_green)
+
+    # --- SKIN TEXTURE & DETAIL ---
+    # We'll combine the main parts into one object for a unified skin bump effect
+    objs_to_join = [body, tail_obj, head, ridge]
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objs_to_join:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()
+    
+    # Now the joined 'body' object represents most of the creature
+    final_creature = bpy.context.active_object
+    final_creature.name = "Chameleon"
+    
+    # Apply skin bumps
+    add_bumpy_texture(final_creature)
+
+    # Add some random dark speckles using small spheres (geometric detail)
+    for _ in range(60):
+        rx = random.uniform(-0.5, 0.5)
+        ry = random.uniform(-4.0, 2.5)
+        rz = random.uniform(-0.3, 0.5)
+        # Only place speckles roughly on the body surface
+        if abs(rx) < 0.6 and (ry > -1.8 or abs(rx) < 0.2):
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=0.02, location=(rx, ry, rz))
+            speckle = bpy.context.active_object
+            speckle.data.materials.append(dark_speckle)
+            # Parent to creature
+            speckle.parent = final_creature
+
+    # Join the speckles into the main mesh for a single object output
+    bpy.ops.object.select_all(action='DESELECT')
+    final_creature.select_set(True)
+    for obj in bpy.data.objects:
+        if "Sphere" in obj.name and obj != final_creature: 
+            # Be careful not to delete eyes
+            if "Eye" not in obj.name:
+                obj.select_set(True)
+    
+    bpy.context.view_layer.objects.active = final_creature
+    bpy.ops.object.join()
+
+if __name__ == "__main__":
+    create_chameleon()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Chameleon_seed0/Chameleon_seed0.py", line 207, in <module>
+    create_chameleon()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Chameleon_seed0/Chameleon_seed0.py", line 79, in create_chameleon
+    v1 = bm.verts[prev_ring_start + j]
+         ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

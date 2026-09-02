@@ -1,0 +1,196 @@
+Original text-to-3D task:
+
+A 3D model of a cylindrical drinking cup rendered from a slightly elevated front perspective. The cup features a straight-walled cylindrical form that tapers very slightly inward toward the base, a dark gray-blue exterior, a lighter gray interior rim, and a flat circular bottom with no handle.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+
+def clear_scene():
+    """Clears the default Blender scene objects."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+    
+    # Clean up orphaned data
+    for mesh in bpy.data.meshes:
+        bpy.data.meshes.remove(mesh)
+    for mat in bpy.data.materials:
+        bpy.data.materials.remove(mat)
+
+def create_material(name, color):
+    """Creates a simple principled BSDF material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        # Make it look like a typical cup (slightly reflective, non-metallic)
+        bsdf.inputs['Roughness'].default_value = 0.3
+        bsdf.inputs['Metallic'].default_value = 0.0
+    return mat
+
+def create_cup():
+    # Parameters
+    top_radius = 4.0
+    bottom_radius = 3.7  # Slight taper
+    height = 11.0
+    wall_thickness = 0.25
+    segments = 64
+
+    # Materials
+    ext_mat = create_material("CupExterior", (0.1, 0.15, 0.22, 1.0))  # Dark gray-blue
+    int_mat = create_material("CupInterior", (0.75, 0.75, 0.75, 1.0)) # Lighter gray
+
+    # Create mesh and bmesh
+    mesh = bpy.data.meshes.new("DrinkingCup")
+    obj = bpy.data.objects.new("DrinkingCup", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+
+    # Create the outer cylinder shape (tapered)
+    # We create two circles and bridge them
+    verts_bottom = []
+    for i in range(segments):
+        angle = 2 * math.pi * i / segments
+        x = math.cos(angle) * bottom_radius
+        y = math.sin(angle) * bottom_radius
+        verts_bottom.append(bm.verts.new((x, y, 0)))
+
+    verts_top = []
+    for i in range(segments):
+        angle = 2 * math.pi * i / segments
+        x = math.cos(angle) * top_radius
+        y = math.sin(angle) * top_radius
+        verts_top.append(bm.verts.new((x, y, height)))
+
+    # Create outer wall faces
+    for i in range(segments):
+        v1 = verts_bottom[i]
+        v2 = verts_bottom[(i + 1) % segments]
+        v3 = verts_top[(i + 1) % segments]
+        v4 = verts_top[i]
+        bm.faces.new((v1, v2, v3, v4))
+
+    # Create bottom face (exterior base)
+    bm.faces.new(verts_bottom)
+    # Flip normal for the bottom cap to point down
+    bm.faces[-1].normal_flip()
+
+    # Now create the interior cavity
+    # We will use an inset-like approach on a new top disc
+    # and extrude it downwards.
+    
+    # Create the rim ring first
+    rim_verts = []
+    for i in range(segments):
+        angle = 2 * math.pi * i / segments
+        # Inner radius at top
+        r_inner = top_radius - wall_thickness
+        x = math.cos(angle) * r_inner
+        y = math.sin(angle) * r_inner
+        rim_verts.append(bm.verts.new((x, y, height)))
+
+    # Create the rim faces (connecting outer top to inner top)
+    for i in range(segments):
+        v1 = verts_top[i]
+        v2 = verts_top[(i + 1) % segments]
+        v3 = rim_verts[(i + 1) % segments]
+        v4 = rim_verts[i]
+        bm.faces.new((v1, v2, v3, v4))
+
+    # Extrude the inner ring downwards
+    inner_bottom_verts = []
+    for i in range(segments):
+        angle = 2 * math.pi * i / segments
+        # Tapered interior bottom radius
+        r_int_bottom = bottom_radius - wall_thickness
+        x = math.cos(angle) * r_int_bottom
+        y = math.sin(angle) * r_int_bottom
+        inner_bottom_verts.append(bm.verts.new((x, y, wall_thickness)))
+
+    # Create interior walls
+    for i in range(segments):
+        v1 = rim_verts[i]
+        v2 = rim_verts[(i + 1) % segments]
+        v3 = inner_bottom_verts[(i + 1) % segments]
+        v4 = inner_bottom_verts[i]
+        bm.faces.new((v1, v2, v3, v4))
+
+    # Create the interior bottom face
+    bm.faces.new(inner_bottom_verts)
+
+    # Material Assignment
+    # We need to determine which faces are "interior" and which are "exterior"
+    # Interior: The very last face (floor) and the inner wall faces.
+    # Exterior: Everything else.
+    
+    obj.data.materials.append(ext_mat) # Slot 0
+    obj.data.materials.append(int_mat) # Slot 1
+
+    # Assign material indices to faces
+    # The last 'segments + 1' faces created are the interior ones
+    # Let's just iterate and check position or use a simple logic based on creation order
+    
+    # Interior floor face: the very last one
+    bm.faces[-1].material_index = 1
+    # Interior wall faces: the 'segments' faces before that
+    for i in range(len(bm.faces) - 2, len(bm.faces) - 2 - segments, -1):
+        bm.faces[i].material_index = 1
+
+    # Everything else is index 0 (already default)
+
+    # Finalize mesh
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Smooth shading for a clean cylindrical look
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    
+    # Add a bevel modifier to soften the rim edge slightly for realism
+    bevel = obj.modifiers.new(name="Bevel", type='BEVEL')
+    bevel.width = 0.02
+    bevel.segments = 3
+
+if __name__ == "__main__":
+    clear_scene()
+    create_cup()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Cup_seed0/Cup_seed0.py", line 159, in <module>
+    create_cup()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Cup_seed0/Cup_seed0.py", line 79, in create_cup
+    bm.faces[-1].normal_flip()
+    ~~~~~~~~^^^^
+IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

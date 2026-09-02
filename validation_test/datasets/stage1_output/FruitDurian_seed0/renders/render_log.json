@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitDurian_seed0/FruitDurian_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 3,
+  "extent": 2.8891721963882446,
+  "n_views_rendered": 4,
+  "latency_s": 6.72,
+  "error": null
+}

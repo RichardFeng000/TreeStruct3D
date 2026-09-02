@@ -1,0 +1,153 @@
+Original text-to-3D task:
+
+A 3D model of a large boulder rendered from a slightly elevated three-quarter perspective. The boulder features a broad, flat-topped irregular shape with a highly rough and granular surface covered in fine pitting and erosion detail, a warm reddish-brown earth-toned coloring, and a wide low-profile silhouette resembling weathered sandstone or sedimentary rock.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default scene of all objects."""
+    if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_boulder_material():
+    """Creates a warm reddish-brown earth-toned material."""
+    mat = bpy.data.materials.new(name="BoulderMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    
+    # Reddish-brown color typical of weathered sandstone
+    node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_principled.inputs['Base Color'].default_value = (0.45, 0.23, 0.12, 1.0) 
+    node_principled.inputs['Roughness'].default_value = 0.9
+    node_principled.inputs['Specular IOR'].default_value = 1.5
+    
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    
+    links = mat.node_tree.links
+    links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
+    
+    return mat
+
+def generate_boulder():
+    # 1. Create a base mesh (IcoSphere)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=4, radius=2.0)
+    obj = bpy.context.active_object
+    obj.name = "LargeBoulder"
+
+    # 2. Shape the broad, flat-topped irregular silhouette using BMesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    for v in bm.verts:
+        # Flatten overall profile (Low profile / Wide)
+        v.co.z *= 0.3
+        
+        # Irregular wide footprint
+        angle = math.atan2(v.co.y, v.co.x)
+        dist_mod = 1.0 + 0.2 * math.sin(angle * 3) + 0.15 * math.cos(angle * 5)
+        v.co.x *= dist_mod * random.uniform(0.9, 1.1)
+        v.co.y *= (1.2 / dist_mod) * random.uniform(0.9, 1.1)
+
+        # Explicit Flat-top logic: Push top vertices toward a plateau
+        if v.co.z > 0.1:
+            # Squash the crown to create that sedimentary rock appearance
+            v.co.z = 0.1 + (v.co.z - 0.1) * 0.3
+
+    bm.to_mesh(obj.data)
+    bm.free()
+
+    # 3. Use Subdivision Surface modifier first to prevent jagged/spiky displacement
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+
+    # 4. Apply Displacement layers for granular and eroded textures
+    # Layer A: Coarse Erosion (Large shapes)
+    tex_coarse = bpy.data.textures.new("CoarseErosion", type='CLOUDS')
+    tex_coarse.noise_scale = 1.5
+    disp_coarse = obj.modifiers.new(name="Disp_Coarse", type='DISPLACE')
+    disp_coarse.texture = tex_coarse
+    disp_coarse.strength = 0.25
+
+    # Layer B: Sedimentary Grain (Medium scale)
+    tex_sediment = bpy.data.textures.new("SedimentDetail", type='CLOUDS')
+    tex_sediment.noise_scale = 0.4
+    disp_sediment = obj.modifiers.new(name="Disp_Sediment", type='DISPLACE')
+    disp_sediment.texture = tex_sediment
+    disp_sediment.strength = 0.1
+
+    # Layer C: Fine Pitting (High frequency, low strength to avoid spikes)
+    tex_fine = bpy.data.textures.new("FinePitting", type='CLOUDS')
+    tex_fine.noise_scale = 0.05 # Small scale in Clouds creates denser noise
+    disp_fine = obj.modifiers.new(name="Disp_Fine", type='DISPLACE')
+    disp_fine.texture = tex_fine
+    disp_fine.strength = 0.04
+
+    # Apply all modifiers to lock the geometry into a mesh
+    bpy.context.view_layer.objects.active = obj
+    for mod in obj.modifiers:
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+
+    # Final pass for micro-grit via BMesh (very subtle jitter)
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    for v in bm.verts:
+        v.co += Vector((random.uniform(-0.01, 0.01), 
+                        random.uniform(-0.01, 0.01), 
+                        random.uniform(-0.01, 0.01)))
+    bm.to_mesh(obj.data)
+    bm.free()
+
+    # Material assignment
+    mat = create_boulder_material()
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+
+if __name__ == "__main__":
+    clear_scene()
+    generate_boulder()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+KeyError: 'bpy_prop_collection[key]: key "Specular IOR" not found'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Boulder_seed0/Boulder_seed0.py", line 113, in <module>
+    generate_boulder()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Boulder_seed0/Boulder_seed0.py", line 105, in generate_boulder
+    mat = create_boulder_material()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Boulder_seed0/Boulder_seed0.py", line 25, in create_boulder_material
+    node_principled.inputs['Specular IOR'].default_value = 1.5
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+KeyError: 'bpy_prop_collection[key]: key "Specular IOR" not found'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

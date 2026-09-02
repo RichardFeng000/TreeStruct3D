@@ -1,0 +1,3 @@
+- Missing visual distinction: Covers, spines, and page edges are all the same color/material, making them indistinguishable in the render.
+- Lack of irregularity: Books only rotate on the Z axis; adding slight X/Y tilts would make the pile look more natural.
+- Subtle geometry: The cover overhang is too small to be visible given the overall scale of the books.

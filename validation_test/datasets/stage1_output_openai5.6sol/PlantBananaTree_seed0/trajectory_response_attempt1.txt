@@ -1,0 +1,331 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (
+    bpy.data.meshes,
+    bpy.data.curves,
+    bpy.data.materials,
+    bpy.data.cameras,
+    bpy.data.lights,
+):
+    pass
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.scale_length = 1.0
+
+plant_collection = bpy.data.collections.new("Young Banana Plant")
+scene.collection.children.link(plant_collection)
+
+
+def make_material(name, color, roughness=0.62):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    principled = material.node_tree.nodes.get("Principled BSDF")
+    if principled:
+        principled.inputs["Base Color"].default_value = (*color, 1.0)
+        principled.inputs["Roughness"].default_value = roughness
+    return material
+
+
+leaf_material = make_material("Fresh leaf green", (0.075, 0.36, 0.055), 0.7)
+underside_material = make_material("Leaf underside", (0.055, 0.235, 0.04), 0.76)
+midrib_material = make_material("Yellow green midrib", (0.34, 0.55, 0.095), 0.58)
+vein_material = make_material("Fine leaf veins", (0.43, 0.63, 0.15), 0.62)
+petiole_material = make_material("Petiole green", (0.19, 0.43, 0.075), 0.68)
+
+blade_lateral = Vector((0.0, 0.94, 0.342)).normalized()
+
+
+def centerline(s):
+    return Vector((
+        0.08 + 2.72 * s,
+        0.0,
+        2.50 + 1.30 * s - 0.16 * s * s
+    ))
+
+
+def centerline_tangent(s):
+    return Vector((2.72, 0.0, 1.30 - 0.32 * s)).normalized()
+
+
+def upper_normal(s):
+    return centerline_tangent(s).cross(blade_lateral).normalized()
+
+
+def half_width(s):
+    envelope = max(0.0, math.sin(math.pi * s))
+    return 0.018 + 0.585 * (envelope ** 0.70) * (0.93 + 0.07 * s)
+
+
+def leaf_surface(s, v):
+    s = max(0.0, min(1.0, s))
+    v = max(-1.0, min(1.0, v))
+    normal = upper_normal(s)
+    width = half_width(s)
+    camber = 0.080 * math.sin(math.pi * s) * (1.0 - v * v)
+    edge_ripple = 0.012 * math.sin(9.0 * math.pi * s + 0.4) * (abs(v) ** 5)
+    longitudinal_soft_wave = 0.010 * math.sin(3.0 * math.pi * s) * (1.0 - 0.35 * abs(v))
+    return (
+        centerline(s)
+        + blade_lateral * (v * width)
+        + normal * (camber + edge_ripple + longitudinal_soft_wave)
+    )
+
+
+def link_mesh_object(name, vertices, faces, materials):
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.materials.clear()
+    for material in materials:
+        mesh.materials.append(material)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    plant_collection.objects.link(obj)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    return obj
+
+
+# Broad, elongated banana leaf blade.
+longitudinal_segments = 64
+lateral_segments = 22
+leaf_vertices = []
+
+for i in range(longitudinal_segments + 1):
+    s = i / longitudinal_segments
+    for j in range(lateral_segments + 1):
+        v = -1.0 + 2.0 * j / lateral_segments
+        leaf_vertices.append(tuple(leaf_surface(s, v)))
+
+leaf_faces = []
+row_size = lateral_segments + 1
+for i in range(longitudinal_segments):
+    for j in range(lateral_segments):
+        a = i * row_size + j
+        b = a + 1
+        c = a + row_size + 1
+        d = a + row_size
+        leaf_faces.append((a, b, c, d))
+
+leaf = link_mesh_object(
+    "Single elongated banana leaf",
+    leaf_vertices,
+    leaf_faces,
+    [leaf_material, underside_material]
+)
+
+solidify = leaf.modifiers.new("Natural leaf thickness", 'SOLIDIFY')
+solidify.thickness = 0.018
+solidify.offset = -0.55
+solidify.use_rim = True
+solidify.material_offset = 1
+solidify.material_offset_rim = 1
+
+bpy.context.view_layer.objects.active = leaf
+leaf.select_set(True)
+bpy.ops.object.modifier_apply(modifier=solidify.name)
+leaf.select_set(False)
+
+for polygon in leaf.data.polygons:
+    polygon.use_smooth = True
+
+
+def make_tapered_tube(name, points, radii, sides, material, preferred_axis=None, cap_ends=True):
+    vertices = []
+    faces = []
+    count = len(points)
+
+    for i, point in enumerate(points):
+        if i == 0:
+            tangent = (points[1] - points[0]).normalized()
+        elif i == count - 1:
+            tangent = (points[-1] - points[-2]).normalized()
+        else:
+            tangent = (points[i + 1] - points[i - 1]).normalized()
+
+        if preferred_axis is not None:
+            axis_a = preferred_axis - tangent * preferred_axis.dot(tangent)
+            if axis_a.length < 0.001:
+                axis_a = Vector((0.0, 1.0, 0.0))
+        else:
+            reference = Vector((0.0, 1.0, 0.0))
+            if abs(tangent.dot(reference)) > 0.92:
+                reference = Vector((1.0, 0.0, 0.0))
+            axis_a = reference - tangent * reference.dot(tangent)
+
+        axis_a.normalize()
+        axis_b = tangent.cross(axis_a).normalized()
+
+        for k in range(sides):
+            angle = 2.0 * math.pi * k / sides
+            radial = axis_a * math.cos(angle) + axis_b * math.sin(angle)
+            vertices.append(tuple(point + radial * radii[i]))
+
+    for i in range(count - 1):
+        for k in range(sides):
+            a = i * sides + k
+            b = i * sides + (k + 1) % sides
+            c = (i + 1) * sides + (k + 1) % sides
+            d = (i + 1) * sides + k
+            faces.append((a, b, c, d))
+
+    if cap_ends:
+        bottom_index = len(vertices)
+        vertices.append(tuple(points[0]))
+        top_index = len(vertices)
+        vertices.append(tuple(points[-1]))
+        for k in range(sides):
+            faces.append((bottom_index, (k + 1) % sides, k))
+            a = (count - 1) * sides + k
+            b = (count - 1) * sides + (k + 1) % sides
+            faces.append((top_index, a, b))
+
+    return link_mesh_object(name, vertices, faces, [material])
+
+
+# Long, gently curved petiole rising from the origin.
+petiole_points = []
+petiole_radii = []
+petiole_sections = 42
+
+for i in range(petiole_sections):
+    t = i / (petiole_sections - 1)
+    if i == 0:
+        point = Vector((0.0, 0.0, 0.0))
+        radius = 0.035
+    else:
+        z = 0.055 + 2.445 * t
+        x = 0.08 * (t ** 2.15)
+        y = -0.012 * math.sin(math.pi * t)
+        point = Vector((x, y, z))
+        radius = 0.125 * (1.0 - t) + 0.055 * t
+        radius *= 1.0 - 0.05 * math.sin(math.pi * t)
+    petiole_points.append(point)
+    petiole_radii.append(radius)
+
+petiole = make_tapered_tube(
+    "Long slender petiole",
+    petiole_points,
+    petiole_radii,
+    16,
+    petiole_material,
+    preferred_axis=Vector((0.0, 1.0, 0.0)),
+    cap_ends=True
+)
+
+# Raised, tapered midrib following the full center of the leaf.
+midrib_points = []
+midrib_radii = []
+midrib_sections = 60
+
+for i in range(midrib_sections):
+    s = i / (midrib_sections - 1)
+    point = leaf_surface(s, 0.0) + upper_normal(s) * 0.020
+    radius = 0.038 * (1.0 - s) + 0.010 * s
+    radius *= 0.93 + 0.07 * math.sin(math.pi * s)
+    midrib_points.append(point)
+    midrib_radii.append(radius)
+
+midrib = make_tapered_tube(
+    "Prominent central midrib",
+    midrib_points,
+    midrib_radii,
+    12,
+    midrib_material,
+    preferred_axis=blade_lateral,
+    cap_ends=True
+)
+
+
+def make_curve_bundle(name, polylines, bevel_depth, material, bevel_resolution=1):
+    curve_data = bpy.data.curves.new(name + " Geometry", type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.resolution_u = 1
+    curve_data.bevel_depth = bevel_depth
+    curve_data.bevel_resolution = bevel_resolution
+    curve_data.resolution_u = 1
+    curve_data.use_fill_caps = True
+    curve_data.materials.append(material)
+
+    for points in polylines:
+        spline = curve_data.splines.new('POLY')
+        spline.points.add(len(points) - 1)
+        for index, point in enumerate(points):
+            spline.points[index].co = (point.x, point.y, point.z, 1.0)
+
+    obj = bpy.data.objects.new(name, curve_data)
+    plant_collection.objects.link(obj)
+    return obj
+
+
+# Numerous real-geometry lateral veins, swept slightly toward the leaf tip.
+vein_polylines = []
+vein_count = 30
+
+for i in range(vein_count):
+    s0 = 0.075 + i * (0.855 / (vein_count - 1))
+    for side in (-1.0, 1.0):
+        points = []
+        samples = 6
+        sweep = 0.028 + 0.010 * math.sin(math.pi * s0)
+        for k in range(samples):
+            q = k / (samples - 1)
+            eased = q * q * (3.0 - 2.0 * q)
+            s = min(0.982, s0 + sweep * eased)
+            v = side * (0.055 + 0.895 * q)
+            point = leaf_surface(s, v)
+            lift = 0.014 + 0.003 * (1.0 - q)
+            point += upper_normal(s) * lift
+            points.append(point)
+        vein_polylines.append(points)
+
+veins = make_curve_bundle(
+    "Fine parallel lateral venation",
+    vein_polylines,
+    0.0045,
+    vein_material,
+    bevel_resolution=1
+)
+
+# Add two subtle longitudinal ridges to the petiole as modeled surface detail.
+petiole_ridge_lines = []
+for side in (-1.0, 1.0):
+    ridge_points = []
+    for i in range(28):
+        t = 0.08 + 0.90 * i / 27.0
+        center = Vector((
+            0.08 * (t ** 2.15),
+            -0.012 * math.sin(math.pi * t),
+            0.055 + 2.445 * t
+        ))
+        radius = 0.125 * (1.0 - t) + 0.055 * t
+        ridge_points.append(center + Vector((0.0, side * radius * 0.94, 0.0)))
+    petiole_ridge_lines.append(ridge_points)
+
+petiole_ridges = make_curve_bundle(
+    "Petiole surface ridges",
+    petiole_ridge_lines,
+    0.006,
+    midrib_material,
+    bevel_resolution=1
+)
+
+# Set coherent object display colors and selection state.
+for obj in plant_collection.objects:
+    obj.select_set(False)
+
+leaf.select_set(True)
+petiole.select_set(True)
+midrib.select_set(True)
+veins.select_set(True)
+petiole_ridges.select_set(True)
+bpy.context.view_layer.objects.active = leaf
+
+scene.cursor.location = (0.0, 0.0, 0.0)

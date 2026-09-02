@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/Rack_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 1.03,
+  "error": "IndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/Rack_seed0.py\", line 183, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/Rack_seed0.py\", line 174, in main\n    create_beam(f\"Beam_F_{lvl}\", (corners[0][0], corners[0][1], z), (corners[1][0], corners[1][1], z), mat)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Rack_seed0/Rack_seed0.py\", line 127, in create_beam\n    res = bmesh.ops.extrude_face_region(bm, geom=[bm.faces[0]])\n                                                  ~~~~~~~~^^^\nIndexError: BMElemSeq[index]: outdated internal index table, run ensure_lookup_table() first\n"
+}

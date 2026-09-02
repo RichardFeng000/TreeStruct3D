@@ -1,0 +1,4 @@
+- Floating/Disconnected pieces: The "doors" and "drawers" are full-depth blocks rather than thin panels, causing them to overlap or appear as disjointed bricks instead of a cohesive cabinet base.
+- Wrong proportions: Cabinet fronts should be thin veneers on a carcass; currently, they are the same depth as the island itself.
+- Misalignment: The components do not form a solid architectural unit.
+- Fix: I will implement a main "carcass" body and place thin door/drawer panels specifically on the front face to create a realistic cabinet appearance.

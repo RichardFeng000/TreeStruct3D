@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/Balloon_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.02,
+  "error": "AttributeError: 'int' object has no attribute 'co'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/Balloon_seed0.py\", line 129, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/Balloon_seed0.py\", line 109, in main\n    letter_obj = create_balloon_letter(char, i, navy_mat, vivid_mat)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Balloon_seed0/Balloon_seed0.py\", line 70, in create_balloon_letter\n    face_center = (poly.vertices[0].co + poly.vertices[1].co + poly.vertices[2].co) / 3 if len(poly.vertices) >= 3 else poly.vertices[0].co\n                   ^^^^^^^^^^^^^^^^^^^\nAttributeError: 'int' object has no attribute 'co'\n"
+}

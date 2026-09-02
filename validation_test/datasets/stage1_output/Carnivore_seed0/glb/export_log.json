@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Carnivore_seed0/Carnivore_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Carnivore_seed0/glb/Carnivore_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 994.5,
+  "latency_s": 0.8,
+  "error": null
+}

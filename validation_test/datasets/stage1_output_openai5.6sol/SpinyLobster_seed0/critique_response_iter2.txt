@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly captures the clawless spiny lobster with prominent curved antennae, broad rounded abdominal segments, compact body, pointed walking legs, and attached tail fan.
+</assessment>

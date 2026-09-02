@@ -1,0 +1,221 @@
+Original text-to-3D task:
+
+A 3D model of a small moss fragment rendered from a slightly elevated perspective, featuring a short curved wedge or crescent-shaped piece with a rounded top edge and flat base, colored in a muted olive-brown tone with subtle surface variation.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    """Clears all default objects from the scene."""
+    if "Cube" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+    if "Camera" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Camera"], do_unlink=True)
+    if "Light" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects["Light"], do_unlink=True)
+    # Remove all remaining mesh objects just in case
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+def create_moss_material():
+    """Creates a muted olive-brown material."""
+    mat = bpy.data.materials.new(name="MossMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    
+    # Principled BSDF for the base color
+    node_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    # Muted olive-brown: R=0.2, G=0.3, B=0.15 approx
+    node_bsdf.inputs['Base Color'].default_value = (0.22, 0.31, 0.14, 1.0)
+    node_bsdf.inputs['Roughness'].default_value = 0.9  # Very matte
+    
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    
+    links = mat.node_tree.links
+    links.new(node_bsdf.outputs['BSDF'], node_output.inputs['Surface'])
+    return mat
+
+def create_moss_fragment():
+    """Constructs the moss fragment geometry."""
+    # Parameters
+    outer_radius = 1.0
+    inner_radius = 0.7
+    height = 0.3
+    segments = 32
+    arc_angle = math.pi * 1.2 # Slightly more than a half circle for the crescent look
+    
+    # Create BMesh
+    bm = bmesh.new()
+    
+    # Generate vertices for the bottom face (crescent)
+    outer_verts = []
+    inner_verts = []
+    
+    for i in range(segments + 1):
+        angle = (i / segments) * arc_angle - (arc_angle / 2)
+        
+        # Outer Arc
+        ox = math.cos(angle) * outer_radius
+        oy = math.sin(angle) * outer_radius
+        outer_verts.append(bm.verts.new(Vector((ox, oy, 0))))
+        
+        # Inner Arc (slightly offset to create the wedge/crescent thickness)
+        ix = math.cos(angle) * inner_radius
+        iy = math.sin(angle) * inner_radius
+        inner_verts.append(bm.verts.new(Vector((ix, iy, 0))))
+        
+    # Bridge outer and inner arcs to create the base face
+    for i in range(segments):
+        bm.faces.new((outer_verts[i], outer_verts[i+1], inner_verts[i+1], inner_verts[i]))
+        
+    # Extrude upwards to give thickness
+    # We select all faces (which is just the base) and extrude along Z
+    bm.faces.ensure_lookup_table()
+    top_face_indices = [f.index for f in bm.faces]
+    
+    # Manual extrusion: create new verts at offset height
+    extrude_map = {}
+    for v in bm.verts:
+        new_v = bm.verts.new(v.co + Vector((0, 0, height)))
+        extrude_map[v] = new_v
+        
+    # Create the side walls and top face
+    for f in bm.faces:
+        old_verts = f.verts[:]
+        new_verts = [extrude_map[v] for v in old_verts]
+        
+        # Side faces (connecting bottom edge to top edge)
+        for i in range(len(old_verts)):
+            v1 = old_verts[i]
+            v2 = old_verts[(i + 1) % len(old_verts)]
+            nv1 = extrude_map[v1]
+            nv2 = extrude_map[v2]
+            bm.faces.new((v1, v2, nv2, nv1))
+        
+        # Create the top face (reversing order for normal)
+        bm.faces.new(new_verts[::-1])
+
+    # Remove the original bottom faces to keep it as a solid shell if preferred, 
+    # but usually we want a closed manifold. Let's keep them but make sure they are correct.
+    # Actually, let's just leave them and ensure normals are consistent later.
+
+    bm.to_mesh("moss_base")
+    bm.free()
+    
+    obj = bpy.data.objects.new("MossFragment", bpy.data.meshes["moss_base"])
+    bpy.context.collection.objects.link(obj)
+    
+    # Apply a Subdivision Surface modifier for the "rounded top edge" and organic look
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+    
+    # To get that specific "rounded top, flat base" look, we can use a vertex group
+    # and weight it so subdivision doesn't pull the bottom vertices down too much.
+    vg = obj.vertex_groups.new("BaseWeight")
+    for v in obj.data.vertices:
+        if v.co.z < 0.01:
+            vg.add([v.index], 0.0, 'REPLACE') # Weight 0 means no displacement/smoothing? No.
+            # Actually a better way for "flat base" is to just keep the bottom geometry dense or use a shrinkwrap/snap.
+            # But simplest in procedural is to add a Bevel modifier on top edges.
+    
+    return obj
+
+def add_organic_detail(obj):
+    """Adds small bumps and 'clumps' to simulate moss filaments."""
+    # We will create many small spheres or cones and parent them to the object
+    # To keep it efficient, we sample points from the top surface.
+    
+    # Create a high-res version of the mesh for sampling
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier="Subdiv")
+    
+    # Calculate bounding box to constrain "moss clumps" to the top surface
+    # The object is roughly centered around origin, height 0.3
+    num_clumps = 150
+    
+    for _ in range(num_clumps):
+        # Random point on a crescent-like area
+        angle = random.uniform(-math.pi * 0.6, math.pi * 0.6)
+        dist = random.uniform(0.6, 1.1)
+        x = math.cos(angle) * dist
+        y = math.sin(angle) * dist
+        z = random.uniform(0.25, 0.35) # Near the top
+        
+        # Create a tiny 'clump' (a small distorted sphere or cone)
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            radius=random.uniform(0.01, 0.04),
+            location=(x, y, z)
+        )
+        clump = bpy.context.active_object
+        # Random scale to make it look organic
+        clump.scale = (random.uniform(0.5, 1.5), random.uniform(0.5, 1.5), random.uniform(1.2, 3.0))
+        
+        # Parent to main moss fragment
+        clump.parent = obj
+        
+        # Assign same material
+        if "MossMaterial" in bpy.data.materials:
+            clump.data.materials.append(bpy.data.materials["MossMaterial"])
+
+def finalize_moss():
+    """Applies final touches like merging and materials."""
+    # Find the fragment and clumps, join them to keep scene clean
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in bpy.data.objects:
+        if "MossFragment" in obj.name or "Sphere" in obj.name:
+            obj.select_set(True)
+    
+    bpy.context.view_layer.objects.active = bpy.data.objects["MossFragment"]
+    bpy.ops.object.join()
+    
+    # Apply the material to the final joined object
+    moss_mat = bpy.data.materials.get("MossMaterial")
+    if moss_mat:
+        bpy.context.active_object.data.materials.append(moss_mat)
+
+def main():
+    clear_scene()
+    
+    # Create Material first
+    create_moss_material()
+    
+    # Create base wedge geometry
+    fragment = create_moss_fragment()
+    
+    # Assign material to base
+    moss_mat = bpy.data.materials.get("MossMaterial")
+    if moss_mat:
+        fragment.data.materials.append(moss_mat)
+    
+    # Add the detailed surface variation (the filaments/clumps)
+    add_organic_detail(fragment)
+    
+    # Join everything into one piece
+    finalize_moss()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_TIMEOUT
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+Blender subprocess exceeded 240s
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

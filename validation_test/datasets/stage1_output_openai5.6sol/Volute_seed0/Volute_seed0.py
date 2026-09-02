@@ -1,0 +1,436 @@
+import bpy
+import math
+from mathutils import Vector
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (
+    bpy.data.meshes,
+    bpy.data.curves,
+    bpy.data.materials,
+    bpy.data.cameras,
+    bpy.data.lights,
+):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+def make_simple_material(name, color, roughness):
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    material.diffuse_color = (*color, 1.0)
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = 0.0
+    return material
+
+def make_shell_material():
+    material = bpy.data.materials.new("Wavy Brown and Cream Shell")
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (900, 0)
+
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (650, 0)
+    bsdf.inputs["Roughness"].default_value = 0.31
+    bsdf.inputs["IOR"].default_value = 1.46
+
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    texcoord.location = (-950, 20)
+
+    separate = nodes.new("ShaderNodeSeparateXYZ")
+    separate.location = (-760, 120)
+
+    center_x = nodes.new("ShaderNodeMath")
+    center_x.operation = 'SUBTRACT'
+    center_x.inputs[1].default_value = 0.5
+    center_x.location = (-570, 210)
+
+    center_y = nodes.new("ShaderNodeMath")
+    center_y.operation = 'SUBTRACT'
+    center_y.inputs[1].default_value = 0.5
+    center_y.location = (-570, 100)
+
+    angle = nodes.new("ShaderNodeMath")
+    angle.operation = 'ARCTAN2'
+    angle.location = (-380, 180)
+
+    angle_scale = nodes.new("ShaderNodeMath")
+    angle_scale.operation = 'MULTIPLY'
+    angle_scale.inputs[1].default_value = 7.0
+    angle_scale.location = (-190, 200)
+
+    center_z = nodes.new("ShaderNodeMath")
+    center_z.operation = 'SUBTRACT'
+    center_z.inputs[1].default_value = 0.5
+    center_z.location = (-570, -40)
+
+    z_scale = nodes.new("ShaderNodeMath")
+    z_scale.operation = 'MULTIPLY'
+    z_scale.inputs[1].default_value = 3.1
+    z_scale.location = (-380, -40)
+
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.location = (-570, -270)
+    noise.inputs["Scale"].default_value = 3.4
+    noise.inputs["Detail"].default_value = 4.0
+    noise.inputs["Roughness"].default_value = 0.62
+    noise.inputs["Distortion"].default_value = 0.35
+
+    noise_scale = nodes.new("ShaderNodeMath")
+    noise_scale.operation = 'MULTIPLY'
+    noise_scale.inputs[1].default_value = 1.45
+    noise_scale.location = (-370, -230)
+
+    add_height = nodes.new("ShaderNodeMath")
+    add_height.operation = 'ADD'
+    add_height.location = (0, 130)
+
+    add_noise = nodes.new("ShaderNodeMath")
+    add_noise.operation = 'ADD'
+    add_noise.location = (170, 100)
+
+    sine = nodes.new("ShaderNodeMath")
+    sine.operation = 'SINE'
+    sine.location = (340, 100)
+
+    normalize = nodes.new("ShaderNodeMapRange")
+    normalize.location = (480, 100)
+    normalize.inputs["From Min"].default_value = -1.0
+    normalize.inputs["From Max"].default_value = 1.0
+    normalize.inputs["To Min"].default_value = 0.0
+    normalize.inputs["To Max"].default_value = 1.0
+    normalize.clamp = True
+
+    ramp = nodes.new("ShaderNodeValToRGB")
+    ramp.location = (480, -80)
+    ramp.color_ramp.interpolation = 'EASE'
+
+    cream = (0.91, 0.76, 0.53, 1.0)
+    pale = (0.98, 0.90, 0.72, 1.0)
+    amber = (0.63, 0.34, 0.14, 1.0)
+    brown = (0.31, 0.105, 0.028, 1.0)
+
+    elements = ramp.color_ramp.elements
+    elements[0].position = 0.0
+    elements[0].color = pale
+    elements[1].position = 0.43
+    elements[1].color = cream
+
+    element = elements.new(0.51)
+    element.color = amber
+    element = elements.new(0.67)
+    element.color = brown
+    element = elements.new(0.79)
+    element.color = amber
+    element = elements.new(0.88)
+    element.color = cream
+    element = elements.new(1.0)
+    element.color = pale
+
+    bump_noise = nodes.new("ShaderNodeTexNoise")
+    bump_noise.location = (100, -360)
+    bump_noise.inputs["Scale"].default_value = 24.0
+    bump_noise.inputs["Detail"].default_value = 2.0
+    bump_noise.inputs["Roughness"].default_value = 0.45
+
+    bump = nodes.new("ShaderNodeBump")
+    bump.location = (450, -300)
+    bump.inputs["Strength"].default_value = 0.075
+    bump.inputs["Distance"].default_value = 0.025
+
+    links.new(texcoord.outputs["Generated"], separate.inputs["Vector"])
+    links.new(separate.outputs["X"], center_x.inputs[0])
+    links.new(separate.outputs["Y"], center_y.inputs[0])
+    links.new(center_y.outputs[0], angle.inputs[0])
+    links.new(center_x.outputs[0], angle.inputs[1])
+    links.new(angle.outputs[0], angle_scale.inputs[0])
+
+    links.new(separate.outputs["Z"], center_z.inputs[0])
+    links.new(center_z.outputs[0], z_scale.inputs[0])
+    links.new(angle_scale.outputs[0], add_height.inputs[0])
+    links.new(z_scale.outputs[0], add_height.inputs[1])
+
+    links.new(texcoord.outputs["Generated"], noise.inputs["Vector"])
+    links.new(noise.outputs["Fac"], noise_scale.inputs[0])
+    links.new(add_height.outputs[0], add_noise.inputs[0])
+    links.new(noise_scale.outputs[0], add_noise.inputs[1])
+    links.new(add_noise.outputs[0], sine.inputs[0])
+    links.new(sine.outputs[0], normalize.inputs["Value"])
+    links.new(normalize.outputs["Result"], ramp.inputs["Fac"])
+
+    links.new(texcoord.outputs["Generated"], bump_noise.inputs["Vector"])
+    links.new(bump_noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+    return material
+
+shell_material = make_shell_material()
+lip_material = make_simple_material("Polished Ivory Lip", (0.96, 0.82, 0.59), 0.27)
+interior_material = make_simple_material("Deep Aperture Interior", (0.12, 0.038, 0.012), 0.48)
+columella_material = make_simple_material("Warm Columella", (0.80, 0.57, 0.32), 0.31)
+
+parts = []
+
+def add_uv_ellipsoid(name, location, scale, material, segments=96, rings=64):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+    parts.append(obj)
+    return obj
+
+body = add_uv_ellipsoid(
+    "Large Inflated Body Whorl",
+    (0.0, 0.0, -0.12),
+    (1.13, 0.90, 1.08),
+    shell_material
+)
+
+base_whorl = add_uv_ellipsoid(
+    "Low Spire Base Whorl",
+    (0.0, 0.0, 0.86),
+    (0.66, 0.57, 0.23),
+    shell_material,
+    80,
+    40
+)
+
+middle_whorl = add_uv_ellipsoid(
+    "Low Spire Middle Whorl",
+    (0.0, 0.0, 1.055),
+    (0.42, 0.37, 0.20),
+    shell_material,
+    72,
+    36
+)
+
+tip_whorl = add_uv_ellipsoid(
+    "Low Spire Tip",
+    (0.0, 0.0, 1.235),
+    (0.205, 0.18, 0.19),
+    shell_material,
+    64,
+    32
+)
+
+def front_surface_y(x, z, offset=0.0):
+    nx = x / 1.13
+    nz = (z + 0.12) / 1.08
+    radial = max(0.07, 1.0 - nx * nx - nz * nz)
+    return -0.90 * math.sqrt(radial) + offset
+
+def aperture_point(angle, outward_offset=0.0):
+    center_x = -0.25
+    center_z = -0.24
+    vertical = math.sin(angle)
+    width_factor = 0.79 - 0.19 * vertical
+    x = center_x + 0.36 * width_factor * math.cos(angle)
+    z = center_z + 0.72 * vertical
+    y = front_surface_y(x, z, outward_offset)
+    return Vector((x, y, z))
+
+def make_aperture_surface():
+    segments = 128
+    radial_steps = 24
+    vertices = []
+    faces = []
+
+    center = Vector((-0.25, front_surface_y(-0.25, -0.24, -0.026), -0.24))
+
+    vertices.append(tuple(center))
+    for ring in range(1, radial_steps + 1):
+        fraction = ring / radial_steps
+        for index in range(segments):
+            angle = 2.0 * math.pi * index / segments
+            edge = aperture_point(angle, -0.028)
+            x = center.x + (edge.x - center.x) * fraction
+            z = center.z + (edge.z - center.z) * fraction
+            y = front_surface_y(x, z, -0.027 - 0.012 * (1.0 - fraction))
+            vertices.append((x, y, z))
+
+    first_ring = 1
+    for index in range(segments):
+        next_index = (index + 1) % segments
+        faces.append((0, first_ring + next_index, first_ring + index))
+
+    for ring in range(1, radial_steps):
+        row_a = 1 + (ring - 1) * segments
+        row_b = row_a + segments
+        for index in range(segments):
+            next_index = (index + 1) % segments
+            faces.append((
+                row_a + index,
+                row_a + next_index,
+                row_b + next_index,
+                row_b + index
+            ))
+
+    mesh = bpy.data.meshes.new("Aperture Interior Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    mesh.materials.append(interior_material)
+
+    obj = bpy.data.objects.new("Recessed Aperture", mesh)
+    bpy.context.collection.objects.link(obj)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    parts.append(obj)
+
+def make_aperture_lip():
+    path_segments = 144
+    tube_segments = 16
+    radius = 0.052
+    vertices = []
+    faces = []
+
+    for index in range(path_segments):
+        angle = 2.0 * math.pi * index / path_segments
+        center = aperture_point(angle, -0.060)
+
+        before = aperture_point(angle - 0.002, -0.060)
+        after = aperture_point(angle + 0.002, -0.060)
+        tangent = (after - before).normalized()
+
+        front = Vector((0.0, -1.0, 0.0))
+        side = tangent.cross(front)
+        if side.length < 0.001:
+            side = Vector((1.0, 0.0, 0.0))
+        side.normalize()
+        front_axis = side.cross(tangent).normalized()
+        if front_axis.y > 0.0:
+            front_axis.negate()
+
+        local_radius = radius * (1.0 + 0.10 * max(0.0, -math.sin(angle)))
+        for tube_index in range(tube_segments):
+            beta = 2.0 * math.pi * tube_index / tube_segments
+            point = (
+                center
+                + side * (math.cos(beta) * local_radius)
+                + front_axis * (math.sin(beta) * local_radius)
+            )
+            vertices.append(tuple(point))
+
+    for index in range(path_segments):
+        next_index = (index + 1) % path_segments
+        row_a = index * tube_segments
+        row_b = next_index * tube_segments
+        for tube_index in range(tube_segments):
+            next_tube = (tube_index + 1) % tube_segments
+            faces.append((
+                row_a + tube_index,
+                row_b + tube_index,
+                row_b + next_tube,
+                row_a + next_tube
+            ))
+
+    mesh = bpy.data.meshes.new("Attached Aperture Lip Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    mesh.materials.append(lip_material)
+
+    obj = bpy.data.objects.new("Attached Aperture Lip", mesh)
+    bpy.context.collection.objects.link(obj)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    parts.append(obj)
+
+def make_columella():
+    rings = 20
+    segments = 48
+    vertices = []
+    faces = []
+
+    for ring in range(rings + 1):
+        fraction = ring / rings
+        z = -0.82 + 1.14 * fraction
+        x = -0.035 - 0.075 * fraction
+        y = front_surface_y(x, z, -0.075)
+        radius = 0.052 + 0.024 * math.sin(math.pi * fraction)
+
+        for index in range(segments):
+            angle = 2.0 * math.pi * index / segments
+            vertices.append((
+                x + radius * math.cos(angle),
+                y - 0.42 * radius * math.sin(angle),
+                z
+            ))
+
+    for ring in range(rings):
+        row_a = ring * segments
+        row_b = row_a + segments
+        for index in range(segments):
+            next_index = (index + 1) % segments
+            faces.append((
+                row_a + index,
+                row_a + next_index,
+                row_b + next_index,
+                row_b + index
+            ))
+
+    mesh = bpy.data.meshes.new("Columella Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    mesh.materials.append(columella_material)
+
+    obj = bpy.data.objects.new("Inner Columella", mesh)
+    bpy.context.collection.objects.link(obj)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    parts.append(obj)
+
+make_aperture_surface()
+make_aperture_lip()
+make_columella()
+
+bpy.ops.object.select_all(action='DESELECT')
+for obj in parts:
+    obj.select_set(True)
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.join()
+
+shell = bpy.context.object
+shell.name = "Textured Volute Shell"
+
+shell.rotation_euler = (
+    math.radians(4.0),
+    math.radians(-7.0),
+    math.radians(-12.0)
+)
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+bounds = [shell.matrix_world @ Vector(corner) for corner in shell.bound_box]
+minimum = Vector((
+    min(point.x for point in bounds),
+    min(point.y for point in bounds),
+    min(point.z for point in bounds)
+))
+maximum = Vector((
+    max(point.x for point in bounds),
+    max(point.y for point in bounds),
+    max(point.z for point in bounds)
+))
+shell.location -= (minimum + maximum) * 0.5
+
+for polygon in shell.data.polygons:
+    polygon.use_smooth = True
+
+bpy.context.view_layer.objects.active = shell
+shell.select_set(True)
+bpy.context.view_layer.update()

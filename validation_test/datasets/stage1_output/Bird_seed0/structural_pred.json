@@ -1,0 +1,157 @@
+{
+  "parts": [
+    {
+      "id": "body",
+      "level": "major"
+    },
+    {
+      "id": "tail",
+      "level": "part"
+    },
+    {
+      "id": "head",
+      "level": "major"
+    },
+    {
+      "id": "beak",
+      "level": "part"
+    },
+    {
+      "id": "eye_left",
+      "level": "detail"
+    },
+    {
+      "id": "eye_right",
+      "level": "detail"
+    },
+    {
+      "id": "wing_left",
+      "level": "part"
+    },
+    {
+      "id": "wing_right",
+      "level": "part"
+    },
+    {
+      "id": "leg_left",
+      "level": "part"
+    },
+    {
+      "id": "leg_right",
+      "level": "part"
+    },
+    {
+      "id": "foot_left",
+      "level": "detail"
+    },
+    {
+      "id": "foot_right",
+      "level": "detail"
+    }
+  ],
+  "relations": [
+    {
+      "source": "head",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "beak",
+      "type": "ATTACHED_TO",
+      "target": "head",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "eye_left",
+      "type": "ATTACHED_TO",
+      "target": "head",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "eye_right",
+      "type": "ATTACHED_TO",
+      "target": "head",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "wing_left",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "wing_right",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_left",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "leg_right",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "foot_left",
+      "type": "ATTACHED_TO",
+      "target": "leg_left",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "foot_right",
+      "type": "ATTACHED_TO",
+      "target": "leg_right",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    }
+  ],
+  "asset_id": "Bird_seed0",
+  "metadata": {
+    "prediction_status": "provisional_code_and_four_view_audit",
+    "source": "stage1_output/Bird_seed0",
+    "not_automatic_geometry_measurement": true,
+    "missing_relations": [
+      [
+        "tail",
+        "ATTACHED_TO",
+        "body"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,147 @@
+Original text-to-3D task:
+
+A 3D model of an open cabinet drawer box rendered from a three-quarter perspective, featuring a rectangular tray-like form with a tall back panel and shorter side walls, all displaying a rich dark wood-grain appearance.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple material with a specific diffuse color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    # Find the Principled BSDF node
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        # Set slightly higher roughness for wood feel
+        bsdf.inputs['Roughness'].default_value = 0.7
+    return mat
+
+def create_box(name, width, depth, height, location):
+    """Creates a cube-based box primitive."""
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
+    obj = bpy.context.active_object
+    obj.name = name
+    # Scale the unit cube (which is 2x2x2 by default) to desired dimensions
+    obj.scale = (width / 2, depth / 2, height / 2)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return obj
+
+def main():
+    clear_scene()
+
+    # Dimensions
+    thickness = 0.02
+    width = 0.6
+    depth = 0.4
+    height_back = 0.25
+    height_sides = 0.12
+    
+    # Material: Rich Dark Wood (Dark Brown)
+    dark_wood_mat = create_material("DarkWood", (0.08, 0.04, 0.02, 1.0))
+
+    # Component parts logic
+    # Base Plate
+    base = create_box(
+        "Base", 
+        width, depth, thickness, 
+        Vector((0, 0, thickness / 2))
+    )
+    
+    # Back Panel (Tall)
+    back = create_box(
+        "BackPanel", 
+        width, thickness, height_back, 
+        Vector((0, (depth / 2) - (thickness / 2), (height_back / 2) + (thickness / 2)))
+    )
+    
+    # Side Panels (Shorter)
+    side_l = create_box(
+        "SideL", 
+        thickness, depth - thickness, height_sides, 
+        Vector((-width/2 + thickness/2, 0, (height_sides / 2) + (thickness / 2)))
+    )
+    side_r = create_box(
+        "SideR", 
+        thickness, depth - thickness, height_sides, 
+        Vector((width/2 - thickness/2, 0, (height_sides / 2) + (thickness / 2)))
+    )
+    
+    # Front Panel (Shorter)
+    front = create_box(
+        "FrontPanel", 
+        width - (2 * thickness), thickness, height_sides, 
+        Vector((0, -(depth / 2) + (thickness / 2), (height_sides / 2) + (thickness / 2)))
+    )
+
+    # Join all parts into one object
+    objs = [base, back, side_l, side_r, front]
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objs:
+        obj.select_set(True)
+    
+    bpy.context.view_layer.objects.active = base
+    bpy.ops.object.join()
+    
+    drawer_box = bpy.context.active_object
+    drawer_box.name = "CabinetDrawerBox"
+
+    # Apply material to all slots
+    if drawer_box.data.materials:
+        drawer_box.data.materials[0] = dark_wood_mat
+    else:
+        drawer_box.data.materials.append(dark_wood_mat)
+
+    # Add a Bevel modifier for realistic wood edges (not perfectly sharp)
+    bevel_mod = drawer_box.modifiers.new(name="Bevel", type='BEVEL')
+    bevel_mod.width = 0.005
+    bevel_mod.segments = 3
+    
+    # Ensure smooth shading on beveled edges but keep faces flat
+    # We can achieve this by applying the modifier or using 'Auto Smooth' (Blender 4.1+ handles this via modifiers)
+    # For Blender 5.0, we ensure Normals are handled.
+    bpy.ops.object.shade_smooth()
+    drawer_box.data.use_auto_smooth = True # Note: In newer versions auto-smooth is a modifier or property
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'Mesh' object has no attribute 'use_auto_smooth'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/CabinetDrawerBase_seed0/CabinetDrawerBase_seed0.py", line 110, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/CabinetDrawerBase_seed0/CabinetDrawerBase_seed0.py", line 107, in main
+    drawer_box.data.use_auto_smooth = True # Note: In newer versions auto-smooth is a modifier or property
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Mesh' object has no attribute 'use_auto_smooth'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

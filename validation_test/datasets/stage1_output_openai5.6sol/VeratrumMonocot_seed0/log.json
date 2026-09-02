@@ -1,0 +1,35 @@
+{
+  "instance": "VeratrumMonocot_seed0",
+  "timestamp": "2026-07-20T04:54:11+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 6.67,
+  "code_chars": 15572,
+  "input_tokens": 7296,
+  "output_tokens": 41,
+  "thoughts_tokens": 108,
+  "total_tokens": 7445,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The model clearly captures the broad ribbed basal leaves, attached arching stalk, and slender clustered terminal raceme.",
+      "raw_chars": 161
+    }
+  ],
+  "error": null
+}

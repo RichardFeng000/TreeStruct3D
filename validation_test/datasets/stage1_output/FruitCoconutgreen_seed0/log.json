@@ -1,0 +1,35 @@
+{
+  "instance": "FruitCoconutgreen_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- The color gradient is barely visible; the coconut looks like a flat, single shade of green instead of transitioning from white-green (bottom) to dark green (top).\n- The \"three-part flower scar\" and \"raised ring\" are practically invisible in the renders. They need much more pronounced geometric deformation.\n- The overall taper is too subtle; it needs to be clearly wider at the base than at the top."
+    },
+    {
+      "iteration": 2,
+      "status": "DONE",
+      "assessment": "The model accurately captures the egg-like taper and glossy surface of a young drinking coconut, including the stalk and crown details."
+    }
+  ]
+}

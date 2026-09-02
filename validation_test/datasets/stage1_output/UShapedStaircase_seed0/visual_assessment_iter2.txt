@@ -1,0 +1,3 @@
+- The structure is fragmented; steps in the second flight are not properly aligned with the landing and the first flight.
+- Balustrades (glass and handrails) are floating boxes at average heights rather than following the slope of the stairs.
+- The U-shape is conceptually there but physically broken, resulting in a "disassembled" look rather than a coherent architectural object.

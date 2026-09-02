@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FallenTree_seed0/FallenTree_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 15.575156688690186,
+  "n_views_rendered": 4,
+  "latency_s": 3.01,
+  "error": null
+}

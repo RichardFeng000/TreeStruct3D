@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Toilet_seed0/Toilet_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Toilet_seed0/glb/Toilet_seed0.glb",
+  "status": "OK",
+  "n_meshes": 5,
+  "size_kb": 408.2,
+  "latency_s": 0.1,
+  "error": null
+}

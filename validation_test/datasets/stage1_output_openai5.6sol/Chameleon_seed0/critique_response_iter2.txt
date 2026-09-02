@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents a flattened olive chameleon with four attached grasping limbs, prominent eyes, a subtle spinal ridge, speckled leathery skin, and an extremely long tapered tail.
+</assessment>

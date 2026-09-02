@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/PanelDoor_seed0/PanelDoor_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/PanelDoor_seed0/glb/PanelDoor_seed0.glb",
+  "status": "OK",
+  "n_meshes": 8,
+  "size_kb": 59.9,
+  "latency_s": 0.1,
+  "error": null
+}

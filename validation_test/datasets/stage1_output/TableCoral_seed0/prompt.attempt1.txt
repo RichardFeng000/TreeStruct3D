@@ -1,0 +1,285 @@
+Your previous Blender 5.0 Python script for the task below FAILED to produce a valid render. Read the error carefully and output a corrected, complete script.
+
+# Original task
+
+A table coral rendered as a textured 3D model. The coral forms a large, flat, plate-like horizontal structure with irregular, deeply scalloped margins and several short upright projections rising from the top surface. The entire upper and lower surface is densely covered in fine granular polyps, giving a rough, matte texture. The coloring is sandy beige to warm tan with subtle olive-green variation. The wide, low-profile plate form casts a large dark shadow beneath it on the white background.
+
+# Your previous code
+
+```python
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+# Clear scene
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for block in list(bpy.data.meshes):
+    bpy.data.meshes.remove(block)
+for block in list(bpy.data.materials):
+    bpy.data.materials.remove(block)
+for block in list(bpy.data.textures):
+    bpy.data.textures.remove(block)
+
+random.seed(42)
+
+def scalloped_radius(angle, base_radius):
+    r = base_radius
+    r += 0.6 * math.sin(angle * 6 + 0.3)
+    r += 0.35 * math.sin(angle * 11 + 1.5)
+    r += 0.22 * math.sin(angle * 17 + 2.2)
+    r += 0.12 * math.sin(angle * 29 + 0.7)
+    r += 0.08 * math.sin(angle * 43 + 1.1)
+    return max(r, base_radius * 0.45)
+
+def create_coral():
+    bm = bmesh.new()
+    base_radius = 4.0
+    segments = 128
+    rings = 18
+    plate_thickness = 0.22
+
+    # Top surface
+    top_verts = []
+    for ring in range(rings + 1):
+        ring_verts = []
+        t = ring / rings
+        for seg in range(segments):
+            angle = (seg / segments) * 2 * math.pi
+            r = scalloped_radius(angle, base_radius) * t
+            z = 0.18 * (1 - t**2) * (1 + 0.1 * math.sin(angle * 5))
+            z += 0.03 * math.sin(angle * 24 + t * 8) * (1 - t)
+            z += 0.015 * math.sin(angle * 13 + t * 5)
+            x = r * math.cos(angle)
+            y = r * math.sin(angle)
+            v = bm.verts.new((x, y, z))
+            ring_verts.append(v)
+        top_verts.append(ring_verts)
+
+    for ring in range(rings):
+        for seg in range(segments):
+            ns = (seg + 1) % segments
+            bm.faces.new([top_verts[ring][seg], top_verts[ring][ns],
+                          top_verts[ring+1][ns], top_verts[ring+1][seg]])
+
+    # Bottom surface
+    bottom_verts = []
+    for ring in range(rings + 1):
+        ring_verts = []
+        t = ring / rings
+        for seg in range(segments):
+            angle = (seg / segments) * 2 * math.pi
+            r = scalloped_radius(angle, base_radius) * t
+            thickness = plate_thickness * (1 - 0.5 * t)
+            z = -thickness - 0.12 * (1 - t**2)
+            z -= 0.02 * math.sin(angle * 11 + t * 3)
+            x = r * math.cos(angle)
+            y = r * math.sin(angle)
+            v = bm.verts.new((x, y, z))
+            ring_verts.append(v)
+        bottom_verts.append(ring_verts)
+
+    for ring in range(rings):
+        for seg in range(segments):
+            ns = (seg + 1) % segments
+            bm.faces.new([bottom_verts[ring][seg], bottom_verts[ring+1][seg],
+                          bottom_verts[ring+1][ns], bottom_verts[ring][ns]])
+
+    # Side faces
+    for seg in range(segments):
+        ns = (seg + 1) % segments
+        bm.faces.new([top_verts[rings][seg], top_verts[rings][ns],
+                      bottom_verts[rings][ns], bottom_verts[rings][seg]])
+
+    # Central stalk
+    stalk_h = 0.7
+    stalk_rb = 0.75
+    stalk_rt = 0.55
+    stalk_segs = 32
+
+    s_bot = []
+    for seg in range(stalk_segs):
+        a = (seg / stalk_segs) * 2 * math.pi
+        s_bot.append(bm.verts.new((stalk_rb*math.cos(a), stalk_rb*math.sin(a), -plate_thickness - stalk_h)))
+
+    s_mid = []
+    for seg in range(stalk_segs):
+        a = (seg / stalk_segs) * 2 * math.pi
+        s_mid.append(bm.verts.new((stalk_rt*1.1*math.cos(a), stalk_rt*1.1*math.sin(a), -plate_thickness - stalk_h*0.5)))
+
+    s_top = []
+    for seg in range(stalk_segs):
+        a = (seg / stalk_segs) * 2 * math.pi
+        s_top.append(bm.verts.new((stalk_rt*math.cos(a), stalk_rt*math.sin(a), -plate_thickness*0.3)))
+
+    for seg in range(stalk_segs):
+        ns = (seg + 1) % stalk_segs
+        bm.faces.new([s_bot[seg], s_bot[ns], s_mid[ns], s_mid[seg]])
+        bm.faces.new([s_mid[seg], s_mid[ns], s_top[ns], s_top[seg]])
+
+    bm.faces.new(s_bot)
+
+    # Upright projections
+    top_cands = [v for v in bm.verts if v.co.z > 0.02 and 0.4 < math.sqrt(v.co.x**2 + v.co.y**2) < 3.5]
+
+    placed = []
+    attempts = 0
+    if top_cands:
+        while len(placed) < 18 and attempts < 300:
+            attempts += 1
+            bv = random.choice(top_cands)
+            bp = bv.co.copy()
+            if any((bp - p).length < 0.32 for p in placed):
+                continue
+            placed.append(bp)
+
+            h = random.uniform(0.2, 0.55)
+            rb = random.uniform(0.08, 0.17)
+            rt = rb * random.uniform(0.25, 0.6)
+            ps = 8
+            pr = 5
+            tx = random.uniform(-0.12, 0.12)
+            ty = random.uniform(-0.12, 0.12)
+
+            pv = []
+            for ring in range(pr + 1):
+                t = ring / pr
+                r = rb * (1 - t) + rt * t
+                z = bp.z + h * t
+                rv = []
+                for seg in range(ps):
+                    a = (seg / ps) * 2 * math.pi
+                    v = bm.verts.new((bp.x + r*math.cos(a) + tx*t, bp.y + r*math.sin(a) + ty*t, z))
+                    rv.append(v)
+                pv.append(rv)
+
+            for ring in range(pr):
+                for seg in range(ps):
+                    ns = (seg + 1) % ps
+                    bm.faces.new([pv[ring][seg], pv[ring][ns], pv[ring+1][ns], pv[ring+1][seg]])
+            bm.faces.new(pv[pr])
+
+    mesh = bpy.data.meshes.new("TableCoral")
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj = bpy.data.objects.new("TableCoral", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def add_modifiers(obj):
+    subsurf = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 3
+
+    tex = bpy.data.textures.new("PolypNoise", type='STUCCI')
+    tex.noise_scale = 0.1
+    tex.turbulence = 0.8
+    disp = obj.modifiers.new(name="PolypDisp", type='DISPLACE')
+    disp.texture = tex
+    disp.strength = 0.035
+    disp.mid_level = 0.5
+
+    tex2 = bpy.data.textures.new("FinePolyp", type='NOISE')
+    tex2.noise_scale = 0.04
+    disp2 = obj.modifiers.new(name="FinePolypDisp", type='DISPLACE')
+    disp2.texture = tex2
+    disp2.strength = 0.012
+    disp2.mid_level = 0.5
+
+def add_material(obj):
+    mat = bpy.data.materials.new(name="CoralMat")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    for node in nodes:
+        nodes.remove(node)
+
+    output = nodes.new('ShaderNodeOutputMaterial')
+    principled = nodes.new('ShaderNodeBsdfPrincipled')
+    ramp = nodes.new('ShaderNodeValToRGB')
+
+    ramp.color_ramp.elements[0].position = 0.0
+    ramp.color_ramp.elements[0].color = (0.80, 0.72, 0.53, 1.0)
+    ramp.color_ramp.elements[1].position = 1.0
+    ramp.color_ramp.elements[1].color = (0.60, 0.50, 0.32, 1.0)
+    olive = ramp.color_ramp.elements.new(0.5)
+    olive.color = (0.58, 0.55, 0.38, 1.0)
+
+    noise_tex = nodes.new('ShaderNodeTexNoise')
+    noise_tex.inputs['Scale'].default_value = 6.0
+    noise_tex.inputs['Detail'].default_value = 8.0
+    if 'Roughness' in noise_tex.inputs:
+        noise_tex.inputs['Roughness'].default_value = 0.6
+
+    olive_noise = nodes.new('ShaderNodeTexNoise')
+    olive_noise.inputs['Scale'].default_value = 2.5
+    olive_noise.inputs['Detail'].default_value = 3.0
+
+    mix = nodes.new('ShaderNodeMixRGB')
+    mix.blend_type = 'MIX'
+
+    olive_color = nodes.new('ShaderNodeRGB')
+    olive_color.outputs['Color'].default_value = (0.52, 0.54, 0.34, 1.0)
+
+    links.new(noise_tex.outputs['Fac'], ramp.inputs['Fac'])
+    links.new(ramp.outputs['Color'], mix.inputs['Color1'])
+    links.new(olive_noise.outputs['Fac'], mix.inputs['Fac'])
+    links.new(olive_color.outputs['Color'], mix.inputs['Color2'])
+    links.new(mix.outputs['Color'], principled.inputs['Base Color'])
+
+    principled.inputs['Roughness'].default_value = 0.95
+    for spec_name in ['Specular IOR Level', 'Specular']:
+        if spec_name in principled.inputs:
+            principled.inputs[spec_name].default_value = 0.15
+            break
+
+    links.new(principled.outputs['BSDF'], output.inputs['Surface'])
+    obj.data.materials.append(mat)
+
+obj = create_coral()
+add_modifiers(obj)
+add_material(obj)
+
+for poly in obj.data.polygons:
+    poly.use_smooth = True
+```
+
+# Execution result
+
+- status: ERR_EXEC
+- meshes produced: 0
+- views rendered: 0/4
+- attempt: 2 of 3
+
+# Error / diagnostic output (from Blender stderr / runtime)
+
+AttributeError: 'NoiseTexture' object has no attribute 'noise_scale'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/output fix/glm_5_2_code_qwen_vl_visual/TableCoral_seed0/TableCoral_seed0.py", line 305, in <module>
+    fine_tex.noise_scale = 0.03
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoiseTexture' object has no attribute 'noise_scale'
+
+# Your task
+
+Fix the bug and output the COMPLETE corrected Python script. Do NOT output a diff, patch, or explanation. The same hard format constraints from the system prompt still apply: pure Python source only, no markdown fences, no prose before or after the code. The first character of your response must be the first character of valid Python.
+
+Common failure modes to consider, depending on the error:
+- `ERR_EXEC` (Python raised during script execution): a Blender 5.0 API mismatch, a missing import, a wrong arg name, or a runtime exception in your geometry code. Read the traceback line that mentions YOUR script.
+- `ERR_NO_MESH` (script ran clean but no MESH object remains): you may have created only curves / empties / lights, deleted everything, or forgot to convert curves to mesh. Make sure at least one `bpy.types.Object` of type `'MESH'` exists when the script ends.
+- `ERR_RENDER`: scene is built but cameras / view setup blew up — usually safe to ignore, but check for NaN coordinates or infinite-extent geometry.
+- `ERR_TIMEOUT`: your script is too slow (too many subdivisions, runaway loops, very heavy boolean ops). Reduce density or break up large operations.
+
+Do not just try the same thing again — change the approach for whatever the error indicates.
+

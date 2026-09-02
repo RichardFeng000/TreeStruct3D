@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/3dcodebench/output/Vase_seed0/Vase_seed0.py",
+  "samples": 4,
+  "resolution": 128,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 6.1569437980651855,
+  "n_views_rendered": 4,
+  "latency_s": 0.46,
+  "error": null
+}

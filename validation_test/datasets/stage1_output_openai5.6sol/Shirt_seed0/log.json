@@ -1,0 +1,35 @@
+{
+  "instance": "Shirt_seed0",
+  "timestamp": "2026-07-20T04:52:11+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 7.23,
+  "code_chars": 10847,
+  "input_tokens": 6128,
+  "output_tokens": 44,
+  "thoughts_tokens": 184,
+  "total_tokens": 6356,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The recognizable flat long-sleeve silhouette, blush fabric, raised arms, neckline, and dark patterned edge trim all read clearly.",
+      "raw_chars": 170
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,152 @@
+Original text-to-3D task:
+
+An apple rendered as a textured 3D model. The fruit has a classic round, slightly flattened spherical shape with a smooth, soft pink-peach surface. The coloring is a uniform warm peachy pink with subtle lighter cream streaks radiating vertically from the stem dimple, giving a natural blush apple appearance. A short, straight brown stem protrudes from a neatly indented crown at the top. The smooth, slightly glossy surface reflects soft highlights. A small black circular base disc grounds the fruit on the white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color, roughness=0.5, metallic=0.0):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs['Base Color'].default_value = color
+    bsdf.inputs['Roughness'].default_value = roughness
+    bsdf.inputs['Metallic'].default_value = metallic
+    return mat
+
+def create_apple():
+    # 1. Create the main apple body
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32, radius=1.0)
+    apple = bpy.context.active_object
+    apple.name = "AppleBody"
+
+    # Deform sphere to be slightly flattened and wider in the middle
+    apple.scale = (1.15, 1.15, 0.95)
+    bpy.ops.object.apply(type='SCALE')
+
+    # Use BMesh for detailed shaping
+    bm = bmesh.new()
+    bm.from_mesh(apple.data)
+    
+    # Create the top dimple (crown) and bottom flattening
+    for v in bm.verts:
+        # Top Dimple
+        if v.co.z > 0.8:
+            dist_sq = v.co.x**2 + v.co.y**2
+            # Pull vertices down based on proximity to center axis
+            push_down = 0.15 * (1.0 - dist_sq) if dist_sq < 0.4 else 0
+            v.co.z -= push_down
+        # Bottom flattening
+        if v.co.z < -0.9:
+            v.co.z += (v.co.z + 1.0) * 0.2
+
+    bm.to_mesh(apple.data)
+    bm.free()
+
+    # Smooth the apple body
+    bpy.ops.object.shade_smooth()
+    
+    # Add Subdivision Surface for high fidelity
+    subsurf = apple.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 2
+
+    # Material: Peachy Pink
+    apple_mat = create_material("AppleMat", (1.0, 0.65, 0.6), roughness=0.3)
+    apple.data.materials.append(apple_mat)
+
+    return apple
+
+def create_stem():
+    # Create a short, straight stem
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.04, depth=0.3)
+    stem = bpy.context.active_object
+    stem.name = "AppleStem"
+    
+    # Position the stem in the dimple
+    stem.location = (0, 0, 0.9)
+    
+    # Slight taper and lean
+    bm = bmesh.new()
+    bm.from_mesh(stem.data)
+    for v in bm.verts:
+        if v.co.z > 0:
+            v.co.x += 0.02
+            v.co.y += 0.01
+            v.co.z *= 0.9 # Taper height slightly
+    bm.to_mesh(stem.data)
+    bm.free()
+
+    bpy.ops.object.shade_smooth()
+    
+    # Material: Brown
+    stem_mat = create_material("StemMat", (0.25, 0.15, 0.1), roughness=0.8)
+    stem.data.materials.append(stem_mat)
+
+def create_base():
+    # Create the small black circular base disc
+    bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.5, depth=0.02)
+    base = bpy.context.active_object
+    base.name = "BaseDisc"
+    
+    # Place it at the bottom of the apple
+    base.location = (0, 0, -0.96)
+    
+    bpy.ops.object.shade_smooth()
+    
+    # Material: Black
+    base_mat = create_material("BaseMat", (0.02, 0.02, 0.02), roughness=0.5)
+    base.data.materials.append(base_mat)
+
+def main():
+    clear_scene()
+    create_apple()
+    create_stem()
+    create_base()
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: Calling operator "bpy.ops.object.apply" error, could not be found
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 111, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 106, in main
+    create_apple()
+  File "/Users/fengruiding/Downloads/3d_code/Output/FruitApple_seed0/FruitApple_seed0.py", line 28, in create_apple
+    bpy.ops.object.apply(type='SCALE')
+  File "/Applications/Blender.app/Contents/Resources/4.5/scripts/modules/bpy/ops.py", line 109, in __call__
+    ret = _op_call(self.idname_py(), kw)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: Calling operator "bpy.ops.object.apply" error, could not be found
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

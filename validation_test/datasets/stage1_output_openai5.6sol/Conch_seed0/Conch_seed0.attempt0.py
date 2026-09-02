@@ -1,0 +1,427 @@
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
+    for block in list(datablocks):
+        if block.users == 0:
+            datablocks.remove(block)
+
+
+def make_shell_material(name, cream=(0.72, 0.48, 0.23, 1.0), light=(0.94, 0.81, 0.57, 1.0),
+                        dark=(0.20, 0.065, 0.025, 1.0), roughness=0.48):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    noise = nodes.new("ShaderNodeTexNoise")
+    wave = nodes.new("ShaderNodeTexWave")
+    mix = nodes.new("ShaderNodeMixRGB")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    output.location = (800, 40)
+    bsdf.location = (550, 40)
+    ramp.location = (290, 100)
+    mix.location = (70, 100)
+    noise.location = (-180, 190)
+    wave.location = (-180, -70)
+    mapping.location = (-410, 80)
+    texcoord.location = (-620, 80)
+    bump.location = (300, -150)
+
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["IOR"].default_value = 1.42
+
+    noise.noise_dimensions = '3D'
+    noise.inputs["Scale"].default_value = 2.3
+    noise.inputs["Detail"].default_value = 6.0
+    noise.inputs["Roughness"].default_value = 0.72
+    noise.inputs["Lacunarity"].default_value = 2.1
+    noise.inputs["Distortion"].default_value = 1.8
+
+    wave.wave_type = 'BANDS'
+    wave.bands_direction = 'Z'
+    wave.inputs["Scale"].default_value = 3.4
+    wave.inputs["Distortion"].default_value = 8.0
+    wave.inputs["Detail"].default_value = 5.0
+    wave.inputs["Detail Scale"].default_value = 1.6
+
+    mapping.inputs["Rotation"].default_value[1] = math.radians(16.0)
+    mapping.inputs["Rotation"].default_value[2] = math.radians(-21.0)
+    mapping.inputs["Scale"].default_value = (0.85, 1.15, 0.72)
+
+    mix.blend_type = 'MULTIPLY'
+    mix.inputs[0].default_value = 0.62
+    mix.inputs[2].default_value = (0.62, 0.62, 0.62, 1.0)
+
+    cr = ramp.color_ramp
+    cr.interpolation = 'EASE'
+    cr.elements.remove(cr.elements[1])
+    e0 = cr.elements[0]
+    e0.position = 0.18
+    e0.color = dark
+    e1 = cr.elements.new(0.35)
+    e1.color = (0.43, 0.20, 0.07, 1.0)
+    e2 = cr.elements.new(0.49)
+    e2.color = cream
+    e3 = cr.elements.new(0.61)
+    e3.color = light
+    e4 = cr.elements.new(0.77)
+    e4.color = (0.34, 0.13, 0.045, 1.0)
+    e5 = cr.elements.new(0.89)
+    e5.color = light
+
+    bump.inputs["Strength"].default_value = 0.18
+    bump.inputs["Distance"].default_value = 0.11
+
+    links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], wave.inputs["Vector"])
+    links.new(noise.outputs["Fac"], mix.inputs[1])
+    links.new(wave.outputs["Fac"], mix.inputs[2])
+    links.new(mix.outputs["Color"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+
+def make_simple_material(name, color, roughness=0.55):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = color
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = color
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["IOR"].default_value = 1.4
+    return mat
+
+
+shell_mat = make_shell_material("Undulating brown and cream shell")
+ridge_mat = make_shell_material(
+    "Dark patterned ridges",
+    cream=(0.55, 0.28, 0.09, 1.0),
+    light=(0.84, 0.63, 0.34, 1.0),
+    dark=(0.12, 0.028, 0.012, 1.0),
+    roughness=0.54
+)
+lip_mat = make_shell_material(
+    "Cream aperture lip",
+    cream=(0.93, 0.70, 0.40, 1.0),
+    light=(1.0, 0.89, 0.68, 1.0),
+    dark=(0.36, 0.11, 0.035, 1.0),
+    roughness=0.40
+)
+interior_mat = make_simple_material("Warm shadowed aperture", (0.22, 0.055, 0.025, 1.0), 0.62)
+inner_mat = make_simple_material("Inner shell highlights", (0.88, 0.47, 0.22, 1.0), 0.46)
+
+
+def smooth_object(obj):
+    if obj.type == 'MESH':
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
+
+
+def add_uv_piece(name, location, scale, material, segments=72, rings=40, phase=0.0):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    for vert in obj.data.vertices:
+        p = vert.co.copy()
+        theta = math.atan2(p.y, p.x)
+        waviness = 1.0 + 0.025 * math.sin(5.0 * theta + phase + 2.5 * p.z)
+        waviness += 0.012 * math.sin(11.0 * theta - 3.0 * p.z)
+        p.x *= scale[0] * waviness
+        p.y *= scale[1] * waviness
+        p.z *= scale[2]
+        vert.co = p
+    obj.data.materials.append(material)
+    smooth_object(obj)
+    return obj
+
+
+# Broad, rounded body whorl.
+bpy.ops.mesh.primitive_uv_sphere_add(segments=128, ring_count=80, location=(0.0, 0.0, -0.15))
+body = bpy.context.object
+body.name = "Broad rounded body whorl"
+for vert in body.data.vertices:
+    p = vert.co.copy()
+    theta = math.atan2(p.y, p.x)
+    equator = max(0.0, 1.0 - p.z * p.z)
+    corrugation = 1.0 + 0.035 * math.sin(6.0 * theta + 2.8 * p.z)
+    corrugation += 0.018 * math.sin(13.0 * theta - 5.0 * p.z)
+    opening_bulge = 0.13 * equator * max(0.0, math.cos(theta + math.pi * 0.34))
+    p.x = p.x * 2.02 * corrugation + 0.22 * equator + opening_bulge
+    p.y = p.y * 1.48 * corrugation - 0.06 * equator
+    p.z = p.z * 2.03 + 0.10 * p.x
+    vert.co = p
+body.data.materials.append(shell_mat)
+smooth_object(body)
+
+# Overlapping spiral shoulder and pointed spire whorls.
+spire_specs = [
+    ((-0.08, 0.07, 1.53), (1.44, 1.12, 0.72), 0.2),
+    ((0.13, 0.02, 2.08), (1.08, 0.84, 0.58), 1.1),
+    ((0.02, -0.04, 2.57), (0.78, 0.64, 0.49), 2.0),
+    ((-0.09, 0.01, 2.98), (0.56, 0.47, 0.41), 2.8),
+    ((0.01, 0.025, 3.32), (0.37, 0.32, 0.34), 3.7),
+]
+for i, (loc, scale, phase) in enumerate(spire_specs):
+    add_uv_piece("Spiral whorl %02d" % i, loc, scale, shell_mat, 72, 40, phase)
+
+bpy.ops.mesh.primitive_cone_add(
+    vertices=64,
+    radius1=0.27,
+    radius2=0.025,
+    depth=0.70,
+    location=(0.015, 0.02, 3.72)
+)
+tip = bpy.context.object
+tip.name = "Pointed spire tip"
+tip.data.materials.append(shell_mat)
+smooth_object(tip)
+
+
+def make_curve(name, points, bevel, material, cyclic=False, resolution=2):
+    curve = bpy.data.curves.new(name, 'CURVE')
+    curve.dimensions = '3D'
+    curve.resolution_u = resolution
+    curve.bevel_depth = bevel
+    curve.bevel_resolution = 3
+    curve.resolution_u = 2
+    spline = curve.splines.new('NURBS')
+    spline.points.add(len(points) - 1)
+    for i, p in enumerate(points):
+        spline.points[i].co = (p[0], p[1], p[2], 1.0)
+    spline.use_cyclic_u = cyclic
+    spline.order_u = min(3, len(points))
+    spline.use_endpoint_u = not cyclic
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    return obj
+
+
+# Prominent, raised wavy transverse ridges around the body.
+for j in range(14):
+    u = -0.82 + j * (1.56 / 13.0)
+    radius = math.sqrt(max(0.04, 1.0 - u * u))
+    points = []
+    count = 124
+    start = -math.pi * 0.5 + 0.70
+    sweep = math.tau - 1.40
+    for i in range(count):
+        theta = start + sweep * i / (count - 1)
+        wave = 0.035 * math.sin(5.0 * theta + j * 0.83)
+        wave += 0.018 * math.sin(11.0 * theta - j * 0.37)
+        rr = radius + 0.025 + wave
+        x = 2.02 * rr * math.cos(theta) + 0.22 * (1.0 - u * u)
+        y = 1.49 * rr * math.sin(theta) - 0.06 * (1.0 - u * u)
+        z = -0.15 + 2.03 * u + 0.065 * math.sin(3.0 * theta + j)
+        z += 0.10 * x
+        points.append((x, y, z))
+    make_curve("Wavy body ridge %02d" % j, points, 0.045 + 0.008 * (j % 3), ridge_mat)
+
+# A set of irregular axial folds adds real relief between the transverse ridges.
+axial_angles = [0.05, 0.42, 0.82, 1.20, 1.62, 2.02, 2.43, 2.82, 3.18]
+for j, theta0 in enumerate(axial_angles):
+    points = []
+    for i in range(68):
+        u = -0.88 + 1.70 * i / 67.0
+        radius = math.sqrt(max(0.03, 1.0 - u * u))
+        theta = theta0 + 0.16 * u + 0.025 * math.sin(7.0 * u + j)
+        rr = radius + 0.035 + 0.018 * math.sin(9.0 * u + j * 0.8)
+        x = 2.03 * rr * math.cos(theta) + 0.22 * (1.0 - u * u)
+        y = 1.50 * rr * math.sin(theta) - 0.06 * (1.0 - u * u)
+        z = -0.15 + 2.03 * u + 0.10 * x
+        points.append((x, y, z))
+    make_curve("Axial shell fold %02d" % j, points, 0.028, ridge_mat)
+
+# Raised seams encircling the stacked spire whorls.
+seam_specs = [
+    ((-0.08, 0.07, 1.72), 1.31, 0.98),
+    ((0.13, 0.02, 2.23), 0.98, 0.72),
+    ((0.02, -0.04, 2.69), 0.68, 0.53),
+    ((-0.09, 0.01, 3.09), 0.46, 0.37),
+    ((0.01, 0.025, 3.41), 0.29, 0.24),
+]
+for j, (center, rx, ry) in enumerate(seam_specs):
+    pts = []
+    for i in range(96):
+        t = math.tau * i / 96.0
+        wobble = 1.0 + 0.035 * math.sin(6.0 * t + j)
+        pts.append((
+            center[0] + rx * wobble * math.cos(t),
+            center[1] + ry * wobble * math.sin(t),
+            center[2] + 0.035 * math.sin(3.0 * t + j)
+        ))
+    make_curve("Spire growth seam %02d" % j, pts, 0.045 - j * 0.004, ridge_mat, cyclic=True)
+
+# Wide aperture positioned on the front-right side.
+ap_cx = 0.58
+ap_cy = -1.52
+ap_cz = -0.43
+ap_rx = 0.98
+ap_rz = 1.48
+segments = 128
+
+
+def aperture_point(t, scale=1.0):
+    s = math.sin(t)
+    c = math.cos(t)
+    taper = 1.0 - 0.16 * max(0.0, s)
+    lower_flare = 1.0 + 0.11 * max(0.0, -s)
+    ripple = 1.0 + 0.025 * math.sin(7.0 * t) + 0.012 * math.sin(13.0 * t)
+    x = ap_cx + ap_rx * scale * taper * lower_flare * ripple * c
+    z = ap_cz + ap_rz * scale * ripple * s
+    y = ap_cy - 0.035 * math.cos(2.0 * t)
+    return Vector((x, y, z))
+
+
+# Concave recessed aperture bowl.
+verts = [(ap_cx + 0.03, ap_cy + 0.92, ap_cz - 0.08)]
+faces = []
+radial_rings = 34
+for r_i in range(1, radial_rings + 1):
+    r = r_i / radial_rings
+    for i in range(segments):
+        t = math.tau * i / segments
+        edge = aperture_point(t)
+        x = ap_cx + (edge.x - ap_cx) * r
+        z = ap_cz + (edge.z - ap_cz) * r
+        y = ap_cy + 0.92 * ((1.0 - r) ** 1.62)
+        y += 0.025 * math.sin(3.0 * t + 6.0 * r) * r
+        verts.append((x, y, z))
+
+for i in range(segments):
+    faces.append((0, 1 + i, 1 + (i + 1) % segments))
+for r_i in range(radial_rings - 1):
+    start_a = 1 + r_i * segments
+    start_b = start_a + segments
+    for i in range(segments):
+        ni = (i + 1) % segments
+        faces.append((start_a + i, start_b + i, start_b + ni, start_a + ni))
+
+mesh = bpy.data.meshes.new("Concave aperture mesh")
+mesh.from_pydata(verts, [], faces)
+mesh.update()
+aperture = bpy.data.objects.new("Deep wide aperture", mesh)
+bpy.context.collection.objects.link(aperture)
+aperture.data.materials.append(interior_mat)
+smooth_object(aperture)
+
+# Broad flared lip strip.
+lip_verts = []
+lip_faces = []
+for ring_i, scale in enumerate((0.91, 1.00, 1.13)):
+    for i in range(segments):
+        t = math.tau * i / segments
+        p = aperture_point(t, scale)
+        if ring_i == 0:
+            p.y += 0.025
+        elif ring_i == 2:
+            p.y -= 0.015
+        lip_verts.append(tuple(p))
+for ring_i in range(2):
+    a0 = ring_i * segments
+    b0 = (ring_i + 1) * segments
+    for i in range(segments):
+        ni = (i + 1) % segments
+        lip_faces.append((a0 + i, b0 + i, b0 + ni, a0 + ni))
+
+mesh = bpy.data.meshes.new("Flared aperture lip mesh")
+mesh.from_pydata(lip_verts, [], lip_faces)
+mesh.update()
+lip_strip = bpy.data.objects.new("Broad flared cream aperture lip", mesh)
+bpy.context.collection.objects.link(lip_strip)
+lip_strip.data.materials.append(lip_mat)
+smooth_object(lip_strip)
+solidify = lip_strip.modifiers.new("Lip thickness", 'SOLIDIFY')
+solidify.thickness = 0.055
+solidify.offset = 0.0
+bevel = lip_strip.modifiers.new("Soft lip edges", 'BEVEL')
+bevel.width = 0.025
+bevel.segments = 2
+
+# Thick irregular rolled edge around the opening.
+tube_verts = []
+tube_faces = []
+tube_sides = 12
+for i in range(segments):
+    t = math.tau * i / segments
+    p = aperture_point(t, 1.025)
+    before = aperture_point(t - 0.01, 1.025)
+    after = aperture_point(t + 0.01, 1.025)
+    tangent = (after - before).normalized()
+    front = Vector((0.0, -1.0, 0.0))
+    in_plane = tangent.cross(front).normalized()
+    if (Vector((p.x - ap_cx, 0.0, p.z - ap_cz)).dot(in_plane)) < 0:
+        in_plane.negate()
+    local_radius = 0.105 * (1.0 + 0.18 * max(0.0, -math.sin(t)))
+    local_radius *= 1.0 + 0.10 * math.sin(5.0 * t + 0.6)
+    for j in range(tube_sides):
+        a = math.tau * j / tube_sides
+        q = p + in_plane * (local_radius * math.cos(a)) + front * (local_radius * math.sin(a))
+        tube_verts.append(tuple(q))
+for i in range(segments):
+    ni = (i + 1) % segments
+    for j in range(tube_sides):
+        nj = (j + 1) % tube_sides
+        tube_faces.append((
+            i * tube_sides + j,
+            ni * tube_sides + j,
+            ni * tube_sides + nj,
+            i * tube_sides + nj
+        ))
+
+mesh = bpy.data.meshes.new("Rolled aperture rim mesh")
+mesh.from_pydata(tube_verts, [], tube_faces)
+mesh.update()
+rolled_rim = bpy.data.objects.new("Thick rolled aperture rim", mesh)
+bpy.context.collection.objects.link(rolled_rim)
+rolled_rim.data.materials.append(lip_mat)
+smooth_object(rolled_rim)
+
+# Inner columella and folds visible inside the aperture.
+columella_points = []
+for i in range(50):
+    f = i / 49.0
+    z = ap_cz - 1.03 + 1.94 * f
+    x = ap_cx - 0.34 - 0.13 * math.sin(math.pi * f) + 0.04 * math.sin(4.0 * math.pi * f)
+    y = ap_cy - 0.035 + 0.47 * (1.0 - (2.0 * f - 1.0) ** 2)
+    columella_points.append((x, y, z))
+make_curve("Twisted inner columella", columella_points, 0.105, inner_mat)
+
+for j in range(5):
+    pts = []
+    radius = 0.34 + 0.09 * j
+    for i in range(42):
+        t = math.radians(205.0) + math.radians(110.0) * i / 41.0
+        x = ap_cx + radius * 1.35 * math.cos(t)
+        z = ap_cz + radius * 1.05 * math.sin(t) - 0.19
+        y = ap_cy + 0.12 + 0.48 * (1.0 - radius) + 0.03 * math.sin(5.0 * t)
+        pts.append((x, y, z))
+    make_curve("Inner aperture fold %02d" % j, pts, 0.026 + j * 0.003, inner_mat)
+
+# Slightly rotate the complete shell for a natural three-quarter presentation.
+for obj in bpy.context.scene.objects:
+    if obj.type in {'MESH', 'CURVE'}:
+        obj.rotation_euler[2] += math.radians(-7.0)
+
+# Keep the assembly centered close to the world origin.
+bpy.context.view_layer.update()

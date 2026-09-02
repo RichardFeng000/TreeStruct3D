@@ -1,0 +1,3 @@
+- The renders show a stark white/bright object, failing the "uniform dark brown appearance" requirement.
+- The hanging hole is not visible in the renders; it may have failed due to improper boolean application (missing selection state).
+- The geometry creation logic using separate cubes in one BMesh without explicit merging might cause issues with some modifiers.

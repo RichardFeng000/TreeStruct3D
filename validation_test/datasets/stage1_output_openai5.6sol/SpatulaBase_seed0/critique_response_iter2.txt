@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly has a flat rectangular blade, attached long straight handle, circular hanging hole, and consistent dark brown finish.
+</assessment>

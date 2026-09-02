@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Bed_seed0/Bed_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Bed_seed0/glb/Bed_seed0.glb",
+  "status": "OK",
+  "n_meshes": 21,
+  "size_kb": 50.9,
+  "latency_s": 0.11,
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FoodBox_seed0/FoodBox_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 97,
+  "extent": 1.4538220763206482,
+  "n_views_rendered": 4,
+  "latency_s": 5.89,
+  "error": null
+}

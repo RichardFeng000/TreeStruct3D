@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafHeart_seed0/LeafHeart_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/LeafHeart_seed0/glb/LeafHeart_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 3217.0,
+  "latency_s": 0.15,
+  "error": null
+}

@@ -1,0 +1,4 @@
+- Floating handle: The flush handle is disconnected from the water tank and hovering in mid-air.
+- Wrong proportions: The water tank is far too small, appearing as a tiny box rather than a standard cistern.
+- Bowl shape: The bowl's silhouette is too conical/funnel-like; it needs a more realistic rounded basin profile.
+- Misalignment: The seat lid pivot and placement are slightly off relative to the bowl rim.

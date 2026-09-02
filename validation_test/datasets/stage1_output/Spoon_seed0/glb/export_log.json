@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Spoon_seed0/Spoon_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Spoon_seed0/glb/Spoon_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 1178.1,
+  "latency_s": 0.13,
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BasketBase_seed0/BasketBase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 3,
+  "extent": 2.279705286026001,
+  "n_views_rendered": 4,
+  "latency_s": 4.28,
+  "error": null
+}

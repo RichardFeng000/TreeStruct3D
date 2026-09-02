@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Herbivore_seed0/Herbivore_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Herbivore_seed0/glb/Herbivore_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 2193.0,
+  "latency_s": 0.79,
+  "error": null
+}

@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The rack is complete and coherent, with a well-proportioned rectangular frame, crossbars, attached upright dowels, and convincing dark wood finish.
+</assessment>

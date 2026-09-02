@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Branch_seed0/Branch_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Branch_seed0/glb/Branch_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 911.3,
+  "latency_s": 0.1,
+  "error": null
+}

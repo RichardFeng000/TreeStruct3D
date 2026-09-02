@@ -1,0 +1,3 @@
+- The characters are unrecognizable blobs; the bevel depth is too high relative to the size, and Subdivision Surface is distorting them beyond legibility.
+- The "vivid blue interior" is not visible because the letters have collapsed into solid masses.
+- The tubular nature of the balloons is lost in favor of spherical lumps.

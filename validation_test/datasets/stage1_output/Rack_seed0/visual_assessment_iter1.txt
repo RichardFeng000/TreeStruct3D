@@ -1,0 +1,4 @@
+- The renders are far too dark; the object is nearly invisible against the black background.
+- Horizontal beams appear misaligned or disconnected from the uprights, appearing as floating slivers.
+- Perforations in the uprights are not visibly present or effectively rendered.
+- The beam geometry (I-beam) and placement logic failed to create a cohesive structure.

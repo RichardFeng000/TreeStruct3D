@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly presents two attached, partially open fan-shaped valves with strong radial texture, scalloped edges, brown-and-cream growth bands, and a darker interior.
+</assessment>

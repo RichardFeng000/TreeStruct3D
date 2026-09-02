@@ -1,0 +1,35 @@
+{
+  "instance": "FallenTree_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 2,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Bark texture is too smooth; it needs more aggressive roughness and ridge-like detail to look \"peeling\" and \"rough\".\n- Branches end in flat caps instead of thin, pointed twigs.\n- The broken stump end is barely noticeable and lacks a distinct \"squared-off/jagged\" break appearance.\n- Overall proportions: branches are slightly too uniform in thickness."
+    },
+    {
+      "iteration": 2,
+      "status": "ERR_VISUAL_CALL",
+      "error": "TimeoutError: timed out"
+    }
+  ]
+}

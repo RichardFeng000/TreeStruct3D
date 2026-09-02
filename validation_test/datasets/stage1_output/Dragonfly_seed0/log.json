@@ -1,0 +1,46 @@
+{
+  "instance": "Dragonfly_seed0",
+  "timestamp": "2026-07-09T16:01:01+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 119.59,
+  "code_chars": 14561,
+  "input_tokens": 7746,
+  "output_tokens": 4174,
+  "thoughts_tokens": null,
+  "total_tokens": 11920,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "ERR_EXEC",
+      "n_meshes": 0,
+      "error_brief": "KeyError: 'bpy_prop_collection[key]: key \"Transmission\" not found'"
+    }
+  ],
+  "final_render_status": "OK_REVERTED",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Wings lack translucency and golden-brown edges; appear opaque with wrong tint.\n- Vein network is overly dense and geometric, not fine and organic as described.\n- Thorax hair details are missing; no fine hair-like structures visible.\n- Abdomen segments are not visibly distinct; lacks tapered, segmented appearance.\n- Wing tips are not darkened as specified; no dark tip material visible.",
+      "raw_chars": 11430,
+      "reverted": true,
+      "note": "post-fix render failed (ERR_EXEC); reverted to previous good code (renders_history/attempt0/)"
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

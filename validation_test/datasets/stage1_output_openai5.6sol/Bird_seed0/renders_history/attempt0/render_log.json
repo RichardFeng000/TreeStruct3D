@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/Bird_seed0/Bird_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 160,
+  "extent": 3.357741044834256,
+  "n_views_rendered": 4,
+  "latency_s": 3.76,
+  "error": null
+}

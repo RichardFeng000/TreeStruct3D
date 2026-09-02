@@ -1,0 +1,4 @@
+- The tubes exhibit unnatural vertical striping/faceting instead of "dense granular polyp bumps".
+- The surface lacks the required coarse, rough texture; it looks too smooth or jaggedly noise-filled rather than organically bumpy.
+- Colors are muted and lack the distinctive warmth and highlight tones described.
+- I will add a high-frequency Noise Texture to the shader's Bump map for the granular effect and increase mesh resolution to eliminate faceting.

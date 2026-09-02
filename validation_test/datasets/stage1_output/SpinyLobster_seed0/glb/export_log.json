@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SpinyLobster_seed0/SpinyLobster_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/SpinyLobster_seed0/glb/SpinyLobster_seed0.glb",
+  "status": "OK",
+  "n_meshes": 22,
+  "size_kb": 341.4,
+  "latency_s": 0.16,
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Knife_seed0/Knife_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 18.0,
+  "n_views_rendered": 4,
+  "latency_s": 1.78,
+  "error": null
+}

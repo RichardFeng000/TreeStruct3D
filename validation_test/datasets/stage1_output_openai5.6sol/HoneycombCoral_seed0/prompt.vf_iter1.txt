@@ -1,0 +1,374 @@
+Original text-to-3D task:
+
+A honeycomb coral rendered as a textured 3D model. The coral has a large, rounded dome shape with a surface covered in irregular pitted cells and small bumpy polyp clusters, resembling a rough honeycomb or sponge-like porous texture. The coloring is warm sandy beige with muted greenish tints settling in the deeper pits, giving the surface a weathered, organic appearance. The substantial dome form sits on a flattened base, casting a wide shadow on the plain white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(12491)
+
+# Clear the scene completely.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
+    if datablocks != bpy.data.materials:
+        for block in list(datablocks):
+            if block.users == 0:
+                datablocks.remove(block)
+
+# White world background without adding environmental geometry.
+world = bpy.data.worlds.get("World")
+if world is None:
+    world = bpy.data.worlds.new("World")
+bpy.context.scene.world = world
+world.use_nodes = True
+world_nodes = world.node_tree.nodes
+world_bg = world_nodes.get("Background")
+if world_bg:
+    world_bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    world_bg.inputs["Strength"].default_value = 0.8
+
+def make_principled_material(name, color, roughness=0.8):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = color
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+def make_weathered_material():
+    mat = bpy.data.materials.new("Weathered Sandy Coral")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    for node in list(nodes):
+        nodes.remove(node)
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    shader = nodes.new("ShaderNodeBsdfPrincipled")
+    noise_large = nodes.new("ShaderNodeTexNoise")
+    noise_fine = nodes.new("ShaderNodeTexNoise")
+    mix_rgb = nodes.new("ShaderNodeMixRGB")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+
+    noise_large.noise_dimensions = '3D'
+    noise_large.inputs["Scale"].default_value = 1.65
+    noise_large.inputs["Detail"].default_value = 5.0
+    noise_large.inputs["Roughness"].default_value = 0.72
+    noise_large.inputs["Distortion"].default_value = 0.22
+
+    noise_fine.noise_dimensions = '3D'
+    noise_fine.inputs["Scale"].default_value = 18.0
+    noise_fine.inputs["Detail"].default_value = 4.0
+    noise_fine.inputs["Roughness"].default_value = 0.8
+
+    ramp.color_ramp.interpolation = 'EASE'
+    ramp.color_ramp.elements[0].position = 0.20
+    ramp.color_ramp.elements[0].color = (0.19, 0.205, 0.105, 1.0)
+    ramp.color_ramp.elements[1].position = 0.78
+    ramp.color_ramp.elements[1].color = (0.63, 0.45, 0.255, 1.0)
+    middle = ramp.color_ramp.elements.new(0.48)
+    middle.color = (0.47, 0.38, 0.225, 1.0)
+
+    mix_rgb.blend_type = 'MULTIPLY'
+    mix_rgb.inputs[0].default_value = 0.16
+    mix_rgb.inputs[2].default_value = (0.76, 0.67, 0.51, 1.0)
+
+    bump.inputs["Strength"].default_value = 0.16
+    bump.inputs["Distance"].default_value = 0.075
+
+    shader.inputs["Roughness"].default_value = 0.89
+
+    links.new(texcoord.outputs["Generated"], noise_large.inputs["Vector"])
+    links.new(texcoord.outputs["Generated"], noise_fine.inputs["Vector"])
+    links.new(noise_large.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], mix_rgb.inputs[1])
+    links.new(noise_fine.outputs["Fac"], bump.inputs["Height"])
+    links.new(mix_rgb.outputs["Color"], shader.inputs["Base Color"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    links.new(shader.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+body_mat = make_weathered_material()
+pit_mat = make_principled_material(
+    "Muted Green Recesses", (0.165, 0.185, 0.095, 1.0), 0.96
+)
+rim_mat = make_principled_material(
+    "Sandy Raised Cell Rims", (0.56, 0.405, 0.235, 1.0), 0.91
+)
+polyp_mat = make_principled_material(
+    "Pale Polyp Bumps", (0.67, 0.51, 0.31, 1.0), 0.86
+)
+
+RX = 3.45
+RY = 3.25
+RZ = 2.55
+
+def surface_noise(q, phi):
+    theta = math.acos(max(-1.0, min(1.0, q)))
+    s = math.sin(theta)
+    a = math.sin(phi * 5.0 + theta * 7.0)
+    b = math.sin(phi * 11.0 - theta * 4.0)
+    c = math.cos(phi * 17.0 + theta * 13.0)
+    d = math.sin(phi * 29.0 - theta * 9.0)
+    return (0.042 * a * b + 0.021 * c + 0.010 * d) * (0.28 + 0.72 * s)
+
+def dome_surface(q, phi):
+    q = max(0.0, min(1.0, q))
+    radial = math.sqrt(max(0.0, 1.0 - q * q))
+    p = Vector((
+        RX * radial * math.cos(phi),
+        RY * radial * math.sin(phi),
+        RZ * q
+    ))
+    n = Vector((
+        p.x / (RX * RX),
+        p.y / (RY * RY),
+        p.z / (RZ * RZ)
+    )).normalized()
+    p += n * surface_noise(q, phi)
+    return p, n
+
+# Main rounded, irregular dome with a perfectly flat underside.
+body_verts = []
+body_faces = []
+segments = 128
+rings = 56
+
+top, _ = dome_surface(1.0, 0.0)
+body_verts.append(tuple(top))
+
+for ring in range(1, rings + 1):
+    theta = (math.pi * 0.5) * ring / rings
+    q = math.cos(theta)
+    for j in range(segments):
+        phi = math.tau * j / segments
+        p, _ = dome_surface(q, phi)
+        if ring == rings:
+            p.z = 0.0
+        body_verts.append(tuple(p))
+
+for j in range(segments):
+    body_faces.append((0, 1 + j, 1 + (j + 1) % segments))
+
+for ring in range(1, rings):
+    current = 1 + (ring - 1) * segments
+    nxt = current + segments
+    for j in range(segments):
+        jn = (j + 1) % segments
+        body_faces.append((
+            current + j,
+            nxt + j,
+            nxt + jn,
+            current + jn
+        ))
+
+bottom_center = len(body_verts)
+body_verts.append((0.0, 0.0, 0.0))
+equator_start = 1 + (rings - 1) * segments
+for j in range(segments):
+    jn = (j + 1) % segments
+    body_faces.append((bottom_center, equator_start + jn, equator_start + j))
+
+body_mesh = bpy.data.meshes.new("Rounded Coral Dome Mesh")
+body_mesh.from_pydata(body_verts, [], body_faces)
+body_mesh.update()
+body_obj = bpy.data.objects.new("Honeycomb Coral", body_mesh)
+bpy.context.collection.objects.link(body_obj)
+body_obj.data.materials.append(body_mat)
+
+for poly in body_mesh.polygons:
+    poly.use_smooth = True
+for poly in body_mesh.polygons[-segments:]:
+    poly.use_smooth = False
+
+# Irregular polygonal cell bowls and thick raised rims.
+cell_verts = []
+cell_faces = []
+cell_materials = []
+cell_records = []
+cell_count = 286
+golden_angle = math.pi * (3.0 - math.sqrt(5.0))
+
+for i in range(cell_count):
+    q = 0.075 + 0.905 * ((i + 0.5) / cell_count)
+    q += random.uniform(-0.006, 0.006)
+    q = max(0.075, min(0.985, q))
+    phi = (i * golden_angle + random.uniform(-0.075, 0.075)) % math.tau
+    p, n = dome_surface(q, phi)
+
+    u = Vector((-math.sin(phi), math.cos(phi), 0.0))
+    u.normalize()
+    v = n.cross(u).normalized()
+
+    base_radius = random.uniform(0.175, 0.255)
+    edge_factor = 0.65 + 0.35 * min(1.0, q / 0.20)
+    radius = base_radius * edge_factor
+    side_count = random.choice((6, 6, 7, 7, 7, 8))
+    angle_offset = random.uniform(0.0, math.tau)
+
+    radial_variants = [
+        random.uniform(0.83, 1.17) for _ in range(side_count)
+    ]
+    angular_variants = [
+        random.uniform(-0.055, 0.055) for _ in range(side_count)
+    ]
+
+    center_index = len(cell_verts)
+    center_depth = random.uniform(0.010, 0.022)
+    cell_verts.append(tuple(p + n * center_depth))
+
+    ring_specs = (
+        (0.39, 0.014),
+        (0.67, 0.036),
+        (0.89, random.uniform(0.115, 0.155)),
+        (1.10, 0.047),
+    )
+    ring_indices = []
+
+    for ring_scale, normal_offset in ring_specs:
+        this_ring = []
+        for k in range(side_count):
+            angle = angle_offset + math.tau * k / side_count + angular_variants[k]
+            rr = radius * ring_scale * radial_variants[k]
+            local = u * (math.cos(angle) * rr) + v * (math.sin(angle) * rr)
+            point = p + local + n * normal_offset
+            this_ring.append(len(cell_verts))
+            cell_verts.append(tuple(point))
+        ring_indices.append(this_ring)
+
+    for k in range(side_count):
+        kn = (k + 1) % side_count
+        cell_faces.append((center_index, ring_indices[0][k], ring_indices[0][kn]))
+        cell_materials.append(0)
+
+    for level in range(3):
+        for k in range(side_count):
+            kn = (k + 1) % side_count
+            cell_faces.append((
+                ring_indices[level][k],
+                ring_indices[level + 1][k],
+                ring_indices[level + 1][kn],
+                ring_indices[level][kn]
+            ))
+            cell_materials.append(0 if level == 0 else 1)
+
+    cell_records.append((q, p, n, u, v, radius, angle_offset))
+
+cell_mesh = bpy.data.meshes.new("Pitted Honeycomb Cells Mesh")
+cell_mesh.from_pydata(cell_verts, [], cell_faces)
+cell_mesh.update()
+cell_obj = bpy.data.objects.new("Irregular Pitted Cells", cell_mesh)
+bpy.context.collection.objects.link(cell_obj)
+cell_obj.data.materials.append(pit_mat)
+cell_obj.data.materials.append(rim_mat)
+
+for idx, poly in enumerate(cell_mesh.polygons):
+    poly.material_index = cell_materials[idx]
+    poly.use_smooth = True
+
+# Small clustered polyp nodules attached to selected raised rims.
+bump_verts = []
+bump_faces = []
+
+def add_bump(center, normal, radius, elongation=1.0):
+    normal = normal.normalized()
+    tangent = normal.cross(Vector((0.0, 0.0, 1.0)))
+    if tangent.length < 0.01:
+        tangent = normal.cross(Vector((0.0, 1.0, 0.0)))
+    tangent.normalize()
+    bitangent = normal.cross(tangent).normalized()
+
+    seg = 7
+    local_indices = []
+    top_idx = len(bump_verts)
+    bump_verts.append(tuple(center + normal * radius * elongation))
+    local_indices.append([top_idx])
+
+    for lat in (math.pi / 3.0, 2.0 * math.pi / 3.0):
+        ring = []
+        for j in range(seg):
+            a = math.tau * j / seg
+            horizontal = math.sin(lat) * radius
+            vertical = math.cos(lat) * radius * elongation
+            pt = center + tangent * (horizontal * math.cos(a))
+            pt += bitangent * (horizontal * math.sin(a))
+            pt += normal * vertical
+            ring.append(len(bump_verts))
+            bump_verts.append(tuple(pt))
+        local_indices.append(ring)
+
+    bottom_idx = len(bump_verts)
+    bump_verts.append(tuple(center - normal * radius * 0.62))
+    local_indices.append([bottom_idx])
+
+    upper = local_indices[1]
+    lower = local_indices[2]
+    for j in range(seg):
+        jn = (j + 1) % seg
+        bump_faces.append((top_idx, upper[j], upper[jn]))
+        bump_faces.append((upper[j], lower[j], lower[jn], upper[jn]))
+        bump_faces.append((lower[j], bottom_idx, lower[jn]))
+
+for i, record in enumerate(cell_records):
+    q, p, n, u, v, radius, angle_offset = record
+    if q < 0.14:
+        continue
+    chance = random.random()
+    if chance < 0.42:
+        amount = 1
+        if chance < 0.20:
+            amount = 2
+        if chance < 0.07:
+            amount = 3
+
+        cluster_angle = random.uniform(0.0, math.tau)
+        for j in range(amount):
+            a = cluster_angle + random.uniform(-0.32, 0.32)
+            rr = radius * random.uniform(0.76, 0.96)
+            center = p + u * (math.cos(a) * rr) + v * (math.sin(a) * rr)
+            center += n * random.uniform(0.105, 0.14)
+            bump_radius = random.uniform(0.035, 0.067)
+            add_bump(center, n, bump_radius, random.uniform(0.85, 1.25))
+
+bump_mesh = bpy.data.meshes.new("Polyp Cluster Mesh")
+bump_mesh.from_pydata(bump_verts, [], bump_faces)
+bump_mesh.update()
+bump_obj = bpy.data.objects.new("Bumpy Polyp Clusters", bump_mesh)
+bpy.context.collection.objects.link(bump_obj)
+bump_obj.data.materials.append(polyp_mat)
+
+for poly in bump_mesh.polygons:
+    poly.use_smooth = True
+
+# Join the coherent assembly into one final object while preserving materials.
+bpy.ops.object.select_all(action='DESELECT')
+body_obj.select_set(True)
+cell_obj.select_set(True)
+bump_obj.select_set(True)
+bpy.context.view_layer.objects.active = body_obj
+bpy.ops.object.join()
+body_obj.name = "Honeycomb_Coral"
+body_obj.data.name = "Honeycomb_Coral_Geometry"
+
+# Keep the object centered with its flattened base exactly on Z=0.
+body_obj.location = (0.0, 0.0, 0.0)
+
+# Set useful display bounds without adding cameras, lights, or ground geometry.
+bpy.context.view_layer.objects.active = body_obj
+body_obj.select_set(True)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

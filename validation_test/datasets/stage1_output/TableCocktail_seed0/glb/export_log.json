@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TableCocktail_seed0/TableCocktail_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/TableCocktail_seed0/glb/TableCocktail_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 225.8,
+  "latency_s": 0.22,
+  "error": null
+}

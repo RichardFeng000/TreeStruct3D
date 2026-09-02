@@ -1,0 +1,193 @@
+Original text-to-3D task:
+
+An elegant spiral staircase rendered as a 3D model, featuring triangular wedge-shaped treads that radiate outward from a central cylindrical post and wrap in a tight helix upward.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+from mathutils import Vector, Matrix
+
+def clear_scene():
+    """Removes all default objects from the scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_central_post(radius, height):
+    """Creates the central support pillar."""
+    # Create a cylinder for the post
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=32, 
+        radius=radius, 
+        depth=height, 
+        location=(0, 0, height / 2)
+    )
+    post = bpy.context.active_object
+    post.name = "CentralPost"
+    return post
+
+def create_staircase_geometry(num_steps, inner_r, outer_r, thickness, step_height, angle_per_step):
+    """Creates all treads as a single mesh object for efficiency and cleanliness."""
+    bm = bmesh.new()
+    angle_rad_step = math.radians(angle_per_step)
+
+    for i in range(num_steps):
+        # Calculate current rotation and height
+        current_angle = i * angle_rad_step
+        z_pos = i * step_height
+        
+        cos_a = math.cos(current_angle)
+        sin_a = math.sin(current_angle)
+        cos_next = math.cos(current_angle + angle_rad_step)
+        sin_next = math.sin(current_angle + angle_rad_step)
+
+        # Vertices for the top face of the wedge
+        v1 = bm.verts.new(Vector((inner_r * cos_a, inner_r * sin_a, z_pos)))
+        v2 = bm.verts.new(Vector((outer_r * cos_a, outer_r * sin_a, z_pos)))
+        v3 = bm.verts.new(Vector((outer_r * cos_next, outer_r * sin_next, z_pos)))
+        v4 = bm.verts.new(Vector((inner_r * cos_next, inner_r * sin_next, z_pos)))
+        
+        # Create the top face
+        face = bm.faces.new((v1, v2, v3, v4))
+        
+        # Extrude downwards to create thickness
+        # We use bmesh.ops.extrude_face_region and then move vertices
+        res = bmesh.ops.extrude_face_region(bm, geom=[face])
+        verts_extruded = [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]
+        for v in verts_extruded:
+            v.co.z -= thickness
+
+    # Create mesh from BMesh
+    mesh = bpy.data.meshes.new("Treads")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("StaircaseTreads", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def create_handrail(num_steps, outer_r, step_height, angle_per_step, rail_height):
+    """Creates the elegant spiral handrail using a curve."""
+    curve_data = bpy.data.curves.new('HandrailCurve', type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.fill_mode = 'FULL'
+    curve_data.bevel_depth = 0.035 # Thickness of the rail
+    curve_data.bevel_resolution = 6
+
+    polyline = curve_data.splines.new('BEZIER')
+    # Add points for each step plus one for a clean finish
+    polyline.bezier_points.add(num_steps)
+    
+    angle_rad_step = math.radians(angle_per_step)
+    
+    for i in range(num_steps + 1):
+        angle_rad = i * angle_rad_step
+        z_pos = (i * step_height) + rail_height
+        x = outer_r * math.cos(angle_rad)
+        y = outer_r * math.sin(angle_rad)
+        
+        p = polyline.bezier_points[i]
+        p.co = Vector((x, y, z_pos))
+        p.handle_left_type = 'AUTOMATIC'
+        p.handle_right_type = 'AUTOMATIC'
+
+    rail_obj = bpy.data.objects.new('Handrail', curve_data)
+    bpy.context.collection.objects.link(rail_obj)
+    return rail_obj
+
+def create_balusters(num_steps, outer_r, step_height, angle_per_step, rail_height):
+    """Creates vertical posts connecting the treads to the handrail."""
+    # Use a single mesh for all balusters
+    bm = bmesh.new()
+    angle_rad_step = math.radians(angle_per_step)
+    baluster_radius = 0.02
+
+    for i in range(num_steps):
+        angle_rad = i * angle_rad_step
+        z_start = i * step_height
+        z_end = z_start + rail_height
+        x = outer_r * math.cos(angle_rad)
+        y = outer_r * math.sin(angle_rad)
+
+        # Create a small cylinder for each baluster
+        # We can create vertices manually or use bmesh primitive operators
+        bmesh.ops.create_cone(
+            bm, 
+            cap_ends=True, 
+            segments=8, 
+            radius1=baluster_radius, 
+            radius2=baluster_radius, 
+            depth=rail_height, 
+            matrix=Matrix.Translation((x, y, (z_start + z_end) / 2)) @ Matrix.Rotation((1,0,0), math.pi/2)
+        )
+
+    mesh = bpy.data.meshes.new("Balusters")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("Balusters", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def run():
+    # Parameters
+    post_radius = 0.25
+    tread_width = 1.1
+    outer_radius = post_radius + tread_width
+    tread_thickness = 0.06
+    step_height = 0.18
+    angle_per_step = 25 # Degrees
+    num_steps = 30        
+    rail_height = 0.9
+    total_height = num_steps * step_height
+
+    clear_scene()
+    
+    # 1. Central Column
+    create_central_post(post_radius, total_height)
+    
+    # 2. Treads (Wedge-shaped stairs)
+    create_staircase_geometry(num_steps, post_radius, outer_radius, tread_thickness, step_height, angle_per_step)
+    
+    # 3. Handrail (The spiraling top)
+    create_handrail(num_steps, outer_radius, step_height, angle_per_step, rail_height)
+    
+    # 4. Balusters (Connecting posts)
+    create_balusters(num_steps, outer_radius, step_height, angle_per_step, rail_height)
+
+if __name__ == "__main__":
+    run()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: bpy_struct: item.attr = val: enum "AUTOMATIC" not found in ('FREE', 'VECTOR', 'ALIGNED', 'AUTO')
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 154, in <module>
+    run()
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 148, in run
+    create_handrail(num_steps, outer_radius, step_height, angle_per_step, rail_height)
+  File "/Users/fengruiding/Downloads/3d_code/Output/SpiralStaircase_seed0/SpiralStaircase_seed0.py", line 86, in create_handrail
+    p.handle_left_type = 'AUTOMATIC'
+    ^^^^^^^^^^^^^^^^^^
+TypeError: bpy_struct: item.attr = val: enum "AUTOMATIC" not found in ('FREE', 'VECTOR', 'ALIGNED', 'AUTO')
+
+This is repair attempt 3 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

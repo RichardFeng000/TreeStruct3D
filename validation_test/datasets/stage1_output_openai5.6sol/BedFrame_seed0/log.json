@@ -1,0 +1,35 @@
+{
+  "instance": "BedFrame_seed0",
+  "timestamp": "2026-07-20T04:46:47+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 6.38,
+  "code_chars": 13146,
+  "input_tokens": 7360,
+  "output_tokens": 51,
+  "thoughts_tokens": 60,
+  "total_tokens": 7471,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The bed is complete and coherent, with a tall paneled headboard, shorter decorated footboard, open slats, and four attached tapered legs with metallic accents.",
+      "raw_chars": 200
+    }
+  ],
+  "error": null
+}

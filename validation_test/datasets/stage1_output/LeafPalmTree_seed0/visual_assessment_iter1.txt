@@ -1,0 +1,3 @@
+- Leaflets are too thin, appearing as 1D lines rather than blades in the renders.
+- Bending logic is global (all droop in -Z) instead of relative to the rachis curvature, creating an unnatural "comb" look.
+- The width orientation of leaflets doesn't follow the rachis curve, causing them to align poorly as the stem sways.

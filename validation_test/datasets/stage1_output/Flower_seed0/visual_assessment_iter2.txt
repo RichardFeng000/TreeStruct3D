@@ -1,0 +1,3 @@
+- Missing parts: Stamens and sepals are completely invisible in the renders.
+- Wrong overall shape: The petals look like sharp shards in a clump rather than an organic, layered cup/bowl bloom.
+- Misalignment: Petals are intersecting unnaturally at the center; they lack proper spacing to create a hollow interior for the stamens.

@@ -1,0 +1,2 @@
+- The material is missing; the render is plain white/gray instead of "dark matte exterior with subtle blue-gray surface variation".
+- The walls have a slight bulge (bloating) due to the Subdivision Surface modifier without adequate support loops, contradicting "straight vertical walls".

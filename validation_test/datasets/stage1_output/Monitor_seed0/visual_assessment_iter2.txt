@@ -1,0 +1,3 @@
+- The bezel appears dark gray or black in renders, failing to show the "light tan-and-silver metallic" look described.
+- The "gray cloud-textured" display surface is not visible; it looks like a flat dark plane.
+- These issues are primarily due to the lack of scene lighting and low contrast in the materials. I will add lights and adjust material properties for better visibility.

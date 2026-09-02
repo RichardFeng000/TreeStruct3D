@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The model clearly captures the broad ribbed basal leaves, attached arching stalk, and slender clustered terminal raceme.
+</assessment>

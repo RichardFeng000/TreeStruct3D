@@ -1,0 +1,331 @@
+Original text-to-3D task:
+
+A jellyfish rendered as a textured 3D model. The creature features a large, translucent, softly lobed bell-shaped dome at the top in a delicate pale pink-lavender color with subtle faceted geometry on the surface. From beneath the bell, numerous long, extremely thin, wispy tentacles drape downward in a flowing, tangled cascade, rendered with translucent pink thread-like geometry. A single thicker, ribbon-like central oral arm spirals downward through the tentacle mass. The entire creature is semi-transparent, creating a luminous, ethereal quality. A blurred dark shadow appears beneath the tentacle mass.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(1847)
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+
+def make_material(name, color, alpha, roughness, transmission=0.0):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (*color, alpha)
+    material.use_nodes = True
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+        bsdf.inputs["Alpha"].default_value = alpha
+        bsdf.inputs["IOR"].default_value = 1.34
+
+        if "Transmission Weight" in bsdf.inputs:
+            bsdf.inputs["Transmission Weight"].default_value = transmission
+        elif "Transmission" in bsdf.inputs:
+            bsdf.inputs["Transmission"].default_value = transmission
+
+        if "Coat Weight" in bsdf.inputs:
+            bsdf.inputs["Coat Weight"].default_value = 0.06
+
+    if hasattr(material, "surface_render_method"):
+        try:
+            material.surface_render_method = 'DITHERED'
+        except (TypeError, ValueError):
+            pass
+
+    if hasattr(material, "use_transparency_overlap"):
+        material.use_transparency_overlap = False
+
+    material.show_transparent_back = True
+    return material
+
+
+bell_mats = [
+    make_material("Bell Pale Lavender", (0.80, 0.56, 0.82), 0.28, 0.28, 0.42),
+    make_material("Bell Pale Pink", (0.96, 0.65, 0.80), 0.20, 0.34, 0.38),
+    make_material("Bell Cool Facets", (0.65, 0.50, 0.80), 0.18, 0.38, 0.38)
+]
+rim_mat = make_material("Luminous Lobed Rim", (1.0, 0.60, 0.82), 0.34, 0.3, 0.25)
+tentacle_mat = make_material("Translucent Pink Threads", (0.98, 0.48, 0.72), 0.46, 0.34, 0.18)
+oral_mat = make_material("Central Ribbon Oral Arm", (0.92, 0.40, 0.70), 0.43, 0.31, 0.23)
+
+shadow_mats = [
+    make_material("Shadow Outer Haze", (0.055, 0.015, 0.07), 0.015, 1.0, 0.0),
+    make_material("Shadow Middle Haze", (0.045, 0.010, 0.055), 0.024, 1.0, 0.0),
+    make_material("Shadow Inner Haze", (0.035, 0.006, 0.045), 0.035, 1.0, 0.0)
+]
+
+# Open, faceted bell dome with a softly lobed perimeter.
+segments = 60
+ring_count = 15
+lobe_count = 10
+bell_vertices = [(0.0, 0.0, 3.72)]
+bell_rings = []
+
+for ring in range(1, ring_count + 1):
+    t = ring / ring_count
+    theta = t * math.pi * 0.5
+    base_radius = 2.10 * (math.sin(theta) ** 0.92)
+    base_z = 1.48 + 2.24 * math.cos(theta)
+    ring_indices = []
+
+    for j in range(segments):
+        angle = math.tau * j / segments
+        edge_strength = t ** 3.0
+        lobe = math.cos(lobe_count * angle)
+        radius = base_radius * (1.0 + 0.052 * edge_strength * lobe)
+        radius *= 1.0 + 0.008 * math.sin(17.0 * angle + ring * 1.3)
+        z = base_z - 0.075 * edge_strength * (0.5 + 0.5 * lobe)
+
+        if ring < ring_count:
+            radius += random.uniform(-0.012, 0.012)
+            z += random.uniform(-0.012, 0.012)
+
+        ring_indices.append(len(bell_vertices))
+        bell_vertices.append((radius * math.cos(angle), radius * math.sin(angle), z))
+
+    bell_rings.append(ring_indices)
+
+bell_faces = []
+
+for j in range(segments):
+    bell_faces.append((0, bell_rings[0][j], bell_rings[0][(j + 1) % segments]))
+
+for r in range(len(bell_rings) - 1):
+    upper = bell_rings[r]
+    lower = bell_rings[r + 1]
+
+    for j in range(segments):
+        j2 = (j + 1) % segments
+        if (r + j) % 2:
+            bell_faces.append((upper[j], lower[j], upper[j2]))
+            bell_faces.append((upper[j2], lower[j], lower[j2]))
+        else:
+            bell_faces.append((upper[j], lower[j], lower[j2]))
+            bell_faces.append((upper[j], lower[j2], upper[j2]))
+
+bell_mesh = bpy.data.meshes.new("Open Faceted Bell Mesh")
+bell_mesh.from_pydata(bell_vertices, [], bell_faces)
+bell_mesh.update()
+
+bell = bpy.data.objects.new("Large Translucent Faceted Bell", bell_mesh)
+bpy.context.collection.objects.link(bell)
+
+for material in bell_mats:
+    bell.data.materials.append(material)
+
+for face in bell.data.polygons:
+    selector = random.random()
+    if selector < 0.72:
+        face.material_index = 0
+    elif selector < 0.90:
+        face.material_index = 1
+    else:
+        face.material_index = 2
+    face.use_smooth = False
+
+# Thin luminous line around the scalloped bell edge.
+rim_curve = bpy.data.curves.new("Lobed Bell Rim Curve", 'CURVE')
+rim_curve.dimensions = '3D'
+rim_curve.resolution_u = 2
+rim_curve.bevel_depth = 0.031
+rim_curve.bevel_resolution = 3
+rim_curve.materials.append(rim_mat)
+
+rim_spline = rim_curve.splines.new('NURBS')
+rim_spline.points.add(segments - 1)
+
+for j, point in enumerate(rim_spline.points):
+    angle = math.tau * j / segments
+    lobe = math.cos(lobe_count * angle)
+    radius = 2.10 * (1.0 + 0.052 * lobe)
+    z = 1.48 - 0.075 * (0.5 + 0.5 * lobe)
+    point.co = (radius * math.cos(angle), radius * math.sin(angle), z, 1.0)
+    point.radius = 0.84 + 0.12 * (0.5 + 0.5 * lobe)
+
+rim_spline.use_cyclic_u = True
+rim_spline.order_u = 3
+rim_spline.use_endpoint_u = False
+
+rim = bpy.data.objects.new("Soft Scalloped Bell Rim", rim_curve)
+bpy.context.collection.objects.link(rim)
+
+# Numerous extremely thin, smooth, irregular tentacles.
+tentacle_curve = bpy.data.curves.new("Wispy Tentacle Curve Data", 'CURVE')
+tentacle_curve.dimensions = '3D'
+tentacle_curve.resolution_u = 3
+tentacle_curve.bevel_depth = 0.008
+tentacle_curve.bevel_resolution = 2
+tentacle_curve.materials.append(tentacle_mat)
+
+tentacle_count = 84
+golden_angle = math.pi * (3.0 - math.sqrt(5.0))
+
+for i in range(tentacle_count):
+    spline = tentacle_curve.splines.new('BEZIER')
+    control_count = random.randint(9, 13)
+    spline.bezier_points.add(control_count - 1)
+
+    distribution = math.sqrt((i + 0.55) / tentacle_count)
+    start_radius = 0.20 + 1.62 * distribution
+    start_angle = i * golden_angle + random.uniform(-0.16, 0.16)
+    start = Vector((
+        start_radius * math.cos(start_angle),
+        start_radius * math.sin(start_angle),
+        1.43 - 0.07 * distribution
+    ))
+
+    length = random.uniform(4.15, 5.75)
+    if i % 9 == 0:
+        length += random.uniform(0.35, 0.7)
+
+    drift_angle = start_angle + random.uniform(-2.1, 2.1)
+    drift_amount = random.uniform(0.08, 0.58)
+    phase_x = random.uniform(0.0, math.tau)
+    phase_y = random.uniform(0.0, math.tau)
+    wave_x = random.uniform(1.0, 2.2)
+    wave_y = random.uniform(1.3, 3.0)
+    amplitude = random.uniform(0.07, 0.23)
+
+    for p, bp in enumerate(spline.bezier_points):
+        t = p / (control_count - 1)
+        envelope = 0.20 + 0.95 * t
+        drift = drift_amount * (t ** 1.45)
+
+        x = start.x
+        y = start.y
+        z = start.z - length * (t ** 1.035)
+
+        x += math.cos(drift_angle) * drift
+        y += math.sin(drift_angle) * drift
+        x += amplitude * envelope * math.sin(math.tau * wave_x * t + phase_x)
+        y += amplitude * envelope * math.sin(math.tau * wave_y * t + phase_y)
+        x += 0.045 * t * math.sin(math.tau * 5.1 * t + phase_y)
+        y += 0.045 * t * math.cos(math.tau * 4.4 * t + phase_x)
+        z += 0.045 * t * math.sin(math.tau * 2.2 * t + phase_x)
+
+        bp.co = (x, y, z)
+        bp.handle_left_type = 'AUTO'
+        bp.handle_right_type = 'AUTO'
+        bp.radius = max(0.18, random.uniform(0.65, 1.05) * (1.0 - 0.62 * t))
+
+tentacles = bpy.data.objects.new("Flowing Cascade of Wispy Tentacles", tentacle_curve)
+bpy.context.collection.objects.link(tentacles)
+
+# One continuous spiraling, twisting ribbon-like oral arm.
+steps = 190
+centers = []
+
+for i in range(steps):
+    t = i / (steps - 1)
+    turns = 3.15
+    angle = math.tau * turns * t + 0.35 * math.sin(math.tau * 1.4 * t)
+    radius = 0.08 + 0.38 * (math.sin(math.pi * t) ** 0.8)
+
+    centers.append(Vector((
+        radius * math.cos(angle),
+        radius * math.sin(angle),
+        1.36 - 5.05 * t + 0.10 * math.sin(math.tau * 2.1 * t)
+    )))
+
+ribbon_vertices = []
+ribbon_faces = []
+
+for i, center in enumerate(centers):
+    t = i / (steps - 1)
+
+    if i == 0:
+        tangent = (centers[1] - centers[0]).normalized()
+    elif i == steps - 1:
+        tangent = (centers[-1] - centers[-2]).normalized()
+    else:
+        tangent = (centers[i + 1] - centers[i - 1]).normalized()
+
+    reference = Vector((0.0, 0.0, 1.0))
+    basis_a = tangent.cross(reference)
+
+    if basis_a.length < 0.001:
+        basis_a = Vector((1.0, 0.0, 0.0))
+    else:
+        basis_a.normalize()
+
+    basis_b = tangent.cross(basis_a).normalized()
+    twist = math.tau * 4.2 * t
+    side = (basis_a * math.cos(twist) + basis_b * math.sin(twist)).normalized()
+
+    width = (0.23 - 0.09 * t) * (1.0 + 0.16 * math.sin(math.tau * 10.0 * t))
+    asymmetry = 0.92 + 0.08 * math.sin(math.tau * 6.0 * t)
+
+    left = center - side * width
+    right = center + side * width * asymmetry
+    ribbon_vertices.extend((tuple(left), tuple(right)))
+
+for i in range(steps - 1):
+    a = i * 2
+    ribbon_faces.append((a, a + 2, a + 3, a + 1))
+
+ribbon_mesh = bpy.data.meshes.new("Continuous Oral Ribbon Mesh")
+ribbon_mesh.from_pydata(ribbon_vertices, [], ribbon_faces)
+ribbon_mesh.update()
+
+oral_arm = bpy.data.objects.new("Single Continuous Spiraling Oral Arm", ribbon_mesh)
+bpy.context.collection.objects.link(oral_arm)
+oral_arm.data.materials.append(oral_mat)
+
+for face in oral_arm.data.polygons:
+    face.use_smooth = True
+
+solidify = oral_arm.modifiers.new("Thin Ribbon Thickness", 'SOLIDIFY')
+solidify.thickness = 0.018
+solidify.offset = 0.0
+
+bevel = oral_arm.modifiers.new("Rounded Ribbon Edges", 'BEVEL')
+bevel.width = 0.012
+bevel.segments = 2
+bevel.limit_method = 'ANGLE'
+
+# Broad nested ellipsoids create a subtle, diffuse shadow haze.
+shadow_specs = [
+    ((1.18, 0.72, 0.045), (-0.08, 0.05, -4.48), shadow_mats[0]),
+    ((0.82, 0.50, 0.035), (0.04, -0.02, -4.47), shadow_mats[1]),
+    ((0.48, 0.29, 0.025), (-0.01, 0.01, -4.46), shadow_mats[2])
+]
+
+for index, (scale, location, material) in enumerate(shadow_specs):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=48,
+        ring_count=12,
+        location=location
+    )
+    haze = bpy.context.object
+    haze.name = "Diffuse Shadow Haze %02d" % index
+    haze.scale = scale
+    haze.data.materials.append(material)
+
+    for face in haze.data.polygons:
+        face.use_smooth = True
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.context.view_layer.objects.active = bell
+</previous_code>
+
+You are reviewing iteration 2 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

@@ -1,0 +1,43 @@
+{
+  "instance": "Oven_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 41,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 41,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 45,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing parts: The gas burner grates are completely missing from the top of the oven because they were placed at Z=0 instead of on the cooktop surface.\n- Wrong proportions/colors: The body color is too light (white) rather than a gray stone-textured metallic finish.\n- Misalignment: Burner components need to be shifted up to the cooktop height (~0.87)."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- The body color is far too light, appearing almost white instead of gray stone-textured metallic.\n- The digital clock \"12:01\" display is nearly invisible due to size and lack of contrast.\n- The black glass cooktop doesn't stand out enough from the main chassis."
+    }
+  ]
+}

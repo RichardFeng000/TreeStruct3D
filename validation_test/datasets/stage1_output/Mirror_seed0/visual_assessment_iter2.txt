@@ -1,0 +1,3 @@
+- The reflective inner panel appears almost completely black in the renders; the "warm cream-beige to pale taupe" color is not visible.
+- This occurs because a high metallic value in an empty scene (black void) results in reflections of only black. I will reduce the metallic property and add a slight emission/higher brightness to ensure the specified tone is clearly seen.
+- The border is extremely thin, making it hard to distinguish from the glass edges; I'll slightly increase its width for better visual definition.

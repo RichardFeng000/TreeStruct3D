@@ -1,0 +1,3 @@
+- Corn ears are almost invisible or appear as glitched geometry; they need a distinct cob and peeling husk structure.
+- Leaves intersect the center of the stalk unnaturally instead of emerging from the surface.
+- The tassel consists of straight spikes; it needs more organic curvature to match a real maize plant.

@@ -1,0 +1,236 @@
+Original text-to-3D task:
+
+A 3D model of a bathroom hardware fixture, specifically a toilet paper holder or towel bar bracket. The piece consists of a circular wall-mount rosette and two protruding cylindrical horizontal rods extending outward at different angles, all in a dark teal-green metallic finish with a smooth glossy surface.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.cameras, bpy.data.lights):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+# Dark teal-green glossy metal.
+material = bpy.data.materials.new("Dark_Teal_Green_Metal")
+material.diffuse_color = (0.018, 0.145, 0.125, 1.0)
+material.use_nodes = True
+bsdf = material.node_tree.nodes.get("Principled BSDF")
+if bsdf:
+    bsdf.inputs["Base Color"].default_value = (0.014, 0.135, 0.115, 1.0)
+    bsdf.inputs["Metallic"].default_value = 0.88
+    bsdf.inputs["Roughness"].default_value = 0.16
+    if "Coat Weight" in bsdf.inputs:
+        bsdf.inputs["Coat Weight"].default_value = 0.28
+    if "Coat Roughness" in bsdf.inputs:
+        bsdf.inputs["Coat Roughness"].default_value = 0.09
+
+parts = []
+
+def finish_object(obj, bevel=0.0, segments=3):
+    if obj.type == 'MESH':
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+        obj.data.materials.append(material)
+        if bevel > 0.0:
+            modifier = obj.modifiers.new("Edge Softening", 'BEVEL')
+            modifier.width = bevel
+            modifier.segments = segments
+            modifier.limit_method = 'ANGLE'
+            bpy.context.view_layer.objects.active = obj
+            try:
+                bpy.ops.object.modifier_apply(modifier=modifier.name)
+            except RuntimeError:
+                pass
+    parts.append(obj)
+    return obj
+
+def create_x_cylinder(name, radius, depth, x, bevel=0.035, vertices=64):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        end_fill_type='NGON',
+        location=(x, 0.0, 0.0),
+        rotation=(0.0, math.pi * 0.5, 0.0)
+    )
+    obj = bpy.context.object
+    obj.name = name
+    return finish_object(obj, bevel, 4)
+
+def create_cylinder_between(name, start, end, radius, bevel=0.025, vertices=48):
+    start = Vector(start)
+    end = Vector(end)
+    direction = end - start
+    length = direction.length
+    midpoint = (start + end) * 0.5
+    rotation = direction.to_track_quat('Z', 'Y').to_euler()
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=length,
+        end_fill_type='NGON',
+        location=midpoint,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    return finish_object(obj, bevel, 3)
+
+def create_oriented_ring(name, center, direction, radius, thickness, depth):
+    direction = Vector(direction).normalized()
+    center = Vector(center)
+    start = center - direction * depth * 0.5
+    end = center + direction * depth * 0.5
+    return create_cylinder_between(name, start, end, radius, thickness, 56)
+
+def create_sphere(name, location, radius, scale=(1.0, 1.0, 1.0)):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=48,
+        ring_count=24,
+        radius=radius,
+        location=location
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return finish_object(obj)
+
+# Stepped circular wall rosette, with softly rounded concentric profiles.
+base_plate = create_x_cylinder("Rosette_Back_Plate", 1.12, 0.28, 0.0, 0.075, 64)
+create_x_cylinder("Rosette_Outer_Step", 1.04, 0.20, 0.17, 0.055, 64)
+create_x_cylinder("Rosette_Recessed_Face", 0.88, 0.15, 0.285, 0.045, 64)
+
+# Raised rolled rim around the rosette.
+bpy.ops.mesh.primitive_torus_add(
+    major_segments=96,
+    minor_segments=16,
+    location=(0.29, 0.0, 0.0),
+    rotation=(0.0, math.pi * 0.5, 0.0),
+    major_radius=0.945,
+    minor_radius=0.055
+)
+rim = bpy.context.object
+rim.name = "Rosette_Rolled_Rim"
+finish_object(rim)
+
+# Central mounting boss and a small transition collar.
+create_x_cylinder("Central_Mounting_Boss", 0.49, 0.62, 0.48, 0.075, 64)
+create_x_cylinder("Boss_Front_Collar", 0.405, 0.18, 0.82, 0.045, 64)
+
+# Two horizontal pegs, splayed at different plan angles.
+rod_specs = [
+    {
+        "name": "Upper_Rod",
+        "start": Vector((0.69, 0.11, 0.205)),
+        "angle": math.radians(12.0),
+        "length": 2.95
+    },
+    {
+        "name": "Lower_Rod",
+        "start": Vector((0.67, -0.12, -0.205)),
+        "angle": math.radians(-15.0),
+        "length": 2.68
+    }
+]
+
+for index, spec in enumerate(rod_specs, 1):
+    direction = Vector((math.cos(spec["angle"]), math.sin(spec["angle"]), 0.0)).normalized()
+    start = spec["start"]
+    end = start + direction * spec["length"]
+
+    # Broad mounting ferrule at the root.
+    ferrule_end = start + direction * 0.48
+    create_cylinder_between(
+        f"Rod_{index}_Root_Ferrule",
+        start - direction * 0.10,
+        ferrule_end,
+        0.255,
+        0.055,
+        56
+    )
+
+    # Narrow decorative transition band.
+    band_center = start + direction * 0.45
+    create_oriented_ring(
+        f"Rod_{index}_Root_Band",
+        band_center,
+        direction,
+        0.275,
+        0.025,
+        0.11
+    )
+
+    # Main cylindrical bar.
+    main_start = start + direction * 0.38
+    create_cylinder_between(
+        spec["name"],
+        main_start,
+        end,
+        0.175,
+        0.025,
+        56
+    )
+
+    # Slightly enlarged retaining ring near the end.
+    tip_ring_center = end - direction * 0.18
+    create_oriented_ring(
+        f"Rod_{index}_Tip_Ring",
+        tip_ring_center,
+        direction,
+        0.205,
+        0.022,
+        0.105
+    )
+
+    # Smooth rounded end cap, subtly elongated along the rod axis.
+    cap_center = end + direction * 0.025
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=48,
+        ring_count=24,
+        radius=0.205,
+        location=cap_center
+    )
+    cap = bpy.context.object
+    cap.name = f"Rod_{index}_Rounded_End_Cap"
+    cap.rotation_euler = direction.to_track_quat('X', 'Z').to_euler()
+    cap.scale = (1.18, 1.0, 1.0)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    finish_object(cap)
+
+# Join the coherent fixture into one final mesh while retaining the origin at the rosette.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in parts:
+    if obj and obj.name in bpy.data.objects:
+        obj.select_set(True)
+
+bpy.context.view_layer.objects.active = base_plate
+bpy.ops.object.join()
+
+fixture = bpy.context.object
+fixture.name = "Dark_Teal_Double_Rod_Bathroom_Fixture"
+fixture.data.name = "Bathroom_Fixture_Mesh"
+fixture.location = (0.0, 0.0, 0.0)
+
+for polygon in fixture.data.polygons:
+    polygon.use_smooth = True
+
+bpy.context.view_layer.objects.active = fixture
+fixture.select_set(True)
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

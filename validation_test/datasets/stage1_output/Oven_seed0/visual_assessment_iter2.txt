@@ -1,0 +1,3 @@
+- The body color is far too light, appearing almost white instead of gray stone-textured metallic.
+- The digital clock "12:01" display is nearly invisible due to size and lack of contrast.
+- The black glass cooktop doesn't stand out enough from the main chassis.

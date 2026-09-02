@@ -1,0 +1,3 @@
+- Wrong overall shape: The branches are thin needles instead of broad, flattened "blade-like" plates described in the prompt.
+- Missing proportions: The palmate (fan-like) widening is virtually absent; it looks like a starburst rather than elkhorn coral.
+- Missing color: No sandy beige material was applied to the mesh.

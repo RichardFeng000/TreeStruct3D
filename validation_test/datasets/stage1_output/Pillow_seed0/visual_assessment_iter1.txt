@@ -1,0 +1,3 @@
+- The current renders are overexposed, making it impossible to verify the color or see fine details.
+- Geometric detail is lacking; wrinkles look like high-frequency noise/ripples rather than natural cloth creases and folds.
+- Edges are slightly too jittery (pixelated) instead of being organically irregular.

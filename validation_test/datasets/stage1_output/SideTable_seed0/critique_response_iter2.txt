@@ -1,0 +1,6 @@
+```
+NEEDS_FIX: NO
+<assessment>
+The render correctly shows a square top with rounded corners, two thin cylindrical legs, and flared circular bases — matching the description.
+</assessment>
+```

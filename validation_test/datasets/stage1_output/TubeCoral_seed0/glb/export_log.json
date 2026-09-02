@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/TubeCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/TubeCoral_seed0/glb/TubeCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 13,
+  "size_kb": 132.0,
+  "latency_s": 0.14,
+  "error": null
+}

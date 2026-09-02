@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BasketBase_seed0/BasketBase_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BasketBase_seed0/glb/BasketBase_seed0.glb",
+  "status": "OK",
+  "n_meshes": 3,
+  "size_kb": 29.2,
+  "latency_s": 0.12,
+  "error": null
+}

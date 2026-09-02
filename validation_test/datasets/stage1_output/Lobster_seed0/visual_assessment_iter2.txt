@@ -1,0 +1,4 @@
+- Missing detail: The white tip on the crusher claw is virtually invisible in the renders; it needs to be brighter and more prominent.
+- Wrong proportions: The claws are too stubby/short compared to a real lobster; they need longer arm segments.
+- Misalignment/Gaps: There's a visible gap between the cephalothorax and the first abdomen segment.
+- Missing geometric detail: The tail fan is too simplistic (cylinders); it should have flatter, wider plates to look "fan-shaped."

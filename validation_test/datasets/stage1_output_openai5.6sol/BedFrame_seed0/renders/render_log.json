@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/BedFrame_seed0/BedFrame_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 178,
+  "extent": 6.865000009536743,
+  "n_views_rendered": 4,
+  "latency_s": 16.16,
+  "error": null
+}

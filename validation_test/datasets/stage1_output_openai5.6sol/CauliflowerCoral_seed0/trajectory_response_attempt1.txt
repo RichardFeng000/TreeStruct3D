@@ -1,0 +1,373 @@
+import bpy
+import math
+import random
+from mathutils import Vector
+
+random.seed(1847)
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.metaballs, bpy.data.cameras, bpy.data.lights):
+    for datablock in list(datablocks):
+        if datablock.users == 0:
+            datablocks.remove(datablock)
+
+vertices = []
+faces = []
+face_materials = []
+
+def add_face(indices, material_index):
+    faces.append(indices)
+    face_materials.append(material_index)
+
+def surface_noise(theta, phi, seed):
+    return (
+        1.0
+        + 0.032 * math.sin(theta * 5.0 + seed * 0.73) * math.sin(phi * 7.0 + seed)
+        + 0.022 * math.cos(theta * 9.0 - phi * 4.0 + seed * 1.31)
+        + 0.014 * math.sin(theta * 15.0 + phi * 11.0 + seed * 2.1)
+    )
+
+def append_rough_ellipsoid(center, radii, segments=14, rings=9, seed=0.0, material_index=0):
+    cx, cy, cz = center
+    rx, ry, rz = radii
+    start = len(vertices)
+
+    top_factor = surface_noise(0.0, 0.0, seed)
+    vertices.append((cx, cy, cz + rz * top_factor))
+
+    for ring in range(1, rings):
+        phi = math.pi * ring / rings
+        sin_phi = math.sin(phi)
+        cos_phi = math.cos(phi)
+        for segment in range(segments):
+            theta = math.tau * segment / segments
+            factor = surface_noise(theta, phi, seed)
+            factor *= 1.0 + 0.012 * random.uniform(-1.0, 1.0)
+            vertices.append((
+                cx + rx * sin_phi * math.cos(theta) * factor,
+                cy + ry * sin_phi * math.sin(theta) * factor,
+                cz + rz * cos_phi * factor
+            ))
+
+    bottom_index = len(vertices)
+    bottom_factor = surface_noise(0.0, math.pi, seed)
+    vertices.append((cx, cy, cz - rz * bottom_factor))
+
+    first_ring = start + 1
+    for segment in range(segments):
+        nxt = (segment + 1) % segments
+        add_face((start, first_ring + segment, first_ring + nxt), material_index)
+
+    for ring in range(rings - 2):
+        current = first_ring + ring * segments
+        following = current + segments
+        for segment in range(segments):
+            nxt = (segment + 1) % segments
+            add_face((
+                current + segment,
+                following + segment,
+                following + nxt,
+                current + nxt
+            ), material_index)
+
+    final_ring = first_ring + (rings - 2) * segments
+    for segment in range(segments):
+        nxt = (segment + 1) % segments
+        add_face((final_ring + segment, bottom_index, final_ring + nxt), material_index)
+
+# Normalized icosahedron template used for the thousands of small granular polyps.
+golden = (1.0 + math.sqrt(5.0)) * 0.5
+ico_raw = [
+    (-1, golden, 0), (1, golden, 0), (-1, -golden, 0), (1, -golden, 0),
+    (0, -1, golden), (0, 1, golden), (0, -1, -golden), (0, 1, -golden),
+    (golden, 0, -1), (golden, 0, 1), (-golden, 0, -1), (-golden, 0, 1)
+]
+ico_vertices = []
+for point in ico_raw:
+    v = Vector(point).normalized()
+    ico_vertices.append((v.x, v.y, v.z))
+
+ico_faces = [
+    (0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11),
+    (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
+    (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9),
+    (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1)
+]
+
+def append_granule(center, scale, material_index=1, elongation=1.0):
+    start = len(vertices)
+    cx, cy, cz = center
+    sx = scale * random.uniform(0.83, 1.14)
+    sy = scale * random.uniform(0.83, 1.14)
+    sz = scale * elongation * random.uniform(0.88, 1.18)
+
+    angle = random.random() * math.tau
+    ca = math.cos(angle)
+    sa = math.sin(angle)
+
+    for x, y, z in ico_vertices:
+        xr = x * ca - y * sa
+        yr = x * sa + y * ca
+        rough = random.uniform(0.92, 1.08)
+        vertices.append((
+            cx + xr * sx * rough,
+            cy + yr * sy * rough,
+            cz + z * sz * rough
+        ))
+
+    for face in ico_faces:
+        add_face(tuple(start + index for index in face), material_index)
+
+def point_on_ellipsoid(center, radii, direction, outward):
+    d = Vector(direction).normalized()
+    rx, ry, rz = radii
+    surface = Vector((
+        center[0] + d.x * rx,
+        center[1] + d.y * ry,
+        center[2] + d.z * rz
+    ))
+    normal = Vector((d.x / max(rx, 0.001), d.y / max(ry, 0.001), d.z / max(rz, 0.001))).normalized()
+    surface += normal * outward
+    return surface, normal
+
+def scatter_granules(center, radii, count, size_range, z_min=-0.25, material_choices=(1, 1, 1, 2)):
+    for _ in range(count):
+        azimuth = random.random() * math.tau
+        z_value = random.uniform(z_min, 1.0)
+        radial = math.sqrt(max(0.0, 1.0 - z_value * z_value))
+        direction = Vector((math.cos(azimuth) * radial, math.sin(azimuth) * radial, z_value))
+        size = random.uniform(size_range[0], size_range[1])
+        position, normal = point_on_ellipsoid(center, radii, direction, size * 0.28)
+        append_granule(position, size, random.choice(material_choices), random.uniform(0.85, 1.25))
+
+        if random.random() < 0.09:
+            tangent = normal.cross(Vector((0.0, 0.0, 1.0)))
+            if tangent.length < 0.1:
+                tangent = normal.cross(Vector((1.0, 0.0, 0.0)))
+            tangent.normalize()
+            child_size = size * random.uniform(0.45, 0.65)
+            child_pos = position + tangent * size * 0.75 + normal * child_size * 0.2
+            append_granule(child_pos, child_size, 2, random.uniform(1.0, 1.45))
+
+# Broad, low, irregular basal mass.
+append_rough_ellipsoid((0.0, 0.0, 0.53), (2.78, 2.22, 0.60), 24, 12, 1.7, 0)
+append_rough_ellipsoid((-0.42, 0.12, 0.68), (2.31, 1.82, 0.53), 22, 11, 3.1, 3)
+
+# Granular exposed rim of the colony base.
+for _ in range(250):
+    azimuth = random.random() * math.tau
+    radial_fraction = random.uniform(0.62, 1.0)
+    x = math.cos(azimuth) * 2.72 * radial_fraction
+    y = math.sin(azimuth) * 2.17 * radial_fraction
+    normalized = min(0.98, (x / 2.78) ** 2 + (y / 2.22) ** 2)
+    z = 0.53 + 0.60 * math.sqrt(max(0.0, 1.0 - normalized))
+    size = random.uniform(0.035, 0.068)
+    append_granule(
+        (x, y, z + size * 0.25),
+        size,
+        random.choice((0, 1, 1, 2, 3)),
+        random.uniform(0.8, 1.3)
+    )
+
+# Place densely packed lobes in concentric, irregular rings.
+lobe_positions = [(0.0, 0.0, 0.0)]
+ring_settings = [
+    (0.34, 7),
+    (0.61, 13),
+    (0.84, 19),
+    (1.00, 24)
+]
+
+for ring_index, (radius_fraction, count) in enumerate(ring_settings):
+    phase = random.random() * math.tau
+    for index in range(count):
+        angle = phase + math.tau * index / count + random.uniform(-0.10, 0.10)
+        rf = radius_fraction + random.uniform(-0.055, 0.045)
+        x = math.cos(angle) * 2.46 * rf
+        y = math.sin(angle) * 1.92 * rf
+        lobe_positions.append((x, y, rf))
+
+for lobe_index, (x, y, radial_fraction) in enumerate(lobe_positions):
+    radial_fraction = min(1.0, radial_fraction)
+    centrality = 1.0 - radial_fraction
+    base_norm = min(0.96, (x / 2.78) ** 2 + (y / 2.22) ** 2)
+    base_surface = 0.53 + 0.60 * math.sqrt(max(0.0, 1.0 - base_norm))
+
+    width = random.uniform(0.29, 0.43) + centrality * 0.08
+    depth = width * random.uniform(0.82, 1.10)
+    height = random.uniform(0.66, 0.94) + centrality * random.uniform(0.38, 0.66)
+    center_z = base_surface + height * 0.40
+
+    lean = Vector((
+        random.uniform(-0.10, 0.10) - x * 0.018,
+        random.uniform(-0.10, 0.10) - y * 0.018,
+        0.0
+    ))
+    body_center = (x + lean.x, y + lean.y, center_z)
+
+    body_material = random.choice((0, 0, 0, 3))
+    append_rough_ellipsoid(
+        body_center,
+        (width, depth, height * 0.64),
+        14,
+        9,
+        10.0 + lobe_index * 0.71,
+        body_material
+    )
+    scatter_granules(
+        body_center,
+        (width, depth, height * 0.64),
+        random.randint(9, 14),
+        (0.030, 0.058),
+        -0.10,
+        (0, 1, 1, 2, 3)
+    )
+
+    crown_z = center_z + height * 0.49
+    crown_count = random.randint(6, 9)
+    crown_centers = []
+
+    central_radius = width * random.uniform(0.43, 0.56)
+    central_center = (
+        x + lean.x * 1.45 + random.uniform(-0.035, 0.035),
+        y + lean.y * 1.45 + random.uniform(-0.035, 0.035),
+        crown_z + central_radius * 0.34
+    )
+    central_radii = (
+        central_radius * random.uniform(0.90, 1.08),
+        central_radius * random.uniform(0.90, 1.08),
+        central_radius * random.uniform(0.83, 1.12)
+    )
+    append_rough_ellipsoid(
+        central_center,
+        central_radii,
+        12,
+        8,
+        40.0 + lobe_index,
+        random.choice((0, 0, 1, 3))
+    )
+    crown_centers.append((central_center, central_radii))
+
+    phase = random.random() * math.tau
+    for crown_index in range(crown_count - 1):
+        angle = phase + math.tau * crown_index / (crown_count - 1) + random.uniform(-0.22, 0.22)
+        knob_radius = width * random.uniform(0.33, 0.48)
+        offset_radius = width * random.uniform(0.50, 0.70)
+        knob_center = (
+            x + lean.x * 1.45 + math.cos(angle) * offset_radius,
+            y + lean.y * 1.45 + math.sin(angle) * offset_radius,
+            crown_z + random.uniform(-0.04, 0.12) + knob_radius * 0.10
+        )
+        knob_radii = (
+            knob_radius * random.uniform(0.88, 1.14),
+            knob_radius * random.uniform(0.88, 1.14),
+            knob_radius * random.uniform(0.82, 1.20)
+        )
+        append_rough_ellipsoid(
+            knob_center,
+            knob_radii,
+            11,
+            7,
+            80.0 + lobe_index * 3.0 + crown_index,
+            random.choice((0, 0, 1, 3))
+        )
+        crown_centers.append((knob_center, knob_radii))
+
+    # Dense cauliflower-like polyp granulation over each terminal cluster.
+    for crown_center, crown_radii in crown_centers:
+        scatter_granules(
+            crown_center,
+            crown_radii,
+            random.randint(8, 13),
+            (0.034, 0.069),
+            -0.42,
+            (1, 1, 1, 2, 2, 3)
+        )
+
+        # Small grouped terminal nubs that break up the rounded silhouette.
+        if random.random() < 0.58:
+            group_angle = random.random() * math.tau
+            group_z = random.uniform(0.45, 0.92)
+            group_radial = math.sqrt(1.0 - group_z * group_z)
+            group_direction = Vector((
+                math.cos(group_angle) * group_radial,
+                math.sin(group_angle) * group_radial,
+                group_z
+            ))
+            group_size = random.uniform(0.040, 0.060)
+            group_position, group_normal = point_on_ellipsoid(
+                crown_center, crown_radii, group_direction, group_size * 0.35
+            )
+            tangent_a = group_normal.cross(Vector((0.0, 0.0, 1.0)))
+            if tangent_a.length < 0.1:
+                tangent_a = group_normal.cross(Vector((1.0, 0.0, 0.0)))
+            tangent_a.normalize()
+            tangent_b = group_normal.cross(tangent_a).normalized()
+            for petal in range(3):
+                petal_angle = math.tau * petal / 3.0
+                offset = (
+                    tangent_a * math.cos(petal_angle)
+                    + tangent_b * math.sin(petal_angle)
+                ) * group_size * 0.72
+                append_granule(
+                    group_position + offset,
+                    group_size * random.uniform(0.72, 0.95),
+                    random.choice((1, 2)),
+                    random.uniform(1.1, 1.5)
+                )
+
+# Recenter precisely in X/Y and place the lowest point at Z=0.
+min_x = min(v[0] for v in vertices)
+max_x = max(v[0] for v in vertices)
+min_y = min(v[1] for v in vertices)
+max_y = max(v[1] for v in vertices)
+min_z = min(v[2] for v in vertices)
+offset_x = (min_x + max_x) * 0.5
+offset_y = (min_y + max_y) * 0.5
+vertices = [(x - offset_x, y - offset_y, z - min_z) for x, y, z in vertices]
+
+mesh = bpy.data.meshes.new("CauliflowerCoral_Geometry")
+mesh.from_pydata(vertices, [], faces)
+mesh.update()
+
+coral = bpy.data.objects.new("Cauliflower_Coral", mesh)
+bpy.context.collection.objects.link(coral)
+
+def make_material(name, color, roughness):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    principled = material.node_tree.nodes.get("Principled BSDF")
+    if principled:
+        principled.inputs["Base Color"].default_value = (*color, 1.0)
+        principled.inputs["Roughness"].default_value = roughness
+        if "IOR" in principled.inputs:
+            principled.inputs["IOR"].default_value = 1.38
+    return material
+
+materials = [
+    make_material("Warm Sandy Beige", (0.55, 0.43, 0.29), 0.88),
+    make_material("Pale Tan Polyp Tips", (0.68, 0.57, 0.39), 0.90),
+    make_material("Muted Green Gray Undertone", (0.42, 0.43, 0.32), 0.92),
+    make_material("Deep Sand Crevice Tone", (0.39, 0.31, 0.22), 0.94)
+]
+
+for material in materials:
+    coral.data.materials.append(material)
+
+for polygon, material_index in zip(mesh.polygons, face_materials):
+    polygon.material_index = material_index
+    polygon.use_smooth = True
+
+# Weighted normals are naturally implied by smooth shading; auto smooth is handled
+# through sharp-edge data in current Blender mesh versions.
+coral.select_set(True)
+bpy.context.view_layer.objects.active = coral
+
+# Keep the assembly as the only scene geometry and give it a descriptive collection name.
+bpy.context.collection.name = "Cauliflower Coral"
+coral["description"] = "Dense low cauliflower coral with rounded lobes and granular knobby polyps"
+coral["dimensions_approx"] = "5.8 x 4.7 x 2.7"
+coral["procedural_seed"] = 1847

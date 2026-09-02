@@ -1,0 +1,3 @@
+- The gooseneck spout is completely missing its middle section, leaving the aerator tip floating in mid-air (Priority 1 & 2).
+- The handle pieces appear slightly disconnected and lacks a unified ergonomic shape (Priority 4).
+- Geometry conversion of the curve to mesh likely failed or handles were misconfigured, causing the gap.

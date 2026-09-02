@@ -1,0 +1,449 @@
+NEEDS_FIX: YES
+<assessment>
+- The aperture and lip visibly float beside the shell; conform them tightly to the lower body surface.
+- The silhouette resembles stacked tiered cones rather than smoothly connected rounded whorls; soften the ledges and transitions.
+- Cream bands are overly broad and regular; use narrower, noisily undulating spiral markings with subtler raised growth texture.
+</assessment>
+<code>
+import bpy
+import math
+from mathutils import Matrix
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (
+    bpy.data.meshes,
+    bpy.data.curves,
+    bpy.data.materials,
+    bpy.data.cameras,
+    bpy.data.lights,
+):
+    for datablock in list(datablocks):
+        datablocks.remove(datablock)
+
+
+def principled_material(name, color, roughness=0.4):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    if "Specular IOR Level" in bsdf.inputs:
+        bsdf.inputs["Specular IOR Level"].default_value = 0.32
+    return mat
+
+
+def shell_material():
+    mat = bpy.data.materials.new("Wavy Brown and Cream Shell")
+    mat.use_nodes = True
+    mat.diffuse_color = (0.34, 0.12, 0.035, 1.0)
+
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    separate = nodes.new("ShaderNodeSeparateXYZ")
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 5.0
+    noise.inputs["Detail"].default_value = 5.5
+    noise.inputs["Roughness"].default_value = 0.72
+    noise.inputs["Distortion"].default_value = 0.35
+
+    v_scale = nodes.new("ShaderNodeMath")
+    v_scale.operation = 'MULTIPLY'
+    v_scale.inputs[1].default_value = 52.5
+
+    u_scale = nodes.new("ShaderNodeMath")
+    u_scale.operation = 'MULTIPLY'
+    u_scale.inputs[1].default_value = -6.283185307
+
+    noise_center = nodes.new("ShaderNodeMath")
+    noise_center.operation = 'SUBTRACT'
+    noise_center.inputs[1].default_value = 0.5
+
+    noise_scale = nodes.new("ShaderNodeMath")
+    noise_scale.operation = 'MULTIPLY'
+    noise_scale.inputs[1].default_value = 4.0
+
+    phase_add_1 = nodes.new("ShaderNodeMath")
+    phase_add_1.operation = 'ADD'
+    phase_add_2 = nodes.new("ShaderNodeMath")
+    phase_add_2.operation = 'ADD'
+
+    sine = nodes.new("ShaderNodeMath")
+    sine.operation = 'SINE'
+
+    sine_half = nodes.new("ShaderNodeMath")
+    sine_half.operation = 'MULTIPLY'
+    sine_half.inputs[1].default_value = 0.5
+
+    sine_shift = nodes.new("ShaderNodeMath")
+    sine_shift.operation = 'ADD'
+    sine_shift.inputs[1].default_value = 0.5
+
+    ramp = nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.interpolation = 'EASE'
+    while len(ramp.color_ramp.elements) > 2:
+        ramp.color_ramp.elements.remove(ramp.color_ramp.elements[-1])
+
+    e0 = ramp.color_ramp.elements[0]
+    e0.position = 0.18
+    e0.color = (0.035, 0.009, 0.003, 1.0)
+
+    e1 = ramp.color_ramp.elements[1]
+    e1.position = 0.86
+    e1.color = (0.91, 0.73, 0.48, 1.0)
+
+    e2 = ramp.color_ramp.elements.new(0.52)
+    e2.color = (0.22, 0.055, 0.012, 1.0)
+
+    e3 = ramp.color_ramp.elements.new(0.68)
+    e3.color = (0.48, 0.19, 0.055, 1.0)
+
+    e4 = ramp.color_ramp.elements.new(0.75)
+    e4.color = (0.93, 0.78, 0.53, 1.0)
+
+    fine_noise = nodes.new("ShaderNodeTexNoise")
+    fine_noise.inputs["Scale"].default_value = 38.0
+    fine_noise.inputs["Detail"].default_value = 3.0
+    fine_noise.inputs["Roughness"].default_value = 0.7
+
+    bump_mix = nodes.new("ShaderNodeMath")
+    bump_mix.operation = 'MULTIPLY'
+    bump_mix.inputs[1].default_value = 0.48
+
+    bump_add = nodes.new("ShaderNodeMath")
+    bump_add.operation = 'ADD'
+
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.3
+    bump.inputs["Distance"].default_value = 0.04
+
+    links.new(texcoord.outputs["UV"], separate.inputs["Vector"])
+    links.new(texcoord.outputs["UV"], noise.inputs["Vector"])
+    links.new(texcoord.outputs["Generated"], fine_noise.inputs["Vector"])
+
+    links.new(separate.outputs["Y"], v_scale.inputs[0])
+    links.new(separate.outputs["X"], u_scale.inputs[0])
+    links.new(noise.outputs["Fac"], noise_center.inputs[0])
+    links.new(noise_center.outputs[0], noise_scale.inputs[0])
+
+    links.new(v_scale.outputs[0], phase_add_1.inputs[0])
+    links.new(u_scale.outputs[0], phase_add_1.inputs[1])
+    links.new(phase_add_1.outputs[0], phase_add_2.inputs[0])
+    links.new(noise_scale.outputs[0], phase_add_2.inputs[1])
+    links.new(phase_add_2.outputs[0], sine.inputs[0])
+    links.new(sine.outputs[0], sine_half.inputs[0])
+    links.new(sine_half.outputs[0], sine_shift.inputs[0])
+    links.new(sine_shift.outputs[0], ramp.inputs["Fac"])
+
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(sine_shift.outputs[0], bump_mix.inputs[0])
+    links.new(bump_mix.outputs[0], bump_add.inputs[0])
+    links.new(fine_noise.outputs["Fac"], bump_add.inputs[1])
+    links.new(bump_add.outputs[0], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+    bsdf.inputs["Roughness"].default_value = 0.38
+    if "Specular IOR Level" in bsdf.inputs:
+        bsdf.inputs["Specular IOR Level"].default_value = 0.36
+
+    return mat
+
+
+shell_mat = shell_material()
+dark_mat = principled_material("Deep Brown Aperture", (0.018, 0.004, 0.0015), 0.3)
+lip_mat = principled_material("Warm Cream Aperture Lip", (0.69, 0.42, 0.17), 0.34)
+fold_mat = principled_material("Cream Inner Folds", (0.86, 0.66, 0.37), 0.38)
+
+z_min = -3.18
+z_max = 4.16
+whorl_count = 8.15
+
+profile = [
+    (-3.18, 0.10),
+    (-3.00, 0.30),
+    (-2.72, 0.61),
+    (-2.36, 0.91),
+    (-1.92, 1.10),
+    (-1.42, 1.18),
+    (-0.88, 1.15),
+    (-0.25, 1.04),
+    (0.45, 0.90),
+    (1.15, 0.74),
+    (1.82, 0.59),
+    (2.42, 0.45),
+    (2.95, 0.33),
+    (3.40, 0.23),
+    (3.78, 0.13),
+    (4.16, 0.025),
+]
+
+
+def smoothstep(value):
+    return value * value * (3.0 - 2.0 * value)
+
+
+def envelope(z):
+    if z <= profile[0][0]:
+        return profile[0][1]
+    if z >= profile[-1][0]:
+        return profile[-1][1]
+
+    for index in range(len(profile) - 1):
+        z0, r0 = profile[index]
+        z1, r1 = profile[index + 1]
+        if z0 <= z <= z1:
+            q = smoothstep((z - z0) / (z1 - z0))
+            return r0 + (r1 - r0) * q
+    return 0.02
+
+
+def shell_radius(z, theta):
+    t = max(0.0, min(1.0, (z - z_min) / (z_max - z_min)))
+    base = envelope(z)
+    growth = whorl_count * (t ** 0.91)
+    phase = 2.0 * math.pi * growth - theta
+
+    rounded = (0.5 + 0.5 * math.cos(phase)) ** 2.2
+    relief = 0.958 + 0.072 * rounded
+
+    soft_ribs = 0.006 * math.cos(18.0 * theta + 0.32 * math.sin(phase))
+    fine_growth = 0.004 * math.sin(3.0 * phase + 0.7)
+    fade = min(1.0, base / 0.28)
+
+    return max(0.012, base * (relief + fade * (soft_ribs + fine_growth)))
+
+
+ring_count = 196
+side_count = 160
+vertices = []
+faces = []
+
+for i in range(ring_count):
+    t = i / (ring_count - 1)
+    z = z_min + (z_max - z_min) * t
+    for j in range(side_count):
+        theta = 2.0 * math.pi * j / side_count
+        radius = shell_radius(z, theta)
+        vertices.append((
+            radius * math.cos(theta),
+            radius * math.sin(theta),
+            z,
+        ))
+
+for i in range(ring_count - 1):
+    for j in range(side_count):
+        next_j = (j + 1) % side_count
+        a = i * side_count + j
+        b = i * side_count + next_j
+        c = (i + 1) * side_count + next_j
+        d = (i + 1) * side_count + j
+        faces.append((a, b, c, d))
+
+bottom_index = len(vertices)
+vertices.append((0.0, 0.0, z_min - 0.12))
+top_index = len(vertices)
+vertices.append((0.0, 0.0, z_max + 0.11))
+
+for j in range(side_count):
+    next_j = (j + 1) % side_count
+    faces.append((bottom_index, next_j, j))
+    a = (ring_count - 1) * side_count + j
+    b = (ring_count - 1) * side_count + next_j
+    faces.append((top_index, a, b))
+
+mesh = bpy.data.meshes.new("Smooth Elongated Auger Shell Mesh")
+mesh.from_pydata(vertices, [], faces)
+mesh.update()
+
+shell_obj = bpy.data.objects.new("Textured Auger Shell", mesh)
+bpy.context.collection.objects.link(shell_obj)
+shell_obj.data.materials.append(shell_mat)
+
+for polygon in mesh.polygons:
+    polygon.use_smooth = True
+
+uv_layer = mesh.uv_layers.new(name="Spiral Growth Coordinates")
+side_polygon_count = (ring_count - 1) * side_count
+
+for polygon_index in range(side_polygon_count):
+    i = polygon_index // side_count
+    j = polygon_index % side_count
+    u0 = j / side_count
+    u1 = (j + 1) / side_count
+    v0 = i / (ring_count - 1)
+    v1 = (i + 1) / (ring_count - 1)
+    polygon = mesh.polygons[polygon_index]
+    coordinates = ((u0, v0), (u1, v0), (u1, v1), (u0, v1))
+    for loop_index, uv in zip(polygon.loop_indices, coordinates):
+        uv_layer.data[loop_index].uv = uv
+
+
+def front_surface_point(x, z, outward=0.0):
+    base = envelope(z)
+    x_limit = max(0.03, base * 0.92)
+    x = max(-x_limit, min(x_limit, x))
+
+    y = -math.sqrt(max(0.002, base * base - x * x))
+    theta = math.atan2(y, x)
+
+    for _ in range(3):
+        radius = shell_radius(z, theta)
+        y = -math.sqrt(max(0.001, radius * radius - x * x))
+        theta = math.atan2(y, x)
+
+    return (x, y - outward, z)
+
+
+aperture_center_z = -1.83
+aperture_half_height = 0.86
+aperture_width = 0.46
+radial_steps = 10
+angular_steps = 112
+
+aperture_vertices = [front_surface_point(0.0, aperture_center_z, 0.026)]
+aperture_faces = []
+
+for radial_index in range(1, radial_steps + 1):
+    q = radial_index / radial_steps
+    for j in range(angular_steps):
+        angle = 2.0 * math.pi * j / angular_steps
+        vertical = math.sin(angle)
+        taper = 0.77 + 0.16 * ((vertical + 1.0) * 0.5)
+        x = q * aperture_width * taper * math.cos(angle)
+        z = aperture_center_z + q * aperture_half_height * vertical
+        aperture_vertices.append(front_surface_point(x, z, 0.029))
+
+for j in range(angular_steps):
+    next_j = (j + 1) % angular_steps
+    aperture_faces.append((0, 1 + j, 1 + next_j))
+
+for radial_index in range(radial_steps - 1):
+    first_ring = 1 + radial_index * angular_steps
+    second_ring = 1 + (radial_index + 1) * angular_steps
+    for j in range(angular_steps):
+        next_j = (j + 1) % angular_steps
+        aperture_faces.append((
+            first_ring + j,
+            second_ring + j,
+            second_ring + next_j,
+            first_ring + next_j,
+        ))
+
+aperture_mesh = bpy.data.meshes.new("Conforming Recessed Aperture Mesh")
+aperture_mesh.from_pydata(aperture_vertices, [], aperture_faces)
+aperture_mesh.update()
+
+aperture_obj = bpy.data.objects.new("Attached Recessed Aperture", aperture_mesh)
+bpy.context.collection.objects.link(aperture_obj)
+aperture_obj.data.materials.append(dark_mat)
+
+for polygon in aperture_mesh.polygons:
+    polygon.use_smooth = True
+
+
+def make_curve_object(name, points, bevel_depth, material, cyclic=False):
+    curve = bpy.data.curves.new(name + " Curve", type='CURVE')
+    curve.dimensions = '3D'
+    curve.resolution_u = 2
+    curve.bevel_depth = bevel_depth
+    curve.bevel_resolution = 3
+    curve.resolution_v = 2
+
+    spline = curve.splines.new('NURBS')
+    spline.points.add(len(points) - 1)
+
+    for index, point in enumerate(points):
+        spline.points[index].co = (*point, 1.0)
+
+    spline.order_u = min(3, len(points))
+    spline.use_endpoint_u = not cyclic
+    spline.use_cyclic_u = cyclic
+
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    return obj
+
+
+lip_points = []
+lip_count = 144
+
+for j in range(lip_count):
+    angle = 2.0 * math.pi * j / lip_count
+    vertical = math.sin(angle)
+    taper = 0.77 + 0.16 * ((vertical + 1.0) * 0.5)
+    x = aperture_width * taper * math.cos(angle)
+    z = aperture_center_z + aperture_half_height * vertical
+    lip_points.append(front_surface_point(x, z, 0.082))
+
+make_curve_object(
+    "Integrated Rolled Aperture Lip",
+    lip_points,
+    0.052,
+    lip_mat,
+    cyclic=True,
+)
+
+columella_points = []
+for i in range(60):
+    q = i / 59.0
+    z = aperture_center_z - 0.67 + 1.22 * q
+    x = 0.21 + 0.055 * math.sin(math.pi * q) - 0.025 * q
+    point = front_surface_point(x, z, 0.091)
+    columella_points.append(point)
+
+make_curve_object(
+    "Attached Columella Fold",
+    columella_points,
+    0.039,
+    fold_mat,
+    cyclic=False,
+)
+
+for fold_index, z_offset in enumerate((0.31, 0.08, -0.15)):
+    fold_points = []
+    for i in range(30):
+        q = i / 29.0
+        x = -0.20 + 0.34 * q
+        z = aperture_center_z + z_offset + 0.035 * math.sin(math.pi * q)
+        fold_points.append(front_surface_point(x, z, 0.093))
+    make_curve_object(
+        "Inner Aperture Fold " + str(fold_index + 1),
+        fold_points,
+        0.020 - fold_index * 0.002,
+        fold_mat,
+        cyclic=False,
+    )
+
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'CURVE':
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.convert(target='MESH')
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+
+presentation = (
+    Matrix.Rotation(math.radians(-6.0), 4, 'X')
+    @ Matrix.Rotation(math.radians(10.0), 4, 'Y')
+    @ Matrix.Rotation(math.radians(-14.0), 4, 'Z')
+    @ Matrix.Translation((0.0, 0.0, -0.48))
+)
+
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'MESH':
+        obj.matrix_world = presentation @ obj.matrix_world
+
+for obj in list(bpy.context.scene.objects):
+    if obj.type != 'MESH':
+        bpy.data.objects.remove(obj, do_unlink=True)
+</code>

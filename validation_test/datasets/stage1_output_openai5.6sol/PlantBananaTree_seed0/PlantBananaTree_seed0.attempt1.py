@@ -1,0 +1,337 @@
+import bpy
+import math
+from mathutils import Vector
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.scale_length = 1.0
+scene.cursor.location = (0.0, 0.0, 0.0)
+
+collection = bpy.data.collections.new("Young Banana Plant")
+scene.collection.children.link(collection)
+
+
+def make_material(name, color, roughness):
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    shader = material.node_tree.nodes.get("Principled BSDF")
+    if shader:
+        shader.inputs["Base Color"].default_value = (*color, 1.0)
+        shader.inputs["Roughness"].default_value = roughness
+    return material
+
+
+leaf_top_material = make_material(
+    "Fresh green upper surface", (0.07, 0.34, 0.045), 0.67
+)
+leaf_bottom_material = make_material(
+    "Pale green underside", (0.18, 0.42, 0.105), 0.72
+)
+edge_material = make_material(
+    "Leaf edge green", (0.08, 0.28, 0.04), 0.70
+)
+midrib_material = make_material(
+    "Yellow green midrib", (0.42, 0.62, 0.12), 0.58
+)
+vein_material = make_material(
+    "Fine lateral veins", (0.32, 0.52, 0.10), 0.62
+)
+petiole_material = make_material(
+    "Young petiole green", (0.20, 0.47, 0.10), 0.68
+)
+
+
+def create_mesh_object(name, vertices, faces, materials, material_indices=None):
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.materials.clear()
+    for material in materials:
+        mesh.materials.append(material)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    collection.objects.link(obj)
+
+    if material_indices is not None:
+        for polygon, index in zip(mesh.polygons, material_indices):
+            polygon.material_index = index
+
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+
+    return obj
+
+
+def tube_mesh(name, points, radii, sides, material, preferred_axis=None):
+    vertices = []
+    faces = []
+
+    for i, point in enumerate(points):
+        if i == 0:
+            tangent = (points[1] - points[0]).normalized()
+        elif i == len(points) - 1:
+            tangent = (points[-1] - points[-2]).normalized()
+        else:
+            tangent = (points[i + 1] - points[i - 1]).normalized()
+
+        if preferred_axis is None:
+            reference = Vector((0.0, 1.0, 0.0))
+        else:
+            reference = preferred_axis.copy()
+
+        axis_a = reference - tangent * tangent.dot(reference)
+        if axis_a.length < 0.0001:
+            reference = Vector((1.0, 0.0, 0.0))
+            axis_a = reference - tangent * tangent.dot(reference)
+        axis_a.normalize()
+        axis_b = tangent.cross(axis_a).normalized()
+
+        for side in range(sides):
+            angle = math.tau * side / sides
+            radial = axis_a * math.cos(angle) + axis_b * math.sin(angle)
+            vertices.append(tuple(point + radial * radii[i]))
+
+    ring_count = len(points)
+    for ring in range(ring_count - 1):
+        for side in range(sides):
+            a = ring * sides + side
+            b = ring * sides + (side + 1) % sides
+            c = (ring + 1) * sides + (side + 1) % sides
+            d = (ring + 1) * sides + side
+            faces.append((a, b, c, d))
+
+    bottom_center = len(vertices)
+    vertices.append(tuple(points[0]))
+    top_center = len(vertices)
+    vertices.append(tuple(points[-1]))
+
+    for side in range(sides):
+        next_side = (side + 1) % sides
+        faces.append((bottom_center, next_side, side))
+
+        a = (ring_count - 1) * sides + side
+        b = (ring_count - 1) * sides + next_side
+        faces.append((top_center, a, b))
+
+    return create_mesh_object(name, vertices, faces, [material])
+
+
+leaf_length = 2.75
+leaf_base_height = 2.35
+leaf_lateral = Vector((0.0, 1.0, 0.0))
+
+
+def leaf_center(s):
+    return Vector((
+        leaf_length * s,
+        0.0,
+        leaf_base_height + 0.82 * s - 0.16 * s * s
+    ))
+
+
+def leaf_tangent(s):
+    return Vector((
+        leaf_length,
+        0.0,
+        0.82 - 0.32 * s
+    )).normalized()
+
+
+def leaf_normal(s):
+    normal = leaf_tangent(s).cross(leaf_lateral)
+    return normal.normalized()
+
+
+def leaf_half_width(s):
+    envelope = max(0.0, math.sin(math.pi * s))
+    return 0.015 + 0.66 * envelope ** 0.72
+
+
+def upper_surface(s, v):
+    width = leaf_half_width(s)
+    normal = leaf_normal(s)
+    camber = 0.105 * math.sin(math.pi * s) * (1.0 - v * v)
+    gentle_wave = 0.012 * math.sin(3.0 * math.pi * s) * (1.0 - abs(v))
+    edge_wave = 0.010 * math.sin(8.0 * math.pi * s) * abs(v) ** 5
+    return (
+        leaf_center(s)
+        + leaf_lateral * (v * width)
+        + normal * (camber + gentle_wave + edge_wave)
+    )
+
+
+long_segments = 72
+across_segments = 28
+row_size = across_segments + 1
+thickness = 0.018
+
+top_vertices = []
+bottom_vertices = []
+
+for i in range(long_segments + 1):
+    s = i / long_segments
+    normal = leaf_normal(s)
+    for j in range(across_segments + 1):
+        v = -1.0 + 2.0 * j / across_segments
+        top_point = upper_surface(s, v)
+        bottom_point = top_point - normal * thickness
+        top_vertices.append(tuple(top_point))
+        bottom_vertices.append(tuple(bottom_point))
+
+leaf_vertices = top_vertices + bottom_vertices
+top_offset = 0
+bottom_offset = len(top_vertices)
+leaf_faces = []
+leaf_material_indices = []
+
+for i in range(long_segments):
+    for j in range(across_segments):
+        a = top_offset + i * row_size + j
+        b = a + 1
+        c = a + row_size + 1
+        d = a + row_size
+        leaf_faces.append((a, b, c, d))
+        leaf_material_indices.append(0)
+
+for i in range(long_segments):
+    for j in range(across_segments):
+        a = bottom_offset + i * row_size + j
+        b = a + row_size
+        c = a + row_size + 1
+        d = a + 1
+        leaf_faces.append((a, b, c, d))
+        leaf_material_indices.append(1)
+
+for i in range(long_segments):
+    top_left = top_offset + i * row_size
+    top_left_next = top_offset + (i + 1) * row_size
+    bottom_left = bottom_offset + i * row_size
+    bottom_left_next = bottom_offset + (i + 1) * row_size
+    leaf_faces.append((top_left, bottom_left, bottom_left_next, top_left_next))
+    leaf_material_indices.append(2)
+
+    top_right = top_offset + i * row_size + across_segments
+    top_right_next = top_offset + (i + 1) * row_size + across_segments
+    bottom_right = bottom_offset + i * row_size + across_segments
+    bottom_right_next = bottom_offset + (i + 1) * row_size + across_segments
+    leaf_faces.append((top_right, top_right_next, bottom_right_next, bottom_right))
+    leaf_material_indices.append(2)
+
+for j in range(across_segments):
+    top_a = top_offset + j
+    top_b = top_offset + j + 1
+    bottom_a = bottom_offset + j
+    bottom_b = bottom_offset + j + 1
+    leaf_faces.append((top_a, top_b, bottom_b, bottom_a))
+    leaf_material_indices.append(2)
+
+    top_a = top_offset + long_segments * row_size + j
+    top_b = top_a + 1
+    bottom_a = bottom_offset + long_segments * row_size + j
+    bottom_b = bottom_a + 1
+    leaf_faces.append((top_a, bottom_a, bottom_b, top_b))
+    leaf_material_indices.append(2)
+
+leaf = create_mesh_object(
+    "Single elongated banana leaf",
+    leaf_vertices,
+    leaf_faces,
+    [leaf_top_material, leaf_bottom_material, edge_material],
+    leaf_material_indices
+)
+
+petiole_points = []
+petiole_radii = []
+petiole_sections = 42
+
+for i in range(petiole_sections):
+    t = i / (petiole_sections - 1)
+    x = -0.10 * (1.0 - t) + 0.10 * math.sin(math.pi * t) * (1.0 - t)
+    y = 0.0
+    z = leaf_base_height * t
+    petiole_points.append(Vector((x, y, z)))
+    petiole_radii.append(0.105 * (1.0 - t) + 0.062 * t)
+
+petiole = tube_mesh(
+    "Long slender attached petiole",
+    petiole_points,
+    petiole_radii,
+    16,
+    petiole_material,
+    preferred_axis=Vector((0.0, 1.0, 0.0))
+)
+
+midrib_points = []
+midrib_radii = []
+midrib_sections = 68
+
+for i in range(midrib_sections):
+    s = i / (midrib_sections - 1)
+    normal = leaf_normal(s)
+    point = upper_surface(s, 0.0) + normal * 0.021
+    radius = 0.043 * (1.0 - s) + 0.010 * s
+    midrib_points.append(point)
+    midrib_radii.append(radius)
+
+midrib = tube_mesh(
+    "Prominent central midrib",
+    midrib_points,
+    midrib_radii,
+    12,
+    midrib_material,
+    preferred_axis=leaf_lateral
+)
+
+vein_objects = []
+vein_count = 27
+
+for vein_index in range(vein_count):
+    s0 = 0.075 + 0.85 * vein_index / (vein_count - 1)
+
+    for side_sign in (-1.0, 1.0):
+        points = []
+        radii = []
+        samples = 7
+
+        for sample in range(samples):
+            q = sample / (samples - 1)
+            eased = q * q * (3.0 - 2.0 * q)
+            sweep = 0.035 * eased
+            s = min(0.985, s0 + sweep)
+            v = side_sign * (0.055 + 0.88 * q)
+            normal = leaf_normal(s)
+            point = upper_surface(s, v) + normal * 0.014
+            points.append(point)
+            radii.append(0.0070 * (1.0 - 0.45 * q))
+
+        vein = tube_mesh(
+            "Lateral vein",
+            points,
+            radii,
+            6,
+            vein_material,
+            preferred_axis=leaf_normal(s0)
+        )
+        vein_objects.append(vein)
+
+for obj in collection.objects:
+    obj.select_set(False)
+
+mesh_objects = [obj for obj in collection.objects if obj.type == 'MESH']
+for obj in mesh_objects:
+    obj.select_set(True)
+
+bpy.context.view_layer.objects.active = leaf
+bpy.ops.object.join()
+plant = bpy.context.active_object
+plant.name = "Young Banana Plant"
+
+for polygon in plant.data.polygons:
+    polygon.use_smooth = True
+
+plant.select_set(True)
+bpy.context.view_layer.objects.active = plant

@@ -1,0 +1,4 @@
+NEEDS_FIX: NO
+<assessment>
+The shell clearly has a rounded body whorl, pointed spire, strong wavy ridges, wide aperture, and convincing brown-and-cream patterning.
+</assessment>

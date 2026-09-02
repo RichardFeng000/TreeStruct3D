@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "AttributeError: type object 'Object' has no attribute 'matrix_world'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py\", line 138, in <module>\n    create_mirror()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py\", line 93, in create_mirror\n    add_plank(BORDER_WIDTH, HEIGHT, DEPTH, Vector((-WIDTH/2 + BORDER_WIDTH/2, 0, 0)))\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Mirror_seed0/Mirror_seed0.py\", line 60, in add_plank\n    mat_matrix = bpy.types.Object.matrix_world # Not available in BMesh directly, use offsets\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: type object 'Object' has no attribute 'matrix_world'\n"
+}

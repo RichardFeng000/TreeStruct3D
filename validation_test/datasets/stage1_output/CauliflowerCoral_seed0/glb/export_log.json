@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CauliflowerCoral_seed0/CauliflowerCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/CauliflowerCoral_seed0/glb/CauliflowerCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 3387.8,
+  "latency_s": 49.64,
+  "error": null
+}

@@ -1,0 +1,22 @@
+{
+  "instance": "SnakePlant_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 14,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "DONE",
+      "assessment": "The renders accurately show tall, sword-shaped leaves with pointed tips and correct cream/green horizontal banding emerging from a common base."
+    }
+  ]
+}

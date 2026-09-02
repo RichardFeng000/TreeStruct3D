@@ -1,0 +1,641 @@
+Original text-to-3D task:
+
+A 3D model of a pedestal bathroom sink rendered from a three-quarter angle. The sink features a wide, slightly flared square basin with rounded corners in a dark forest-green glossy material with marble-like veining. A chrome gooseneck faucet with two handles is mounted at the back edge. The basin sits atop a central tapered pedestal column that widens at the square base, forming a classic freestanding sink silhouette.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the default scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.scale_length = 1.0
+
+
+def set_principled_input(node, name, value):
+    socket = node.inputs.get(name)
+    if socket is not None:
+        socket.default_value = value
+
+
+def make_marble_material():
+    mat = bpy.data.materials.new("Forest_Green_Marble")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    principled = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    noise = nodes.new("ShaderNodeTexNoise")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    texcoord.location = (-850, 50)
+    mapping.location = (-670, 50)
+    noise.location = (-470, 50)
+    ramp.location = (-250, 80)
+    bump.location = (-240, -150)
+    principled.location = (20, 50)
+    output.location = (270, 50)
+
+    mapping.inputs["Scale"].default_value = (1.1, 4.8, 1.7)
+    noise.noise_dimensions = '3D'
+    noise.inputs["Scale"].default_value = 2.3
+    noise.inputs["Detail"].default_value = 8.0
+    noise.inputs["Roughness"].default_value = 0.72
+    noise.inputs["Lacunarity"].default_value = 2.1
+    noise.inputs["Distortion"].default_value = 2.8
+
+    color_ramp = ramp.color_ramp
+    while len(color_ramp.elements) > 2:
+        color_ramp.elements.remove(color_ramp.elements[-1])
+
+    color_ramp.elements[0].position = 0.28
+    color_ramp.elements[0].color = (0.004, 0.028, 0.016, 1.0)
+    color_ramp.elements[1].position = 0.72
+    color_ramp.elements[1].color = (0.018, 0.115, 0.055, 1.0)
+
+    element = color_ramp.elements.new(0.46)
+    element.color = (0.01, 0.065, 0.031, 1.0)
+    element = color_ramp.elements.new(0.535)
+    element.color = (0.12, 0.27, 0.17, 1.0)
+    element = color_ramp.elements.new(0.575)
+    element.color = (0.62, 0.69, 0.57, 1.0)
+    element = color_ramp.elements.new(0.605)
+    element.color = (0.025, 0.10, 0.047, 1.0)
+
+    set_principled_input(principled, "Roughness", 0.16)
+    set_principled_input(principled, "Metallic", 0.0)
+    set_principled_input(principled, "IOR", 1.47)
+    set_principled_input(principled, "Coat Weight", 0.32)
+    set_principled_input(principled, "Coat Roughness", 0.08)
+
+    bump.inputs["Strength"].default_value = 0.055
+    bump.inputs["Distance"].default_value = 0.035
+
+    links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
+    links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], principled.inputs["Base Color"])
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], principled.inputs["Normal"])
+    links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+    return mat
+
+
+def make_chrome_material():
+    mat = bpy.data.materials.new("Polished_Chrome")
+    mat.use_nodes = True
+    principled = mat.node_tree.nodes.get("Principled BSDF")
+    set_principled_input(principled, "Base Color", (0.72, 0.76, 0.79, 1.0))
+    set_principled_input(principled, "Metallic", 1.0)
+    set_principled_input(principled, "Roughness", 0.075)
+    set_principled_input(principled, "Coat Weight", 0.2)
+    return mat
+
+
+marble = make_marble_material()
+chrome = make_chrome_material()
+
+
+def superellipse_ring(hx, hy, z, count=96, exponent=5.2):
+    points = []
+    power = 2.0 / exponent
+    for index in range(count):
+        angle = 2.0 * math.pi * index / count
+        cosine = math.cos(angle)
+        sine = math.sin(angle)
+        x = hx * math.copysign(abs(cosine) ** power, cosine)
+        y = hy * math.copysign(abs(sine) ** power, sine)
+        points.append((x, y, z))
+    return points
+
+
+def create_profile_mesh(
+    name,
+    profiles,
+    material,
+    count=96,
+    exponent=5.2,
+    cap_bottom=True,
+    cap_top=True
+):
+    vertices = []
+    faces = []
+    rings = []
+
+    for z, half_x, half_y in profiles:
+        ring = []
+        for coordinate in superellipse_ring(
+            half_x, half_y, z, count, exponent
+        ):
+            ring.append(len(vertices))
+            vertices.append(coordinate)
+        rings.append(ring)
+
+    for ring_index in range(len(rings) - 1):
+        for index in range(count):
+            next_index = (index + 1) % count
+            faces.append((
+                rings[ring_index][index],
+                rings[ring_index][next_index],
+                rings[ring_index + 1][next_index],
+                rings[ring_index + 1][index]
+            ))
+
+    if cap_bottom:
+        center = len(vertices)
+        vertices.append((0.0, 0.0, profiles[0][0]))
+        for index in range(count):
+            next_index = (index + 1) % count
+            faces.append((
+                rings[0][next_index],
+                rings[0][index],
+                center
+            ))
+
+    if cap_top:
+        center = len(vertices)
+        vertices.append((0.0, 0.0, profiles[-1][0]))
+        for index in range(count):
+            next_index = (index + 1) % count
+            faces.append((
+                rings[-1][index],
+                rings[-1][next_index],
+                center
+            ))
+
+    mesh = bpy.data.meshes.new(name + "_Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+
+    return obj
+
+
+def create_rounded_box(name, dimensions, location, bevel_width, material):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(
+        location=False,
+        rotation=False,
+        scale=True
+    )
+    obj.data.materials.append(material)
+
+    modifier = obj.modifiers.new("Rounded_Edges", 'BEVEL')
+    modifier.width = bevel_width
+    modifier.segments = 6
+    modifier.limit_method = 'ANGLE'
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = False
+
+    return obj
+
+
+# Broad square pedestal foot with rounded corners.
+create_rounded_box(
+    "Pedestal_Base",
+    (1.72, 1.42, 0.32),
+    (0.0, 0.0, 0.16),
+    0.14,
+    marble
+)
+
+# Tapered central pedestal with a narrow waist and flared shoulder.
+pedestal_profiles = [
+    (0.25, 0.72, 0.57),
+    (0.39, 0.76, 0.61),
+    (0.52, 0.63, 0.50),
+    (0.72, 0.50, 0.40),
+    (1.15, 0.42, 0.34),
+    (1.55, 0.44, 0.35),
+    (1.82, 0.54, 0.43),
+    (2.04, 0.77, 0.61),
+    (2.16, 0.98, 0.72)
+]
+
+create_profile_mesh(
+    "Tapered_Pedestal",
+    pedestal_profiles,
+    marble,
+    count=80,
+    exponent=5.0
+)
+
+# Build the flared square basin as one watertight outer shell and inner bowl.
+count = 112
+vertices = []
+faces = []
+
+outer_profiles = [
+    (2.04, 1.17, 0.80),
+    (2.16, 1.30, 0.90),
+    (2.38, 1.55, 1.08),
+    (2.58, 1.68, 1.19),
+    (2.68, 1.72, 1.23)
+]
+
+outer_rings = []
+for z, half_x, half_y in outer_profiles:
+    ring = []
+    for coordinate in superellipse_ring(
+        half_x, half_y, z, count, 5.4
+    ):
+        ring.append(len(vertices))
+        vertices.append(coordinate)
+    outer_rings.append(ring)
+
+for ring_index in range(len(outer_rings) - 1):
+    for index in range(count):
+        next_index = (index + 1) % count
+        faces.append((
+            outer_rings[ring_index][index],
+            outer_rings[ring_index][next_index],
+            outer_rings[ring_index + 1][next_index],
+            outer_rings[ring_index + 1][index]
+        ))
+
+bottom_center = len(vertices)
+vertices.append((0.0, 0.0, outer_profiles[0][0]))
+for index in range(count):
+    next_index = (index + 1) % count
+    faces.append((
+        outer_rings[0][next_index],
+        outer_rings[0][index],
+        bottom_center
+    ))
+
+inner_profiles = [
+    (2.655, 1.48, 0.93),
+    (2.56, 1.40, 0.85),
+    (2.43, 1.24, 0.73),
+    (2.29, 0.94, 0.55),
+    (2.19, 0.58, 0.35),
+    (2.135, 0.20, 0.15)
+]
+
+inner_rings = []
+for z, half_x, half_y in inner_profiles:
+    ring = []
+    for coordinate in superellipse_ring(
+        half_x, half_y, z, count, 4.4
+    ):
+        ring.append(len(vertices))
+        vertices.append(coordinate)
+    inner_rings.append(ring)
+
+# Join the outer edge to the recessed inner edge to form the broad rim.
+for index in range(count):
+    next_index = (index + 1) % count
+    faces.append((
+        outer_rings[-1][index],
+        outer_rings[-1][next_index],
+        inner_rings[0][next_index],
+        inner_rings[0][index]
+    ))
+
+# Inner concave bowl walls.
+for ring_index in range(len(inner_rings) - 1):
+    for index in range(count):
+        next_index = (index + 1) % count
+        faces.append((
+            inner_rings[ring_index][index],
+            inner_rings[ring_index][next_index],
+            inner_rings[ring_index + 1][next_index],
+            inner_rings[ring_index + 1][index]
+        ))
+
+bowl_center = len(vertices)
+vertices.append((0.0, 0.0, 2.125))
+for index in range(count):
+    next_index = (index + 1) % count
+    faces.append((
+        inner_rings[-1][index],
+        inner_rings[-1][next_index],
+        bowl_center
+    ))
+
+basin_mesh = bpy.data.meshes.new("Flared_Basin_Mesh")
+basin_mesh.from_pydata(vertices, [], faces)
+basin_mesh.update()
+
+basin = bpy.data.objects.new("Wide_Flared_Basin", basin_mesh)
+bpy.context.collection.objects.link(basin)
+basin.data.materials.append(marble)
+
+for polygon in basin_mesh.polygons:
+    polygon.use_smooth = True
+
+# Chrome drain ring.
+bpy.ops.mesh.primitive_torus_add(
+    major_radius=0.145,
+    minor_radius=0.025,
+    major_segments=48,
+    minor_segments=10,
+    location=(0.0, 0.0, 2.145)
+)
+drain_ring = bpy.context.object
+drain_ring.name = "Drain_Trim"
+drain_ring.data.materials.append(chrome)
+
+# Chrome drain plug.
+bpy.ops.mesh.primitive_cylinder_add(
+    vertices=48,
+    radius=0.12,
+    depth=0.025,
+    location=(0.0, 0.0, 2.143)
+)
+drain = bpy.context.object
+drain.name = "Drain_Plug"
+drain.data.materials.append(chrome)
+for polygon in drain.data.polygons:
+    polygon.use_smooth = True
+
+
+def create_curve_tube(name, points, radius, material, resolution=5):
+    curve_data = bpy.data.curves.new(name + "_Curve", type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.resolution_u = 12
+    curve_data.bevel_depth = radius
+    curve_data.bevel_resolution = resolution
+    curve_data.resolution_u = 12
+
+    spline = curve_data.splines.new('NURBS')
+    spline.points.add(len(points) - 1)
+
+    for spline_point, coordinate in zip(spline.points, points):
+        spline_point.co = (
+            coordinate[0],
+            coordinate[1],
+            coordinate[2],
+            1.0
+        )
+
+    spline.order_u = min(4, len(points))
+    spline.use_endpoint_u = True
+
+    obj = bpy.data.objects.new(name, curve_data)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+
+    # Convert the faucet tube to mesh so all final visible geometry is explicit.
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target='MESH')
+    obj = bpy.context.object
+    obj.name = name
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+
+    return obj
+
+
+# Central faucet escutcheon.
+bpy.ops.mesh.primitive_cylinder_add(
+    vertices=64,
+    radius=0.18,
+    depth=0.08,
+    location=(0.0, 1.075, 2.72)
+)
+faucet_base = bpy.context.object
+faucet_base.name = "Faucet_Escutcheon"
+faucet_base.data.materials.append(chrome)
+
+bevel_modifier = faucet_base.modifiers.new("Soft_Rim", 'BEVEL')
+bevel_modifier.width = 0.025
+bevel_modifier.segments = 3
+
+# Gooseneck path: rear rise, curved crown, and descending front outlet.
+faucet_points = []
+
+for index in range(9):
+    parameter = index / 8.0
+    faucet_points.append((
+        0.0,
+        1.075,
+        2.73 + 0.72 * parameter
+    ))
+
+for index in range(1, 19):
+    theta = math.pi * index / 18.0
+    y = 0.665 + 0.410 * math.cos(theta)
+    z = 3.45 + 0.410 * math.sin(theta)
+    faucet_points.append((0.0, y, z))
+
+for index in range(1, 7):
+    parameter = index / 6.0
+    faucet_points.append((
+        0.0,
+        0.255,
+        3.45 - 0.30 * parameter
+    ))
+
+create_curve_tube(
+    "Chrome_Gooseneck_Faucet",
+    faucet_points,
+    0.075,
+    chrome,
+    5
+)
+
+# Downward outlet collar and aerator.
+bpy.ops.mesh.primitive_cylinder_add(
+    vertices=48,
+    radius=0.105,
+    depth=0.18,
+    location=(0.0, 0.255, 3.09)
+)
+outlet = bpy.context.object
+outlet.name = "Faucet_Outlet"
+outlet.data.materials.append(chrome)
+for polygon in outlet.data.polygons:
+    polygon.use_smooth = True
+
+bpy.ops.mesh.primitive_torus_add(
+    major_radius=0.087,
+    minor_radius=0.012,
+    major_segments=40,
+    minor_segments=8,
+    location=(0.0, 0.255, 2.995)
+)
+aerator_ring = bpy.context.object
+aerator_ring.name = "Outlet_Aerator_Ring"
+aerator_ring.data.materials.append(chrome)
+
+
+def create_cylinder_between(
+    name,
+    start,
+    end,
+    radius,
+    material,
+    vertices=32
+):
+    start_vector = Vector(start)
+    end_vector = Vector(end)
+    direction = end_vector - start_vector
+    midpoint = (start_vector + end_vector) * 0.5
+    length = direction.length
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=length,
+        location=midpoint
+    )
+
+    obj = bpy.context.object
+    obj.name = name
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = Vector(
+        (0.0, 0.0, 1.0)
+    ).rotation_difference(direction.normalized())
+    obj.data.materials.append(material)
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+
+    return obj
+
+
+def create_handle(x, label):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=48,
+        radius=0.17,
+        depth=0.075,
+        location=(x, 1.075, 2.715)
+    )
+    collar = bpy.context.object
+    collar.name = label + "_Escutcheon"
+    collar.data.materials.append(chrome)
+
+    bevel_modifier = collar.modifiers.new("Rounded_Collar", 'BEVEL')
+    bevel_modifier.width = 0.025
+    bevel_modifier.segments = 3
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=36,
+        radius=0.065,
+        depth=0.24,
+        location=(x, 1.075, 2.86)
+    )
+    stem = bpy.context.object
+    stem.name = label + "_Stem"
+    stem.data.materials.append(chrome)
+
+    for polygon in stem.data.polygons:
+        polygon.use_smooth = True
+
+    center_z = 3.005
+
+    create_cylinder_between(
+        label + "_Cross_X",
+        (x - 0.22, 1.075, center_z),
+        (x + 0.22, 1.075, center_z),
+        0.045,
+        chrome,
+        24
+    )
+
+    create_cylinder_between(
+        label + "_Cross_Y",
+        (x, 0.855, center_z),
+        (x, 1.295, center_z),
+        0.045,
+        chrome,
+        24
+    )
+
+    endpoints = [
+        (x - 0.23, 1.075, center_z),
+        (x + 0.23, 1.075, center_z),
+        (x, 0.845, center_z),
+        (x, 1.305, center_z)
+    ]
+
+    for index, point in enumerate(endpoints):
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            segments=24,
+            ring_count=12,
+            radius=0.071,
+            location=point
+        )
+        knob = bpy.context.object
+        knob.name = label + "_Cross_End_" + str(index + 1)
+        knob.data.materials.append(chrome)
+
+        for polygon in knob.data.polygons:
+            polygon.use_smooth = True
+
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=28,
+        ring_count=14,
+        radius=0.085,
+        location=(x, 1.075, center_z)
+    )
+    hub = bpy.context.object
+    hub.name = label + "_Hub"
+    hub.scale.z = 0.72
+    bpy.ops.object.transform_apply(
+        location=False,
+        rotation=False,
+        scale=True
+    )
+    hub.data.materials.append(chrome)
+
+    for polygon in hub.data.polygons:
+        polygon.use_smooth = True
+
+
+create_handle(-0.58, "Cold_Handle")
+create_handle(0.58, "Hot_Handle")
+
+# Ensure normals and selection state are clean.
+for obj in scene.objects:
+    obj.select_set(False)
+
+for obj in scene.objects:
+    if obj.type == 'MESH':
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        break
+
+# Neutral world only; no camera, lights, floor, or backdrop are added.
+scene.world.color = (0.035, 0.035, 0.035)
+
+# Use the valid Eevee enum exposed by this Blender build.
+if 'BLENDER_EEVEE' in {
+    item.identifier
+    for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items
+}:
+    scene.render.engine = 'BLENDER_EEVEE'
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

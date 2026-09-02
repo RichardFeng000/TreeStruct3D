@@ -1,0 +1,211 @@
+Original text-to-3D task:
+
+A bush-type branching coral rendered as a textured 3D model. The coral spreads outward and upward in an irregular bush-like form with multiple thick, finger-like branches diverging from a central base. Each branch has a rough, granular surface texture covered in small polyp bumps. The coloring is warm pink-salmon to sandy beige, with subtle depth variation across the branches. The organic, sprawling silhouette casts a complex shadow on the white background below.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector, Matrix
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_coral_material():
+    mat = bpy.data.materials.new(name="CoralMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    # Clear default nodes
+    for node in nodes:
+        nodes.remove(node)
+        
+    # Create Principled BSDF
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    output = nodes.new('ShaderNodeOutputMaterial')
+    
+    # Color Palette: Pink-salmon to sandy beige
+    # Using a noise texture to blend colors for depth variation
+    noise = nodes.new('ShaderNodeTexNoise')
+    noise.inputs['Scale'].default_value = 5.0
+    
+    color_ramp = nodes.new('ShaderNodeValToRGB')
+    color_ramp.color_ramp.elements[0].color = (0.9, 0.7, 0.6, 1) # Sandy Beige
+    color_ramp.color_ramp.elements[1].color = (0.8, 0.4, 0.5, 1) # Pink Salmon
+    
+    links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
+    links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+    
+    # Set some physical properties for organic look
+    bsdf.inputs['Roughness'].default_value = 0.8
+    bsdf.inputs['Specular IOR Level'].default_value = 0.2
+    
+    return mat
+
+def create_branch(bm, start_pos, direction, length, radius, depth):
+    if depth <= 0:
+        return
+    
+    # Create a cylinder-like segment
+    segments = 8
+    rings = 4
+    
+    # End position of this branch
+    end_pos = start_pos + direction * length
+    
+    # Calculate vertex positions for the cylinder
+    prev_ring_verts = []
+    for i in range(segments):
+        angle = (2 * math.pi / segments) * i
+        # Perpendicular vector to direction for the circle
+        ortho1 = Vector((0, 0, 1)) if abs(direction.z) < 0.9 else Vector((0, 1, 0))
+        side_a = direction.cross(ortho1).normalized()
+        side_b = direction.cross(side_a).normalized()
+        
+        offset = (side_a * math.cos(angle) + side_b * math.sin(angle)) * radius
+        v = bm.verts.new(start_pos + offset)
+        prev_ring_verts.append(v)
+
+    for r in range(1, rings + 1):
+        curr_ring_verts = []
+        t = r / rings
+        # Taper the radius slightly as we go up
+        current_radius = radius * (1.0 - t * 0.3)
+        
+        # Add some organic "wobble" to the path
+        jitter = Vector((random.uniform(-0.05, 0.05), 
+                        random.uniform(-0.05, 0.05), 
+                        random.uniform(-0.05, 0.05))) * (t * length)
+        
+        for i in range(segments):
+            angle = (2 * math.pi / segments) * i
+            ortho1 = Vector((0, 0, 1)) if abs(direction.z) < 0.9 else Vector((0, 1, 0))
+            side_a = direction.cross(ortho1).normalized()
+            side_b = direction.cross(side_a).normalized()
+            
+            offset = (side_a * math.cos(angle) + side_b * math.sin(angle)) * current_radius
+            v = bm.verts.new(start_pos + (direction * t * length) + jitter + offset)
+            curr_ring_verts.append(v)
+            
+        # Create faces between rings
+        for i in range(segments):
+            v1 = prev_ring_verts[i]
+            v2 = prev_ring_verts[(i + 1) % segments]
+            v3 = curr_ring_verts[(i + 1) % segments]
+            v4 = curr_ring_verts[i]
+            bm.faces.new((v1, v2, v3, v4))
+            
+        prev_ring_verts = curr_ring_verts
+
+    # Create a cap for the end of the branch if it's a leaf node (handled by recursion)
+    # But we only cap if depth is 1. Otherwise, children continue.
+    
+    # Recursive branching
+    num_children = random.randint(2, 4) if depth > 1 else 0
+    for _ in range(num_children):
+        # Calculate a new direction based on the current one with a random spread
+        spread = 0.6 # radians
+        random_vec = Vector((random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))).normalized()
+        # Mix original direction with random vector to control branching angle
+        new_dir = (direction * 0.5 + random_vec * 0.5).normalized()
+        
+        # Recurse from the last ring of vertices (center point)
+        child_start = start_pos + (direction * length)
+        create_branch(bm, child_start, new_dir, length * 0.75, radius * 0.65, depth - 1)
+
+def generate_coral():
+    clear_scene()
+    
+    # Create the mesh and object
+    mesh = bpy.data.meshes.new("CoralMesh")
+    obj = bpy.data.objects.new("Coral", mesh)
+    bpy.context.collection.objects.link(obj)
+    
+    bm = bmesh.new()
+    
+    # Start the branching process from a central base
+    base_pos = Vector((0, 0, 0))
+    base_dir = Vector((0, 0, 1))
+    base_radius = 0.4
+    base_length = 1.2
+    depth = 4 # Recursion depth
+    
+    # Create a few main trunks from the base to make it "bush-like"
+    main_trunks = random.randint(3, 6)
+    for i in range(main_trunks):
+        spread = (2 * math.pi / main_trunks) * i
+        # Angle them outwards from center
+        dir_vec = Vector((math.cos(spread), math.sin(spread), 1)).normalized()
+        create_branch(bm, base_pos, dir_vec, base_length, base_radius, depth)
+    
+    # Finalize bmesh to mesh
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    # Apply Modifiers for the "rough, granular surface" and "polyp bumps"
+    
+    # 1. Subdivision Surface to make it smooth and provide vertices for displacement
+    subdiv = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subdiv.levels = 2
+    subdiv.render_levels = 3
+    
+    # 2. Displace modifier for the granular skin texture
+    displace = obj.modifiers.new(name="Grain", type='DISPLACE')
+    tex = bpy.data.textures.new("CoralNoise", type='VORONOI')
+    tex.noise_scale = 0.1
+    displace.texture = tex
+    displace.strength = 0.05
+    
+    # 3. Another Displace for finer granularity
+    displace_fine = obj.modifiers.new(name="FineGrain", type='DISPLACE')
+    tex_fine = bpy.data.textures.new("CoralFineNoise", type='NOISE')
+    tex_fine.noise_scale = 0.02
+    displace_fine.texture = tex_fine
+    displace_fine.strength = 0.02
+    
+    # Assign Material
+    coral_mat = create_coral_material()
+    obj.data.materials.append(coral_mat)
+    
+    # Set shading to smooth
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth()
+
+if __name__ == "__main__":
+    generate_coral()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+AttributeError: 'NoiseTexture' object has no attribute 'noise_scale'
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/BushCoral_seed0/BushCoral_seed0.py", line 174, in <module>
+    generate_coral()
+  File "/Users/fengruiding/Downloads/3d_code/Output/BushCoral_seed0/BushCoral_seed0.py", line 161, in generate_coral
+    tex_fine.noise_scale = 0.02
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoiseTexture' object has no attribute 'noise_scale'
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

@@ -1,0 +1,121 @@
+{
+  "parts": [
+    {
+      "id": "body",
+      "level": "major"
+    },
+    {
+      "id": "head",
+      "level": "major"
+    },
+    {
+      "id": "tail",
+      "level": "part"
+    },
+    {
+      "id": "eye_left",
+      "level": "detail"
+    },
+    {
+      "id": "eye_right",
+      "level": "detail"
+    },
+    {
+      "id": "back_outer",
+      "level": "part"
+    },
+    {
+      "id": "back_inner",
+      "level": "part"
+    },
+    {
+      "id": "front_outer",
+      "level": "part"
+    },
+    {
+      "id": "front_inner",
+      "level": "part"
+    }
+  ],
+  "relations": [
+    {
+      "source": "head",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "tail",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "eye_left",
+      "type": "ATTACHED_TO",
+      "target": "head",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "eye_right",
+      "type": "ATTACHED_TO",
+      "target": "head",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "back_outer",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "back_inner",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "front_outer",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    },
+    {
+      "source": "front_inner",
+      "type": "ATTACHED_TO",
+      "target": "body",
+      "source_region": "root",
+      "metadata": {
+        "evidence": "reference_python_construction"
+      }
+    }
+  ],
+  "asset_id": "Chameleon_seed0",
+  "metadata": {
+    "prediction_status": "provisional_code_and_four_view_audit",
+    "source": "stage1_output/Chameleon_seed0",
+    "not_automatic_geometry_measurement": true,
+    "missing_relations": []
+  }
+}

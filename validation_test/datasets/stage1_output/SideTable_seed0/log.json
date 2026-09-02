@@ -1,0 +1,50 @@
+{
+  "instance": "SideTable_seed0",
+  "timestamp": "2026-07-09T16:06:45+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 43.27,
+  "code_chars": 4063,
+  "input_tokens": 6681,
+  "output_tokens": 1431,
+  "thoughts_tokens": null,
+  "total_tokens": 8112,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Render is almost entirely blank; object is likely scaled too small or misplaced.\n- Legs may not connect to the top; no visible flared bases in the faint artifacts.\n- Top\u2019s rounded corners and bevel are not discernible in any view.\n- Script may have incorrect Z positioning or mesh merging errors.\n- Rewrite with explicit origin placement and larger scale for visibility.",
+      "raw_chars": 4501
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The render correctly shows a square top with rounded corners, two thin cylindrical legs, and flared circular bases \u2014 matching the description.",
+      "raw_chars": 191
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

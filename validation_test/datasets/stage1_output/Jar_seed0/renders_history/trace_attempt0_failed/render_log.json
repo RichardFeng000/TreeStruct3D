@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Jar_seed0/Jar_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.0,
+  "error": "AttributeError: 'Material' object has no attribute 'shadow_method'\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Jar_seed0/Jar_seed0.py\", line 119, in <module>\n    create_hexagonal_jar()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Jar_seed0/Jar_seed0.py\", line 99, in create_hexagonal_jar\n    mat_body = create_material(\n               ^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Jar_seed0/Jar_seed0.py\", line 32, in create_material\n    mat.shadow_method = 'HASHED'\n    ^^^^^^^^^^^^^^^^^\nAttributeError: 'Material' object has no attribute 'shadow_method'\n"
+}

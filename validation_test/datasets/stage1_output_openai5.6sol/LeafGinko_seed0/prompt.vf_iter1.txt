@@ -1,0 +1,293 @@
+Original text-to-3D task:
+
+A 3D model of a ginkgo leaf rendered from a three-quarter perspective. The leaf features a distinctive fan-shaped blade with a wavy or scalloped outer edge, a characteristic central notch dividing the fan into two lobes, a long thin petiole stem, and a slightly curved surface with a pale yellow-green coloration.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    pass
+
+# Materials.
+def make_material(name, color, roughness=0.68):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = color
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = color
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+blade_mat = make_material("Pale Yellow Green Blade", (0.63, 0.76, 0.25, 1.0))
+vein_mat = make_material("Soft Green Veins", (0.48, 0.63, 0.18, 1.0))
+stem_mat = make_material("Yellow Green Petiole", (0.58, 0.69, 0.20, 1.0))
+edge_mat = make_material("Leaf Edge", (0.55, 0.69, 0.19, 1.0))
+
+theta_min = math.radians(18.0)
+theta_max = math.radians(162.0)
+angular_steps = 112
+radial_rings = 20
+
+def outer_radius(theta):
+    normalized = (theta - theta_min) / (theta_max - theta_min)
+    side_shaping = -0.22 * (abs(2.0 * normalized - 1.0) ** 1.8)
+    broad_lobes = 0.12 * math.cos(2.0 * (theta - math.pi * 0.5))
+    scallops = 0.085 * math.cos(12.0 * (theta - theta_min) + 0.25)
+    fine_wave = 0.025 * math.sin(25.0 * theta)
+    central_notch = -0.67 * math.exp(-((theta - math.pi * 0.5) / 0.105) ** 2)
+    asymmetry = 0.045 * math.sin(theta - math.pi * 0.5)
+    return 2.62 + side_shaping + broad_lobes + scallops + fine_wave + central_notch + asymmetry
+
+def blade_position(theta, fraction):
+    radius = outer_radius(theta) * fraction
+    x = radius * math.cos(theta)
+    y = radius * math.sin(theta)
+    cup = 0.115 * fraction * fraction * (x / 2.5) ** 2
+    sweep = 0.045 * fraction * math.sin(theta - math.pi * 0.5)
+    edge_wave = 0.032 * fraction ** 3 * math.sin(10.0 * theta + 0.4)
+    longitudinal_curve = 0.035 * fraction * fraction
+    z = cup + sweep + edge_wave + longitudinal_curve
+    return Vector((x, y, z))
+
+# Fan-shaped blade mesh.
+vertices = [(0.0, 0.0, -0.005)]
+for ring in range(1, radial_rings + 1):
+    f = ring / radial_rings
+    # Slight nonlinear spacing concentrates topology around the petiole junction.
+    f = f ** 0.92
+    for j in range(angular_steps + 1):
+        theta = theta_min + (theta_max - theta_min) * j / angular_steps
+        vertices.append(tuple(blade_position(theta, f)))
+
+faces = []
+first_ring_start = 1
+for j in range(angular_steps):
+    faces.append((0, first_ring_start + j, first_ring_start + j + 1))
+
+row = angular_steps + 1
+for ring in range(1, radial_rings):
+    lower = 1 + (ring - 1) * row
+    upper = 1 + ring * row
+    for j in range(angular_steps):
+        faces.append((
+            lower + j,
+            upper + j,
+            upper + j + 1,
+            lower + j + 1
+        ))
+
+blade_mesh = bpy.data.meshes.new("Ginkgo Blade Mesh")
+blade_mesh.from_pydata(vertices, [], faces)
+blade_mesh.update()
+
+blade = bpy.data.objects.new("Ginkgo Blade", blade_mesh)
+bpy.context.collection.objects.link(blade)
+blade.data.materials.append(blade_mat)
+
+for polygon in blade.data.polygons:
+    polygon.use_smooth = True
+
+solidify = blade.modifiers.new("Delicate Leaf Thickness", 'SOLIDIFY')
+solidify.thickness = 0.045
+solidify.offset = 0.0
+solidify.use_even_offset = True
+
+bpy.context.view_layer.objects.active = blade
+blade.select_set(True)
+bpy.ops.object.modifier_apply(modifier=solidify.name)
+blade.select_set(False)
+
+# Build a gently curved, tapered petiole as a ring mesh.
+stem_centers = []
+stem_segments = 34
+for i in range(stem_segments + 1):
+    t = i / stem_segments
+    y = -3.15 + 3.22 * t
+    x = 0.055 * math.sin(math.pi * t) - 0.025 * math.sin(2.0 * math.pi * t)
+    z = -0.19 + 0.18 * t + 0.055 * math.sin(math.pi * t)
+    stem_centers.append(Vector((x, y, z)))
+
+stem_sides = 12
+stem_vertices = []
+for i, center in enumerate(stem_centers):
+    if i == 0:
+        tangent = (stem_centers[1] - stem_centers[0]).normalized()
+    elif i == stem_segments:
+        tangent = (stem_centers[-1] - stem_centers[-2]).normalized()
+    else:
+        tangent = (stem_centers[i + 1] - stem_centers[i - 1]).normalized()
+
+    reference = Vector((1.0, 0.0, 0.0))
+    normal_a = tangent.cross(reference)
+    if normal_a.length < 0.01:
+        reference = Vector((0.0, 0.0, 1.0))
+        normal_a = tangent.cross(reference)
+    normal_a.normalize()
+    normal_b = tangent.cross(normal_a).normalized()
+
+    t = i / stem_segments
+    radius = 0.052 + 0.025 * t
+    radius *= 0.90 + 0.10 * math.sin(math.pi * t)
+    for side in range(stem_sides):
+        angle = 2.0 * math.pi * side / stem_sides
+        offset = normal_a * (math.cos(angle) * radius) + normal_b * (math.sin(angle) * radius)
+        stem_vertices.append(tuple(center + offset))
+
+stem_faces = []
+for i in range(stem_segments):
+    current = i * stem_sides
+    following = (i + 1) * stem_sides
+    for side in range(stem_sides):
+        nxt = (side + 1) % stem_sides
+        stem_faces.append((current + side, current + nxt, following + nxt, following + side))
+
+stem_faces.append(tuple(reversed(tuple(range(stem_sides)))))
+last_ring = stem_segments * stem_sides
+stem_faces.append(tuple(last_ring + i for i in range(stem_sides)))
+
+stem_mesh = bpy.data.meshes.new("Petiole Mesh")
+stem_mesh.from_pydata(stem_vertices, [], stem_faces)
+stem_mesh.update()
+stem = bpy.data.objects.new("Long Curved Petiole", stem_mesh)
+bpy.context.collection.objects.link(stem)
+stem.data.materials.append(stem_mat)
+for polygon in stem.data.polygons:
+    polygon.use_smooth = True
+
+# Utility for raised vein and edge curves.
+curve_objects = []
+
+def make_poly_curve(name, points, bevel_depth, material, cyclic=False, bevel_resolution=1):
+    curve_data = bpy.data.curves.new(name + " Data", type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.resolution_u = 1
+    curve_data.bevel_depth = bevel_depth
+    curve_data.bevel_resolution = bevel_resolution
+    curve_data.resolution_u = 1
+    curve_data.materials.append(material)
+
+    spline = curve_data.splines.new('POLY')
+    spline.points.add(len(points) - 1)
+    for point, coordinate in zip(spline.points, points):
+        point.co = (coordinate.x, coordinate.y, coordinate.z, 1.0)
+    spline.use_cyclic_u = cyclic
+
+    obj = bpy.data.objects.new(name, curve_data)
+    bpy.context.collection.objects.link(obj)
+    curve_objects.append(obj)
+    return obj
+
+# Radiating primary veins, characteristic of ginkgo leaves.
+primary_angles = []
+for index in range(21):
+    theta = theta_min + 0.085 + (theta_max - theta_min - 0.17) * index / 20
+    primary_angles.append(theta)
+    points = []
+    for k in range(14):
+        f = 0.055 + 0.89 * k / 13
+        p = blade_position(theta, f)
+        lift = 0.029 + 0.004 * (1.0 - f)
+        p.z += lift
+        points.append(p)
+    depth = 0.0095 if index % 2 == 0 else 0.0075
+    make_poly_curve("Radiating Vein", points, depth, vein_mat, bevel_resolution=1)
+
+# Dichotomous branch veins split gently toward the outer edge.
+for index in range(1, 20, 2):
+    base_theta = primary_angles[index]
+    direction = -1.0 if index < 10 else 1.0
+    for branch_sign in (-1.0, 1.0):
+        points = []
+        start_f = 0.42 if branch_sign < 0 else 0.56
+        for k in range(9):
+            u = k / 8
+            f = start_f + (0.94 - start_f) * u
+            divergence = direction * branch_sign * 0.025 * (u ** 1.3)
+            theta = base_theta + divergence
+            p = blade_position(theta, f)
+            p.z += 0.027
+            points.append(p)
+        make_poly_curve("Forked Vein", points, 0.0058, vein_mat, bevel_resolution=1)
+
+# Subtle central basal veins joining blade and petiole.
+for theta in (math.radians(74), math.radians(90), math.radians(106)):
+    points = []
+    for k in range(10):
+        f = 0.025 + 0.54 * k / 9
+        p = blade_position(theta, f)
+        p.z += 0.031
+        points.append(p)
+    make_poly_curve("Basal Vein", points, 0.010, vein_mat, bevel_resolution=1)
+
+# Delicate rim follows both radial sides and the scalloped outer margin.
+rim_points = [Vector((0.0, 0.0, 0.018))]
+for k in range(1, 7):
+    f = k / 7
+    p = blade_position(theta_min, f)
+    p.z += 0.012
+    rim_points.append(p)
+for j in range(angular_steps + 1):
+    theta = theta_min + (theta_max - theta_min) * j / angular_steps
+    p = blade_position(theta, 1.0)
+    p.z += 0.012
+    rim_points.append(p)
+for k in range(6, 0, -1):
+    f = k / 7
+    p = blade_position(theta_max, f)
+    p.z += 0.012
+    rim_points.append(p)
+rim_points.append(Vector((0.0, 0.0, 0.018)))
+make_poly_curve("Scalloped Leaf Rim", rim_points, 0.0105, edge_mat, cyclic=False, bevel_resolution=1)
+
+# Convert curve geometry to meshes and combine the coherent assembly.
+for obj in curve_objects:
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target='MESH')
+    obj.select_set(False)
+
+bpy.ops.object.select_all(action='DESELECT')
+mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+for obj in mesh_objects:
+    obj.select_set(True)
+bpy.context.view_layer.objects.active = blade
+bpy.ops.object.join()
+leaf = bpy.context.active_object
+leaf.name = "Ginkgo Leaf"
+
+# Apply a subtle three-dimensional presentation tilt while retaining the origin.
+leaf.rotation_euler = (
+    math.radians(7.0),
+    math.radians(-4.0),
+    math.radians(-2.5)
+)
+bpy.context.view_layer.objects.active = leaf
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+# Recenter the complete leaf assembly around the world origin.
+bounds = [leaf.matrix_world @ Vector(corner) for corner in leaf.bound_box]
+center = Vector((
+    (min(v.x for v in bounds) + max(v.x for v in bounds)) * 0.5,
+    (min(v.y for v in bounds) + max(v.y for v in bounds)) * 0.5,
+    (min(v.z for v in bounds) + max(v.z for v in bounds)) * 0.5
+))
+leaf.location -= center
+
+leaf.select_set(True)
+bpy.context.view_layer.objects.active = leaf
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

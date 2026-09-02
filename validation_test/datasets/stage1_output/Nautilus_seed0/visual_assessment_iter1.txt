@@ -1,0 +1,3 @@
+- Missing Textures: The most critical issue; the model is plain grey, but the prompt requires wavy brown-and-cream radiating stripe patterns.
+- Geometry lacks shell-like character: It looks more like a generic coiled tube than a nautilus shell; I will adjust growth and proportions slightly for better realism.
+- UV Mapping missing: Procedural textures won't follow the spiral without explicit UV coordinates assigned during mesh generation.

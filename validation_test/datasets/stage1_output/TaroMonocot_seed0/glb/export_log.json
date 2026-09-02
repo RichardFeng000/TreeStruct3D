@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TaroMonocot_seed0/TaroMonocot_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/TaroMonocot_seed0/glb/TaroMonocot_seed0.glb",
+  "status": "OK",
+  "n_meshes": 17,
+  "size_kb": 339.1,
+  "latency_s": 0.11,
+  "error": null
+}

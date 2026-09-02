@@ -1,0 +1,357 @@
+Original text-to-3D task:
+
+A sea fan coral (gorgonian) rendered as a textured 3D model. The coral features numerous thin, rod-like branches that grow upward in a roughly planar fan arrangement, branching and bifurcating repeatedly to form a dense lattice-like net structure. The base is a wide, solid root from which the branching network fans outward and upward. The coloring is warm sandy beige to tan with a subtle brown gradient toward the base. A strong shadow beneath the dense branch network creates a dramatic silhouette on the white background.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+from dataclasses import dataclass
+from typing import List
+
+# === Scene cleanup ===
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for block in list(bpy.data.meshes):
+    bpy.data.meshes.remove(block)
+for block in list(bpy.data.materials):
+    bpy.data.materials.remove(block)
+for block in list(bpy.data.curves):
+    bpy.data.curves.remove(block)
+for block in list(bpy.data.cameras):
+    bpy.data.cameras.remove(block)
+for block in list(bpy.data.lights):
+    bpy.data.lights.remove(block)
+
+random.seed(42)
+
+# === Data structures ===
+@dataclass
+class Branch:
+    start: Vector
+    end: Vector
+    r_start: float
+    r_end: float
+    depth: int
+
+branches: List[Branch] = []
+nodes: List[tuple] = []
+
+# === Color palette (linear RGB) ===
+c_base_col = (0.15, 0.09, 0.05)
+c_mid_col = (0.42, 0.30, 0.17)
+c_tip_col = (0.68, 0.56, 0.38)
+
+# === Helper functions ===
+def rotate_y(v, angle):
+    c, s = math.cos(angle), math.sin(angle)
+    return Vector((v.x * c + v.z * s, v.y, -v.x * s + v.z * c))
+
+def lerp(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(len(a)))
+
+def clamp_color(c):
+    return (max(0.0, min(1.0, c[0])),
+            max(0.0, min(1.0, c[1])),
+            max(0.0, min(1.0, c[2])),
+            1.0)
+
+# === Branch generation ===
+def generate_tree():
+    num_roots = 13
+    for i in range(num_roots):
+        t = i / (num_roots - 1) - 0.5
+        angle = t * math.pi * 0.82
+        start = Vector((
+            math.sin(angle) * 0.32,
+            random.uniform(-0.025, 0.025),
+            0.1
+        ))
+        direction = Vector((
+            math.sin(angle) * 0.55,
+            random.uniform(-0.015, 0.015),
+            0.84
+        )).normalized()
+        grow(start, direction, 0.52, 0.048, 0, 9)
+
+def grow(start, direction, length, radius, depth, max_depth):
+    if depth > max_depth or radius < 0.004:
+        return
+    end = start + direction * length
+    r_end = radius * 0.82
+    branches.append(Branch(start.copy(), end.copy(), radius, r_end, depth))
+    nodes.append((end.copy(), r_end, depth))
+    if depth >= max_depth:
+        return
+    if depth < 3:
+        bif_prob = 0.95
+    elif depth < 6:
+        bif_prob = 0.80
+    else:
+        bif_prob = 0.55
+    if random.random() < bif_prob:
+        for j in range(2):
+            spread = math.radians(8 + random.uniform(0, 14))
+            if j == 0:
+                spread = -spread
+            new_dir = rotate_y(direction, spread)
+            new_dir.z += max(0.05, 0.25 - depth * 0.025)
+            new_dir.y += random.uniform(-0.05, 0.05)
+            new_dir.normalize()
+            new_len = length * (0.74 + random.uniform(-0.04, 0.04))
+            new_rad = radius * 0.74
+            grow(end, new_dir, new_len, new_rad, depth + 1, max_depth)
+    else:
+        spread = math.radians(random.uniform(-6, 6))
+        new_dir = rotate_y(direction, spread)
+        new_dir.z += 0.12
+        new_dir.y += random.uniform(-0.03, 0.03)
+        new_dir.normalize()
+        new_len = length * 0.82
+        new_rad = radius * 0.88
+        grow(end, new_dir, new_len, new_rad, depth + 1, max_depth)
+
+def add_anastomoses():
+    cell_size = 0.20
+    grid = {}
+    for idx, (pos, r, d) in enumerate(nodes):
+        if d < 2:
+            continue
+        cell = (int(pos.x / cell_size), int(pos.y / cell_size), int(pos.z / cell_size))
+        grid.setdefault(cell, []).append(idx)
+    added = 0
+    max_anast = 350
+    for cell in list(grid.keys()):
+        if added >= max_anast:
+            break
+        neighbors = []
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                for dz in range(-1, 2):
+                    nc = (cell[0] + dx, cell[1] + dy, cell[2] + dz)
+                    if nc in grid:
+                        neighbors.extend(grid[nc])
+        for i in grid[cell]:
+            if added >= max_anast:
+                break
+            for j in neighbors:
+                if j <= i:
+                    continue
+                pos_i, r_i, d_i = nodes[i]
+                pos_j, r_j, d_j = nodes[j]
+                dist = (pos_i - pos_j).length
+                if 0.04 < dist < 0.16:
+                    if random.random() < 0.06:
+                        mid_r = min(r_i, r_j) * 0.85
+                        branches.append(Branch(pos_i, pos_j, mid_r, mid_r * 0.9, max(d_i, d_j)))
+                        added += 1
+                        if added >= max_anast:
+                            break
+
+generate_tree()
+add_anastomoses()
+
+# === Z range for coloring ===
+all_z = []
+for b in branches:
+    all_z.append(b.start.z)
+    all_z.append(b.end.z)
+z_min = min(all_z)
+z_max = max(all_z)
+
+def get_color(z):
+    t = (z - z_min) / (z_max - z_min) if z_max > z_min else 0.5
+    t = max(0.0, min(1.0, t))
+    if t < 0.35:
+        return lerp(c_base_col, c_mid_col, t / 0.35)
+    else:
+        return lerp(c_mid_col, c_tip_col, (t - 0.35) / 0.65)
+
+# === Mesh building: curved branch tubes ===
+def add_branch_tube(bm, branch, seg, color_layer):
+    start = branch.start
+    end = branch.end
+    r1 = max(branch.r_start, 0.0015)
+    r2 = max(branch.r_end, 0.0015)
+    direction = end - start
+    length = direction.length
+    if length < 0.001:
+        return
+    direction.normalize()
+
+    # Curvature direction
+    if abs(direction.y) < 0.9:
+        perp = direction.cross(Vector((0, 1, 0))).normalized()
+    else:
+        perp = direction.cross(Vector((1, 0, 0))).normalized()
+    curve_offset = perp * random.uniform(-0.015, 0.015) + Vector((0, random.uniform(-0.01, 0.01), 0))
+
+    num_sections = 3
+    points = []
+    radii = []
+    for i in range(num_sections + 1):
+        t = i / num_sections
+        pos = start + direction * length * t
+        pos = pos + curve_offset * 4.0 * t * (1.0 - t)
+        r = r1 + (r2 - r1) * t
+        points.append(pos)
+        radii.append(max(r, 0.0015))
+
+    # Cross-sections
+    sections = []
+    for i in range(len(points)):
+        pt = points[i]
+        r = radii[i]
+        if i == 0:
+            dir_seg = (points[1] - points[0]).normalized()
+        elif i == len(points) - 1:
+            dir_seg = (points[-1] - points[-2]).normalized()
+        else:
+            dir_seg = (points[i + 1] - points[i - 1]).normalized()
+        if abs(dir_seg.y) < 0.9:
+            p1 = dir_seg.cross(Vector((0, 1, 0))).normalized()
+        else:
+            p1 = dir_seg.cross(Vector((1, 0, 0))).normalized()
+        p2 = dir_seg.cross(p1).normalized()
+        verts = []
+        for j in range(seg):
+            angle = 2.0 * math.pi * j / seg
+            offset = p1 * math.cos(angle) + p2 * math.sin(angle)
+            v = bm.verts.new(pt + offset * r)
+            verts.append(v)
+        sections.append(verts)
+
+    # Color
+    mid_z = (start.z + end.z) * 0.5
+    col = get_color(mid_z)
+    vn = random.uniform(-0.025, 0.025)
+    col = clamp_color((col[0] + vn, col[1] + vn, col[2] + vn))
+
+    # Faces between sections
+    for i in range(len(sections) - 1):
+        s1 = sections[i]
+        s2 = sections[i + 1]
+        for j in range(seg):
+            nj = (j + 1) % seg
+            try:
+                face = bm.faces.new([s1[j], s1[nj], s2[nj], s2[j]])
+                for loop in face.loops:
+                    loop[color_layer] = col
+            except ValueError:
+                pass
+
+    # Cap terminal tips
+    if branch.depth >= 8:
+        try:
+            face = bm.faces.new(sections[-1])
+            for loop in face.loops:
+                loop[color_layer] = col
+        except ValueError:
+            pass
+
+# === Base geometry ===
+def add_base_geometry(bm, color_layer):
+    rings = 12
+    seg_base = 24
+    base_radius = 0.65
+    base_height = 0.20
+    prev_ring = []
+    for r in range(rings + 1):
+        t = r / rings
+        if t < 0.12:
+            ring_r = base_radius * (0.25 + (t / 0.12) * 0.75)
+            z = base_height * ((t / 0.12) ** 0.4)
+        else:
+            fade = (t - 0.12) / 0.88
+            ring_r = base_radius * (1.0 - fade * 0.88) * math.sqrt(max(0.001, 1.0 - fade * 0.25))
+            z = base_height * (1.0 - fade ** 1.8)
+        ring = []
+        for s in range(seg_base):
+            angle = 2.0 * math.pi * s / seg_base
+            noise = 1.0 + random.uniform(-0.07, 0.07)
+            x = math.cos(angle) * ring_r * noise
+            y = math.sin(angle) * ring_r * noise * 0.42
+            z_pos = z + random.uniform(-0.006, 0.006)
+            v = bm.verts.new((x, y, z_pos))
+            ring.append(v)
+        if prev_ring:
+            for s in range(seg_base):
+                ns = (s + 1) % seg_base
+                try:
+                    face = bm.faces.new([prev_ring[s], prev_ring[ns], ring[ns], ring[s]])
+                    col = lerp(c_base_col, c_mid_col, t * 0.4)
+                    v2 = random.uniform(-0.02, 0.02)
+                    col = clamp_color((col[0] + v2, col[1] + v2, col[2] + v2))
+                    for loop in face.loops:
+                        loop[color_layer] = col
+                except ValueError:
+                    pass
+        prev_ring = ring
+    if prev_ring:
+        try:
+            face = bm.faces.new(list(reversed(prev_ring)))
+            for loop in face.loops:
+                loop[color_layer] = clamp_color(c_base_col)
+        except ValueError:
+            pass
+
+# === Build complete mesh ===
+mesh = bpy.data.meshes.new("SeaFanMesh")
+obj = bpy.data.objects.new("SeaFan", mesh)
+bpy.context.collection.objects.link(obj)
+
+bm = bmesh.new()
+color_layer = bm.loops.layers.color.new("color")
+
+add_base_geometry(bm, color_layer)
+
+for branch in branches:
+    add_branch_tube(bm, branch, 7, color_layer)
+
+bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.004)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+bm.to_mesh(mesh)
+bm.free()
+
+# === Material ===
+mat = bpy.data.materials.new("SeaFanMaterial")
+mat.use_nodes = True
+nodes_mat = mat.node_tree.nodes
+links = mat.node_tree.links
+for n in list(nodes_mat):
+    nodes_mat.remove(n)
+
+output = nodes_mat.new('ShaderNodeOutputMaterial')
+output.location = (400, 0)
+
+principled = nodes_mat.new('ShaderNodeBsdfPrincipled')
+principled.location = (100, 0)
+principled.inputs['Roughness'].default_value = 0.88
+
+vcol_node = nodes_mat.new('ShaderNodeVertexColor')
+vcol_node.layer_name = "color"
+vcol_node.location = (-200, 0)
+
+links.new(vcol_node.outputs['Color'], principled.inputs['Base Color'])
+links.new(principled.outputs['BSDF'], output.inputs['Surface'])
+
+mesh.materials.append(mat)
+
+# === Smooth shading ===
+for poly in mesh.polygons:
+    poly.use_smooth = True
+
+print(f"Sea fan created: {len(branches)} branches, {len(mesh.vertices)} vertices, {len(mesh.polygons)} faces")
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

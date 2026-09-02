@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BookStack_seed0/BookStack_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BookStack_seed0/glb/BookStack_seed0.glb",
+  "status": "OK",
+  "n_meshes": 8,
+  "size_kb": 23.9,
+  "latency_s": 0.09,
+  "error": null
+}

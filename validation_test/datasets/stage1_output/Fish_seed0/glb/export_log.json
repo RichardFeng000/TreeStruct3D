@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Fish_seed0/Fish_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Fish_seed0/glb/Fish_seed0.glb",
+  "status": "OK",
+  "n_meshes": 10,
+  "size_kb": 178.0,
+  "latency_s": 0.11,
+  "error": null
+}

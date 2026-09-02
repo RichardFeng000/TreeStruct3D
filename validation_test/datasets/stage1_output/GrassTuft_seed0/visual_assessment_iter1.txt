@@ -1,0 +1,3 @@
+- The blades are jittery/jagged because random values were generated per vertex rather than per blade, preventing smooth natural curves.
+- The model is white; it should be dark green as specified in the description.
+- Some blades shoot out linearly or inconsistently due to flawed drift logic.

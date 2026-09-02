@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/stage_results/stage1_output_openai5.6sol/StraightStaircase_seed0/StraightStaircase_seed0.py",
+  "samples": 64,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 141,
+  "extent": 3.9175000190734863,
+  "n_views_rendered": 4,
+  "latency_s": 11.64,
+  "error": null
+}

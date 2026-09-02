@@ -1,0 +1,145 @@
+Original text-to-3D task:
+
+A 3D model of an open cabinet drawer box rendered from a three-quarter perspective, featuring a rectangular tray-like form with a tall back panel and shorter side walls, all displaying a rich dark wood-grain appearance.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+from mathutils import Vector
+
+def clear_scene():
+    """Clears the default blender scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color):
+    """Creates a simple material with a specific diffuse color."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Roughness'].default_value = 0.7
+    return mat
+
+def create_slab(name, width, depth, height, location):
+    """Creates a box with specific dimensions and applies the name."""
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.scale = (width, depth, height)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return obj
+
+def main():
+    clear_scene()
+
+    # Dimensions
+    t = 0.02  # thickness
+    w = 0.6   # width
+    d = 0.4   # depth
+    h_back = 0.25 # height of the tall back panel
+    h_side = 0.12 # height of side/front panels
+    
+    # Material: Rich Dark Wood (Dark Brown)
+    dark_wood_mat = create_material("DarkWood", (0.08, 0.04, 0.02, 1.0))
+
+    # Component parts construction
+    # Base Plate
+    base = create_slab(
+        "Base", 
+        w, d, t, 
+        Vector((0, 0, t / 2))
+    )
+    
+    # Back Panel (Tall) - placed on top of base at the rear
+    back = create_slab(
+        "BackPanel", 
+        w, t, h_back, 
+        Vector((0, (d / 2) - (t / 2), (h_back / 2) + t))
+    )
+    
+    # Side Panels (Shorter) - placed on top of base along the sides
+    side_l = create_slab(
+        "SideL", 
+        t, d - t, h_side, 
+        Vector((-w/2 + t/2, 0, (h_side / 2) + t))
+    )
+    side_r = create_slab(
+        "SideR", 
+        t, d - t, h_side, 
+        Vector((w/2 - t/2, 0, (h_side / 2) + t))
+    )
+    
+    # Front Panel (Shorter) - placed on top of base at the front
+    front = create_slab(
+        "FrontPanel", 
+        w - (2 * t), t, h_side, 
+        Vector((0, -(d / 2) + (t / 2), (h_side / 2) + t))
+    )
+
+    # Join all parts into one object
+    objs = [base, back, side_l, side_r, front]
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objs:
+        obj.select_set(True)
+    
+    bpy.context.view_layer.objects.active = base
+    bpy.ops.object.join()
+    
+    drawer_box = bpy.context.active_object
+    drawer_box.name = "CabinetDrawerBox"
+
+    # Apply material
+    if drawer_box.data.materials:
+        drawer_box.data.materials[0] = dark_wood_mat
+    else:
+        drawer_box.data.materials.append(dark_wood_mat)
+
+    # Add Bevel modifier for realistic wood edges
+    bevel_mod = drawer_box.modifiers.new(name="Bevel", type='BEVEL')
+    bevel_mod.width = 0.005
+    bevel_mod.segments = 3
+    
+    # In Blender 4.1+ and 5.0, 'use_auto_smooth' is deprecated.
+    # Instead we use Shade Smooth and the 'Smooth by Angle' modifier.
+    bpy.ops.object.shade_smooth()
+    
+    # Add Smooth by Angle modifier to maintain sharp corners where intended (replacing auto-smooth)
+    sb_angle = drawer_box.modifiers.new(name="SmoothByAngle", type='SMOOTH_BY_ANGLE')
+    sb_angle.angle = 0.785398 # approx 45 degrees in radians
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+TypeError: ObjectModifiers.new(): error with keyword argument "type" -  enum "SMOOTH_BY_ANGLE" not found in ('GREASE_PENCIL_VERTEX_WEIGHT_PROXIMITY', 'DATA_TRANSFER', 'MESH_CACHE', 'MESH_SEQUENCE_CACHE', 'NORMAL_EDIT', 'WEIGHTED_NORMAL', 'UV_PROJECT', 'UV_WARP', 'VERTEX_WEIGHT_EDIT', 'VERTEX_WEIGHT_MIX', 'VERTEX_WEIGHT_PROXIMITY', 'GREASE_PENCIL_COLOR', 'GREASE_PENCIL_TINT', 'GREASE_PENCIL_OPACITY', 'GREASE_PENCIL_VERTEX_WEIGHT_ANGLE', 'GREASE_PENCIL_TIME', 'GREASE_PENCIL_TEXTURE', 'ARRAY', 'BEVEL', 'BOOLEAN', 'BUILD', 'DECIMATE', 'EDGE_SPLIT', 'NODES', 'MASK', 'MIRROR', 'MESH_TO_VOLUME', 'MULTIRES', 'REMESH', 'SCREW', 'SKIN', 'SOLIDIFY', 'SUBSURF', 'TRIANGULATE', 'VOLUME_TO_MESH', 'WELD', 'WIREFRAME', 'GREASE_PENCIL_ARRAY', 'GREASE_PENCIL_BUILD', 'GREASE_PENCIL_LENGTH', 'LINEART', 'GREASE_PENCIL_MIRROR', 'GREASE_PENCIL_MULTIPLY', 'GREASE_PENCIL_SIMPLIFY', 'GREASE_PENCIL_SUBDIV', 'GREASE_PENCIL_ENVELOPE', 'GREASE_PENCIL_OUTLINE', 'ARMATURE', 'CAST', 'CURVE', 'DISPLACE', 'HOOK', 'LAPLACIANDEFORM', 'LATTICE', 'MESH_DEFORM', 'SHRINKWRAP', 'SIMPLE_DEFORM', 'SMOOTH', 'CORRECTIVE_SMOOTH', 'LAPLACIANSMOOTH', 'SURFACE_DEFORM', 'WARP', 'WAVE', 'VOLUME_DISPLACE', 'GREASE_PENCIL_HOOK', 'GREASE_PENCIL_NOISE', 'GREASE_PENCIL_OFFSET', 'GREASE_PENCIL_SMOOTH', 'GREASE_PENCIL_THICKNESS', 'GREASE_PENCIL_LATTICE', 'GREASE_PENCIL_DASH', 'GREASE_PENCIL_ARMATURE', 'GREASE_PENCIL_SHRINKWRAP', 'CLOTH', 'COLLISION', 'DYNAMIC_PAINT', 'EXPLODE', 'FLUID', 'OCEAN', 'PARTICLE_INSTANCE', 'PARTICLE_SYSTEM', 'SOFT_BODY', 'SURFACE')
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/CabinetDr
+
+... [truncated 1076 chars] ...
+
+FRAME', 'GREASE_PENCIL_ARRAY', 'GREASE_PENCIL_BUILD', 'GREASE_PENCIL_LENGTH', 'LINEART', 'GREASE_PENCIL_MIRROR', 'GREASE_PENCIL_MULTIPLY', 'GREASE_PENCIL_SIMPLIFY', 'GREASE_PENCIL_SUBDIV', 'GREASE_PENCIL_ENVELOPE', 'GREASE_PENCIL_OUTLINE', 'ARMATURE', 'CAST', 'CURVE', 'DISPLACE', 'HOOK', 'LAPLACIANDEFORM', 'LATTICE', 'MESH_DEFORM', 'SHRINKWRAP', 'SIMPLE_DEFORM', 'SMOOTH', 'CORRECTIVE_SMOOTH', 'LAPLACIANSMOOTH', 'SURFACE_DEFORM', 'WARP', 'WAVE', 'VOLUME_DISPLACE', 'GREASE_PENCIL_HOOK', 'GREASE_PENCIL_NOISE', 'GREASE_PENCIL_OFFSET', 'GREASE_PENCIL_SMOOTH', 'GREASE_PENCIL_THICKNESS', 'GREASE_PENCIL_LATTICE', 'GREASE_PENCIL_DASH', 'GREASE_PENCIL_ARMATURE', 'GREASE_PENCIL_SHRINKWRAP', 'CLOTH', 'COLLISION', 'DYNAMIC_PAINT', 'EXPLODE', 'FLUID', 'OCEAN', 'PARTICLE_INSTANCE', 'PARTICLE_SYSTEM', 'SOFT_BODY', 'SURFACE')
+
+This is repair attempt 3 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

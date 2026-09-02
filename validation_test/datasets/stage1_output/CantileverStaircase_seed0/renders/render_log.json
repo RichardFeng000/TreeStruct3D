@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/CantileverStaircase_seed0/CantileverStaircase_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 16,
+  "extent": 5.199999809265137,
+  "n_views_rendered": 4,
+  "latency_s": 4.23,
+  "error": null
+}

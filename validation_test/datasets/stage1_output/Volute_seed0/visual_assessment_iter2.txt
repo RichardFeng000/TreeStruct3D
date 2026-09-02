@@ -1,0 +1,3 @@
+- The shell looks like a coiled tube rather than an organic gastropod; it lacks a distinct, small apex (spire tip).
+- The "radiating stripe patterns" are currently rendered as rings around the tube; they should run longitudinally along the coil or radiate from the center.
+- The body whorl inflation is present but the overall silhouette is too uniform and not enough like a volute shell.

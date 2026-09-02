@@ -1,0 +1,341 @@
+import bpy
+import math
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for datablocks in (
+    bpy.data.meshes,
+    bpy.data.curves,
+    bpy.data.materials,
+    bpy.data.cameras,
+    bpy.data.lights
+):
+    for block in list(datablocks):
+        if block.users == 0:
+            datablocks.remove(block)
+
+def make_material(name, color, roughness):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = 0.0
+    return mat
+
+deep_umber = make_material("Deep umber", (0.045, 0.012, 0.006), 0.42)
+dark_brown = make_material("Dark brown", (0.105, 0.030, 0.012), 0.44)
+chestnut = make_material("Chestnut brown", (0.235, 0.075, 0.025), 0.47)
+warm_brown = make_material("Warm brown", (0.420, 0.205, 0.070), 0.50)
+tan = make_material("Warm tan", (0.620, 0.405, 0.185), 0.53)
+cream = make_material("Cream growth bands", (0.825, 0.685, 0.440), 0.55)
+interior = make_material("Dark satin interior", (0.018, 0.012, 0.012), 0.38)
+rim_material = make_material("Dark shell lip", (0.060, 0.018, 0.010), 0.40)
+ligament_material = make_material("Hinge ligament", (0.026, 0.012, 0.008), 0.58)
+
+materials = [
+    deep_umber,
+    dark_brown,
+    chestnut,
+    warm_brown,
+    tan,
+    cream,
+    interior,
+    rim_material,
+    ligament_material
+]
+
+HINGE_Y = -3.1
+SHELL_LENGTH = 6.2
+HALF_WIDTH = 1.14
+OPEN_ANGLE = math.radians(7.5)
+RADIAL_SEGMENTS = 64
+OUTLINE_SEGMENTS = 128
+GROWTH_RINGS = 17.0
+
+def outline_point(theta, scale=1.0):
+    progress = 0.5 * (1.0 - math.cos(theta))
+    taper = 0.36 + 0.64 * progress
+    side_asymmetry = 0.97 if math.sin(theta) >= 0.0 else 1.03
+
+    x = scale * HALF_WIDTH * math.sin(theta) * taper * side_asymmetry
+    y = HINGE_Y + scale * SHELL_LENGTH * progress
+    return x, y
+
+def shell_profile(s, theta):
+    envelope = max(math.sin(math.pi * s), 0.0)
+    broad_dome = 0.72 * envelope ** 0.72
+
+    # Slight asymmetry keeps the shell organic without breaking the bands.
+    broad_dome *= 1.0 + 0.035 * math.sin(theta) - 0.025 * math.cos(2.0 * theta)
+
+    phase = (s * GROWTH_RINGS) % 1.0
+    sharp_ring = max(math.cos(2.0 * math.pi * phase), 0.0) ** 12
+    secondary_ring = max(math.cos(4.0 * math.pi * phase), 0.0) ** 18
+
+    radial_texture = (
+        0.037 * sharp_ring +
+        0.010 * secondary_ring +
+        0.008 * math.sin(18.0 * theta + 7.0 * s)
+    ) * envelope ** 0.45
+
+    outer_height = broad_dome + radial_texture + 0.040 * s
+    inner_height = 0.48 * broad_dome - 0.010 * math.sin(
+        2.0 * math.pi * GROWTH_RINGS * s
+    ) * envelope
+
+    return outer_height, inner_height
+
+def transform_point(x, y, z_unsigned, side):
+    z = side * z_unsigned
+    angle = side * OPEN_ANGLE
+    dy = y - HINGE_Y
+    ca = math.cos(angle)
+    sa = math.sin(angle)
+
+    world_y = HINGE_Y + dy * ca - z * sa
+    world_z = dy * sa + z * ca
+    return x, world_y, world_z
+
+def growth_material_index(s):
+    cycle = s * GROWTH_RINGS
+    ring_number = int(math.floor(cycle))
+    phase = cycle - math.floor(cycle)
+
+    if phase < 0.11:
+        return 5
+    if phase < 0.23:
+        return 4
+    if phase < 0.38:
+        return 3
+
+    sequence = (1, 2, 2, 3, 0, 2)
+    return sequence[ring_number % len(sequence)]
+
+def add_face(faces, face_materials, indices, material_index, reverse=False):
+    if reverse:
+        indices = tuple(reversed(indices))
+    faces.append(tuple(indices))
+    face_materials.append(material_index)
+
+def create_valve(name, side):
+    verts = []
+    faces = []
+    face_materials = []
+
+    outer_tip = len(verts)
+    verts.append(transform_point(0.0, HINGE_Y, 0.0, side))
+    inner_tip = len(verts)
+    verts.append(transform_point(0.0, HINGE_Y, 0.0, side))
+
+    outer_rings = []
+    inner_rings = []
+
+    for radial_index in range(1, RADIAL_SEGMENTS + 1):
+        s = radial_index / RADIAL_SEGMENTS
+        outer_ring = []
+        inner_ring = []
+
+        for angular_index in range(OUTLINE_SEGMENTS):
+            theta = 2.0 * math.pi * angular_index / OUTLINE_SEGMENTS
+            x, y = outline_point(theta, s)
+            outer_height, inner_height = shell_profile(s, theta)
+
+            outer_ring.append(len(verts))
+            verts.append(transform_point(x, y, outer_height, side))
+
+            inner_ring.append(len(verts))
+            verts.append(transform_point(x, y, inner_height, side))
+
+        outer_rings.append(outer_ring)
+        inner_rings.append(inner_ring)
+
+    first_outer = outer_rings[0]
+    first_inner = inner_rings[0]
+
+    for j in range(OUTLINE_SEGMENTS):
+        jn = (j + 1) % OUTLINE_SEGMENTS
+
+        add_face(
+            faces,
+            face_materials,
+            (outer_tip, first_outer[j], first_outer[jn]),
+            growth_material_index(0.01),
+            side < 0
+        )
+        add_face(
+            faces,
+            face_materials,
+            (inner_tip, first_inner[jn], first_inner[j]),
+            6,
+            side < 0
+        )
+
+    for ring_index in range(1, RADIAL_SEGMENTS):
+        previous_outer = outer_rings[ring_index - 1]
+        current_outer = outer_rings[ring_index]
+        previous_inner = inner_rings[ring_index - 1]
+        current_inner = inner_rings[ring_index]
+        s_mid = (ring_index + 0.5) / RADIAL_SEGMENTS
+        outer_material = growth_material_index(s_mid)
+
+        for j in range(OUTLINE_SEGMENTS):
+            jn = (j + 1) % OUTLINE_SEGMENTS
+
+            add_face(
+                faces,
+                face_materials,
+                (
+                    previous_outer[j],
+                    current_outer[j],
+                    current_outer[jn],
+                    previous_outer[jn]
+                ),
+                outer_material,
+                side < 0
+            )
+            add_face(
+                faces,
+                face_materials,
+                (
+                    previous_inner[jn],
+                    current_inner[jn],
+                    current_inner[j],
+                    previous_inner[j]
+                ),
+                6,
+                side < 0
+            )
+
+    last_outer = outer_rings[-1]
+    last_inner = inner_rings[-1]
+
+    for j in range(OUTLINE_SEGMENTS):
+        jn = (j + 1) % OUTLINE_SEGMENTS
+        add_face(
+            faces,
+            face_materials,
+            (last_outer[j], last_inner[j], last_inner[jn], last_outer[jn]),
+            7,
+            side < 0
+        )
+
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+
+    for mat in materials:
+        mesh.materials.append(mat)
+
+    for polygon, material_index in zip(mesh.polygons, face_materials):
+        polygon.material_index = material_index
+        polygon.use_smooth = True
+
+    mesh.validate(verbose=False)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def create_lip(name, side):
+    tube_sides = 8
+    radius = 0.028
+    verts = []
+    faces = []
+
+    outline = []
+    for j in range(OUTLINE_SEGMENTS):
+        theta = 2.0 * math.pi * j / OUTLINE_SEGMENTS
+        outline.append(outline_point(theta, 1.0))
+
+    for j in range(OUTLINE_SEGMENTS):
+        previous = outline[(j - 1) % OUTLINE_SEGMENTS]
+        following = outline[(j + 1) % OUTLINE_SEGMENTS]
+        x, y = outline[j]
+
+        tx = following[0] - previous[0]
+        ty = following[1] - previous[1]
+        length = math.sqrt(tx * tx + ty * ty)
+        if length == 0.0:
+            length = 1.0
+
+        nx = -ty / length
+        ny = tx / length
+
+        for k in range(tube_sides):
+            angle = 2.0 * math.pi * k / tube_sides
+            planar_offset = radius * math.cos(angle)
+            vertical_offset = radius * math.sin(angle)
+
+            px = x + nx * planar_offset
+            py = y + ny * planar_offset
+            pz = 0.022 + vertical_offset
+            verts.append(transform_point(px, py, pz, side))
+
+    for j in range(OUTLINE_SEGMENTS):
+        jn = (j + 1) % OUTLINE_SEGMENTS
+        for k in range(tube_sides):
+            kn = (k + 1) % tube_sides
+            a = j * tube_sides + k
+            b = jn * tube_sides + k
+            c = jn * tube_sides + kn
+            d = j * tube_sides + kn
+            if side > 0:
+                faces.append((a, b, c, d))
+            else:
+                faces.append((d, c, b, a))
+
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(rim_material)
+
+    for polygon in mesh.polygons:
+        polygon.material_index = 0
+        polygon.use_smooth = True
+
+    mesh.validate(verbose=False)
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+upper_valve = create_valve("Upper elongated mussel valve", 1)
+lower_valve = create_valve("Lower elongated mussel valve", -1)
+upper_lip = create_lip("Upper shell lip", 1)
+lower_lip = create_lip("Lower shell lip", -1)
+
+# Compact ligament embedded in the pointed ends.
+bpy.ops.mesh.primitive_uv_sphere_add(
+    segments=32,
+    ring_count=16,
+    location=(0.0, HINGE_Y + 0.055, 0.0)
+)
+hinge = bpy.context.object
+hinge.name = "Compact pointed hinge ligament"
+hinge.scale = (0.18, 0.24, 0.085)
+hinge.data.materials.append(ligament_material)
+
+for polygon in hinge.data.polygons:
+    polygon.use_smooth = True
+
+bpy.context.view_layer.objects.active = hinge
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+# Join the coherent assembly into one final mesh object.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in (upper_valve, lower_valve, upper_lip, lower_lip, hinge):
+    obj.select_set(True)
+
+bpy.context.view_layer.objects.active = upper_valve
+bpy.ops.object.join()
+upper_valve.name = "Partially Open Textured Mussel Shell"
+
+for polygon in upper_valve.data.polygons:
+    polygon.use_smooth = True
+
+upper_valve.select_set(True)
+bpy.context.view_layer.objects.active = upper_valve

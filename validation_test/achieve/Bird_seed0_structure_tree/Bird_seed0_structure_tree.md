@@ -1,0 +1,592 @@
+# Bird_seed0.py — Code Structure Tree
+
+Source: `/Users/fengruiding/Downloads/3d_code/validation_test/benchmark/categories/Bird_seed0/Bird_seed0.py`
+
+## Text tree
+
+```text
+CODE DEFINITION TREE
+================================================================================
+MODULE Bird_seed0.py
+├── Imports
+│   ├── math
+│   ├── dataclasses.dataclass
+│   ├── math.cos
+│   ├── math.exp
+│   ├── math.pi
+│   ├── math.sin
+│   ├── bmesh
+│   ├── bpy
+│   ├── numpy
+│   ├── mathutils.Euler
+│   ├── mathutils.Matrix
+│   ├── mathutils.Quaternion
+│   ├── mathutils.Vector
+│   └── mathutils.bvhtree.BVHTree
+├── Constants
+│   ├── DEFAULT_JOIN_RESULT = True [L18]
+│   ├── DEFAULT_BEAK_SELECT = None [L19]
+│   ├── BODY_BIRD_DUCK = np.array(...).reshape(9, 8, 3) [L247]
+│   ├── BODY_BIRD_GULL = np.array(...).reshape(9, 8, 3) [L295]
+│   ├── BODY_BIRD_ROBIN = np.array(...).reshape(9, 8, 3) [L343]
+│   ├── BODY_TEMPLATES = list[3] [L391]
+│   ├── BEAK_DEFAULT = dict(n=20, m=20, r=1.0, sx=1.0, sy=1.0, sz=1.0, cy_a=1.0, cz_a=2.0, reverse=1, hook_a=0.1, hook_b=5.0, hook... [L1353]
+│   ├── BEAK_SCALES = dict[22] [L1381]
+│   ├── EAGLE_UPPER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.8, 'sy': 0.4, 'sz': 1.0, 'hook_a': 0.1, 'hook_b': 5.0, 'hook_scale_x': -1... [L1406]
+│   ├── EAGLE_LOWER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.4, 'sy': 0.4, 'sz': 0.2, 'reverse': -1, 'hook_a': 0.1, 'hook_b': 5.0, 'ho... [L1421]
+│   ├── NORMAL_UPPER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.7, 'sy': 0.3, 'sz': 0.5, 'hook_a': 0.1, 'hook_b': 2.0, 'hook_scale_x': 0.... [L1437]
+│   ├── NORMAL_LOWER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.7, 'sy': 0.3, 'sz': 0.3, 'reverse': -1, 'hook_a': 0.1, 'hook_b': 2.0, 'ho... [L1452]
+│   ├── DUCK_UPPER = BEAK_DEFAULT | {'n': 50, 'r': 0.4, 'sx': 1.0, 'sy': 0.4, 'sz': 0.5, 'cy_a': 10.0, 'hook_a': 0.1, 'hook_b': ... [L1468]
+│   ├── DUCK_LOWER = BEAK_DEFAULT | {'n': 50, 'r': 0.4, 'sx': 0.97, 'sy': 0.4, 'sz': 0.1, 'cy_a': 10.0, 'reverse': -1, 'hook_a':... [L1493]
+│   ├── SHORT_UPPER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.25, 'sy': 0.3, 'sz': 0.3, 'hook_a': 0.1, 'hook_b': 2.0, 'hook_scale_x': -... [L1519]
+│   ├── SHORT_LOWER = BEAK_DEFAULT | {'r': 0.4, 'sx': 0.25, 'sy': 0.3, 'sz': 0.3, 'cy_a': 1.0, 'cz_a': 1.1, 'reverse': -1, 'hook_... [L1534]
+│   └── BEAK_TEMPLATES = dict[4] [L1552]
+├── Classes
+│   ├── Beak [L555-607]
+│   │   ├── method: __init__(self, **kw) [L557-568]
+│   │   ├── method: cx(self, x) [L570-570]
+│   │   ├── method: cy(self, x) [L571-571]
+│   │   ├── method: cz(self, x) [L572-572]
+│   │   ├── method: _hook(self, scale, a, b, p, t, x, th) [L574-575]
+│   │   ├── method: _bump(self, scale, x, lo, hi) [L577-579]
+│   │   ├── method: _crown(self, scale, a, b, p, x, th) [L581-582]
+│   │   ├── method: dx(self, x, th) [L584-585]
+│   │   ├── method: dz(self, x, th) [L587-588]
+│   │   └── method: generate_verts(self, n_p, n_t) [L590-607]
+│   └── PartState [L1227-1250]
+│       ├── method: bvh(self) [L1234-1238]
+│       ├── method: invalidate_bvh(self) [L1240-1241]
+│       └── method: apply_world_matrix(self, matrix, side) [L1243-1250]
+└── Functions
+    ├── _nxt [L12-15]
+    ├── clear_scene [L24-28]
+    ├── sel [L30-33]
+    ├── apply_tf [L35-37]
+    ├── join_objs [L39-47]
+    ├── new_mesh_obj [L49-55]
+    ├── add_subsurf [L57-63]
+    ├── add_boolean_union [L65-75]
+    ├── add_solidify [L77-84]
+    ├── compute_cylinder_topology [L89-101]
+    ├── lerp_sample [L103-111]
+    ├── cross_matrix [L113-119]
+    ├── rodrigues [L121-126]
+    ├── rotate_match_directions [L128-139]
+    ├── skeleton_to_tangents [L141-148]
+    ├── smooth_taper_arr [L150-158]
+    ├── polar_bezier_skeleton [L160-196]
+    │   └── nested_function: p2c(ang, length, org) [L173-174]
+    ├── create_tube_mesh [L201-242]
+    ├── compute_profile_verts_lofting [L396-413]
+    ├── ordered_polyline_vertices [L415-435]
+    ├── refine_open_skeleton [L437-448]
+    ├── decompose_nurbs_handles [L450-480]
+    ├── recompose_nurbs_handles [L482-499]
+    ├── create_nurbs_body [L501-550]
+    │   └── nested_function: Nv(m, v, shape) [L518-519]
+    ├── create_feather_mesh [L611-629]
+    ├── create_head [L634-677]
+    ├── create_eye [L682-686]
+    ├── _build_tube_from_skeleton [L691-727]
+    ├── create_wing [L728-886]
+    │   └── nested_function: _eval_curve(pts, x) [L806-813]
+    ├── create_tail [L891-951]
+    │   └── nested_function: qbez(t, p0, p1, p2) [L921-922]
+    ├── create_leg [L956-1012]
+    │   └── nested_function: skel_point(t) [L975-976]
+    ├── create_tiger_toe [L1017-1069]
+    │   └── nested_function: skel_pt(t) [L1035-1036]
+    ├── create_foot_legacy [L1079-1170]
+    │   └── nested_function: foot_skel_pt(t) [L1151-1152]
+    ├── euler_deg [L1175-1176]
+    ├── quat_align_vecs [L1178-1196]
+    ├── transform_points [L1198-1199]
+    ├── mesh_world_bounds [L1201-1215]
+    ├── tree_world_bounds [L1217-1224]
+    ├── raycast_surface [L1252-1275]
+    ├── attach_part [L1277-1310]
+    ├── translate_part [L1312-1315]
+    ├── center_object_on_ground [L1317-1321]
+    ├── random_convex_coord [L1323-1333]
+    ├── linear_combination [L1335-1342]
+    ├── rdict_comb [L1344-1351]
+    ├── sample_beak_params [L1559-1585]
+    │   └── nested_function: local_n(mean, width) [L1565-1566]
+    ├── create_beak_part [L1587-1602]
+    ├── tag_part [L1604-1607]
+    ├── shade_smooth_all [L1609-1614]
+    ├── build_bird [L1616-1744]
+    └── main [L1746-1755]
+
+EXECUTION CALL TREE
+================================================================================
+main [L1746]
+├── build_bird [L1616] [CALL, L1750]
+│   ├── clear_scene [L24] [CALL, L1617]
+│   ├── create_nurbs_body [L501] [CALL, L1619]
+│   │   ├── decompose_nurbs_handles [L450] [CALL, L511]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L453]
+│   │   │   └── rotate_match_directions [L128] [CALL, L455]
+│   │   │       └── rodrigues [L121] [CALL, L138]
+│   │   │           └── cross_matrix [L113] [CALL, L124]
+│   │   ├── create_nurbs_body.Nv [L518] [CALL, L521]
+│   │   │   └── _nxt [L12] [CALL, L519]
+│   │   ├── recompose_nurbs_handles [L482] [CALL, L537]
+│   │   │   └── compute_profile_verts_lofting [L396] [CALL, L494]
+│   │   │       ├── skeleton_to_tangents [L141] [CALL, L400]
+│   │   │       ├── lerp_sample [L103] [CALL, L401]
+│   │   │       └── rotate_match_directions [L128] [CALL, L412]
+│   │   │           └── rodrigues [L121] [CALL, L138]
+│   │   │               └── cross_matrix [L113] [CALL, L124]
+│   │   ├── compute_cylinder_topology [L89] [CALL, L540]
+│   │   ├── new_mesh_obj [L49] [CALL, L541]
+│   │   ├── add_subsurf [L57] [CALL, L544]
+│   │   │   └── sel [L30] [CALL, L61]
+│   │   └── refine_open_skeleton [L437] [CALL, L547]
+│   │       ├── new_mesh_obj [L49] [CALL, L443]
+│   │       ├── add_subsurf [L57] [CALL, L444]
+│   │       │   └── sel [L30] [CALL, L61]
+│   │       ├── ordered_polyline_vertices [L415] [CALL, L445]
+│   │       └── sel [L30] [CALL, L446]
+│   ├── tag_part [L1604] [CALL, L1621]
+│   ├── create_tail [L891] [CALL, L1625]
+│   │   ├── create_tube_mesh [L201] [CALL, L907]
+│   │   │   ├── polar_bezier_skeleton [L160] [CALL, L216]
+│   │   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L219]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L233]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L235]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L241]
+│   │   │   └── new_mesh_obj [L49] [CALL, L242]
+│   │   ├── create_tail.qbez [L921] [CALL, L933]
+│   │   ├── _nxt [L12] [CALL, L935]
+│   │   ├── create_feather_mesh [L611] [CALL, L937]
+│   │   │   └── new_mesh_obj [L49] [CALL, L629]
+│   │   ├── apply_tf [L35] [CALL, L940]
+│   │   │   └── sel [L30] [CALL, L36]
+│   │   └── join_objs [L39] [CALL, L949]
+│   ├── attach_part [L1277] [CALL, L1628]
+│   │   ├── raycast_surface [L1252] [CALL, L1285]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L1255]
+│   │   │   ├── lerp_sample [L103] [CALL, L1256]
+│   │   │   ├── euler_deg [L1175] [CALL, L1262]
+│   │   │   ├── quat_align_vecs [L1178] [CALL, L1263]
+│   │   │   └── PartState.bvh [L1234] [CALL, L1267]
+│   │   ├── quat_align_vecs [L1178] [CALL, L1290]
+│   │   ├── euler_deg [L1175] [CALL, L1296]
+│   │   └── PartState.apply_world_matrix [L1243] [CALL, L1309]
+│   │       ├── transform_points [L1198] [CALL, L1246]
+│   │       ├── apply_tf [L35] [CALL, L1247]
+│   │       │   └── sel [L30] [CALL, L36]
+│   │       └── PartState.invalidate_bvh [L1240] [CALL, L1248]
+│   ├── create_head [L634] [CALL, L1635]
+│   │   ├── create_tube_mesh [L201] [CALL, L646]
+│   │   │   ├── polar_bezier_skeleton [L160] [CALL, L216]
+│   │   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L219]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L233]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L235]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L241]
+│   │   │   └── new_mesh_obj [L49] [CALL, L242]
+│   │   ├── add_boolean_union [L65] [CALL, L672]
+│   │   │   └── sel [L30] [CALL, L71]
+│   │   └── add_subsurf [L57] [CALL, L674]
+│   │       └── sel [L30] [CALL, L61]
+│   ├── create_beak_part [L1587] [CALL, L1640]
+│   │   ├── sample_beak_params [L1559] [CALL, L1588]
+│   │   │   ├── random_convex_coord [L1323] [CALL, L1560]
+│   │   │   ├── rdict_comb [L1344] [CALL, L1561]
+│   │   │   │   └── linear_combination [L1335] [CALL, L1351]
+│   │   │   │       └── linear_combination [L1335] [CALL, L1339] ↩ cycle
+│   │   │   └── sample_beak_params.local_n [L1565] [CALL, L1571]
+│   │   │       └── _nxt [L12] [CALL, L1566]
+│   │   ├── Beak.generate_verts [L590] [CALL, L1593]
+│   │   │   ├── Beak.cx [L570] [CALL, L603]
+│   │   │   ├── Beak.dx [L584] [CALL, L603]
+│   │   │   ├── Beak.cy [L571] [CALL, L604]
+│   │   │   ├── Beak.cz [L572] [CALL, L606]
+│   │   │   └── Beak.dz [L587] [CALL, L606]
+│   │   ├── compute_cylinder_topology [L89] [CALL, L1594]
+│   │   ├── new_mesh_obj [L49] [CALL, L1595]
+│   │   ├── add_subsurf [L57] [CALL, L1596]
+│   │   │   └── sel [L30] [CALL, L61]
+│   │   ├── apply_tf [L35] [CALL, L1598]
+│   │   │   └── sel [L30] [CALL, L36]
+│   │   └── join_objs [L39] [CALL, L1600]
+│   ├── create_eye [L682] [CALL, L1650]
+│   ├── create_wing [L728] [CALL, L1667]
+│   │   ├── polar_bezier_skeleton [L160] [CALL, L776]
+│   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   ├── smooth_taper_arr [L150] [CALL, L780]
+│   │   ├── _build_tube_from_skeleton [L691] [CALL, L782]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L706]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L719]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L721]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L726]
+│   │   │   └── new_mesh_obj [L49] [CALL, L727]
+│   │   ├── create_wing._eval_curve [L806] [CALL, L851]
+│   │   ├── create_feather_mesh [L611] [CALL, L874]
+│   │   │   └── new_mesh_obj [L49] [CALL, L629]
+│   │   ├── apply_tf [L35] [CALL, L880]
+│   │   │   └── sel [L30] [CALL, L36]
+│   │   ├── join_objs [L39] [CALL, L883]
+│   │   └── add_solidify [L77] [CALL, L884]
+│   │       └── sel [L30] [CALL, L82]
+│   ├── raycast_surface [L1252] [CALL, L1677]
+│   │   ├── skeleton_to_tangents [L141] [CALL, L1255]
+│   │   ├── lerp_sample [L103] [CALL, L1256]
+│   │   ├── euler_deg [L1175] [CALL, L1262]
+│   │   ├── quat_align_vecs [L1178] [CALL, L1263]
+│   │   └── PartState.bvh [L1234] [CALL, L1267]
+│   ├── create_leg [L956] [CALL, L1683]
+│   │   ├── create_tube_mesh [L201] [CALL, L968]
+│   │   │   ├── polar_bezier_skeleton [L160] [CALL, L216]
+│   │   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L219]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L233]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L235]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L241]
+│   │   │   └── new_mesh_obj [L49] [CALL, L242]
+│   │   ├── create_leg.skel_point [L975] [CALL, L986]
+│   │   │   └── lerp_sample [L103] [CALL, L976]
+│   │   ├── _build_tube_from_skeleton [L691] [CALL, L995]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L706]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L719]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L721]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L726]
+│   │   │   └── new_mesh_obj [L49] [CALL, L727]
+│   │   └── join_objs [L39] [CALL, L1010]
+│   ├── translate_part [L1312] [CALL, L1693]
+│   │   └── PartState.apply_world_matrix [L1243] [CALL, L1314]
+│   │       ├── transform_points [L1198] [CALL, L1246]
+│   │       ├── apply_tf [L35] [CALL, L1247]
+│   │       │   └── sel [L30] [CALL, L36]
+│   │       └── PartState.invalidate_bvh [L1240] [CALL, L1248]
+│   ├── create_foot_legacy [L1079] [CALL, L1700]
+│   │   ├── _nxt [L12] [CALL, L1088]
+│   │   ├── create_tube_mesh [L201] [CALL, L1100]
+│   │   │   ├── polar_bezier_skeleton [L160] [CALL, L216]
+│   │   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   │   ├── smooth_taper_arr [L150] [CALL, L219]
+│   │   │   ├── skeleton_to_tangents [L141] [CALL, L233]
+│   │   │   ├── rotate_match_directions [L128] [CALL, L235]
+│   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   ├── compute_cylinder_topology [L89] [CALL, L241]
+│   │   │   └── new_mesh_obj [L49] [CALL, L242]
+│   │   ├── create_tiger_toe [L1017] [CALL, L1126]
+│   │   │   ├── create_tube_mesh [L201] [CALL, L1027]
+│   │   │   │   ├── polar_bezier_skeleton [L160] [CALL, L216]
+│   │   │   │   │   └── polar_bezier_skeleton.p2c [L173] [CALL, L178]
+│   │   │   │   ├── smooth_taper_arr [L150] [CALL, L219]
+│   │   │   │   ├── skeleton_to_tangents [L141] [CALL, L233]
+│   │   │   │   ├── rotate_match_directions [L128] [CALL, L235]
+│   │   │   │   │   └── rodrigues [L121] [CALL, L138]
+│   │   │   │   │       └── cross_matrix [L113] [CALL, L124]
+│   │   │   │   ├── compute_cylinder_topology [L89] [CALL, L241]
+│   │   │   │   └── new_mesh_obj [L49] [CALL, L242]
+│   │   │   ├── add_subsurf [L57] [CALL, L1031]
+│   │   │   │   └── sel [L30] [CALL, L61]
+│   │   │   ├── create_tiger_toe.skel_pt [L1035] [CALL, L1043]
+│   │   │   │   └── lerp_sample [L103] [CALL, L1036]
+│   │   │   ├── apply_tf [L35] [CALL, L1044]
+│   │   │   │   └── sel [L30] [CALL, L36]
+│   │   │   └── join_objs [L39] [CALL, L1067]
+│   │   ├── apply_tf [L35] [CALL, L1135]
+│   │   │   └── sel [L30] [CALL, L36]
+│   │   ├── create_foot_legacy.foot_skel_pt [L1151] [CALL, L1154]
+│   │   │   └── lerp_sample [L103] [CALL, L1152]
+│   │   └── join_objs [L39] [CALL, L1168]
+│   ├── lerp_sample [L103] [CALL, L1708]
+│   ├── PartState.apply_world_matrix [L1243] [CALL, L1715]
+│   │   ├── transform_points [L1198] [CALL, L1246]
+│   │   ├── apply_tf [L35] [CALL, L1247]
+│   │   │   └── sel [L30] [CALL, L36]
+│   │   └── PartState.invalidate_bvh [L1240] [CALL, L1248]
+│   ├── shade_smooth_all [L1609] [CALL, L1725]
+│   │   └── sel [L30] [CALL, L1613]
+│   ├── center_object_on_ground [L1317] [CALL, L1726]
+│   │   └── tree_world_bounds [L1217] [CALL, L1318]
+│   │       └── mesh_world_bounds [L1201] [CALL, L1218]
+│   ├── join_objs [L39] [CALL, L1738]
+│   └── tree_world_bounds [L1217] [CALL, L1741]
+│       └── mesh_world_bounds [L1201] [CALL, L1218]
+└── tree_world_bounds [L1217] [CALL, L1754]
+    └── mesh_world_bounds [L1201] [CALL, L1218]
+
+BLENDER PART / ATTACHMENT TREE
+================================================================================
+body
+├── tail [DIRECTED_CODE, L1628]
+├── head [DIRECTED_CODE, L1638]
+│   ├── beak [DIRECTED_CODE, L1642]
+│   ├── eye_-1 [DIRECTED_CODE, L1652]
+│   └── eye_1 [DIRECTED_CODE, L1652]
+├── wing_-1 [DIRECTED_CODE, L1671]
+├── wing_1 [DIRECTED_CODE, L1671]
+├── leg_-1 [DIRECTED_CODE, L1686]
+│   └── foot_-1 [METHOD_DATAFLOW, L1715]
+└── leg_1 [DIRECTED_CODE, L1686]
+    └── foot_1 [METHOD_DATAFLOW, L1715]
+
+ATTACHMENT EVIDENCE
+================================================================================
+L1638: body -> head [DIRECTED_CODE] attach_part call
+L1686: body -> leg_-1 [DIRECTED_CODE] attach_part call
+L1686: body -> leg_1 [DIRECTED_CODE] attach_part call
+L1628: body -> tail [DIRECTED_CODE] attach_part call
+L1671: body -> wing_-1 [DIRECTED_CODE] attach_part call
+L1671: body -> wing_1 [DIRECTED_CODE] attach_part call
+L1642: head -> beak [DIRECTED_CODE] attach_part call
+L1652: head -> eye_-1 [DIRECTED_CODE] attach_part call
+L1652: head -> eye_1 [DIRECTED_CODE] attach_part call
+L1715: leg_-1 -> foot_-1 [METHOD_DATAFLOW] leg data reaches foot.apply_world_matrix
+L1715: leg_1 -> foot_1 [METHOD_DATAFLOW] leg data reaches foot.apply_world_matrix
+```
+
+## Execution call graph
+
+```mermaid
+flowchart TD
+    call_2bb049f2f0["Beak.__init__<br/>L557"]
+    call_a1ed5b770d["Beak._bump<br/>L577"]
+    call_14495134cd["Beak._crown<br/>L581"]
+    call_d4a364f23b["Beak._hook<br/>L574"]
+    call_53bcb0b19e["Beak.cx<br/>L570"]
+    call_baa89017a4["Beak.cy<br/>L571"]
+    call_1d6ecc3a73["Beak.cz<br/>L572"]
+    call_bbc782a533["Beak.dx<br/>L584"]
+    call_55aaf5b0f6["Beak.dz<br/>L587"]
+    call_038a072baf["Beak.generate_verts<br/>L590"]
+    call_3138f3d70b["PartState.apply_world_matrix<br/>L1243"]
+    call_7da4d8745d["PartState.bvh<br/>L1234"]
+    call_2a30ecddbd["PartState.invalidate_bvh<br/>L1240"]
+    call_2eae3df19a["_build_tube_from_skeleton<br/>L691"]
+    call_91c606fc24["_nxt<br/>L12"]
+    call_41327e8351["add_boolean_union<br/>L65"]
+    call_fdcd07af25["add_solidify<br/>L77"]
+    call_cfa31e8c7d["add_subsurf<br/>L57"]
+    call_48a3d3fa30["apply_tf<br/>L35"]
+    call_5836519653["attach_part<br/>L1277"]
+    call_754139db38["build_bird<br/>L1616"]
+    call_d05d321d9c["center_object_on_ground<br/>L1317"]
+    call_8de254690e["clear_scene<br/>L24"]
+    call_7b24e27e19["compute_cylinder_topology<br/>L89"]
+    call_14d5d4b7a8["compute_profile_verts_lofting<br/>L396"]
+    call_4fcecbe037["create_beak_part<br/>L1587"]
+    call_76877ed754["create_eye<br/>L682"]
+    call_16aaae0d42["create_feather_mesh<br/>L611"]
+    call_cb7560f0c1["create_foot_legacy<br/>L1079"]
+    call_095b001c24["create_foot_legacy.foot_skel_pt<br/>L1151"]
+    call_0f06cdde5d["create_head<br/>L634"]
+    call_4b3ec19ea5["create_leg<br/>L956"]
+    call_4288d6069b["create_leg.skel_point<br/>L975"]
+    call_f18eb89e9a["create_nurbs_body<br/>L501"]
+    call_42e3096eba["create_nurbs_body.Nv<br/>L518"]
+    call_6069b86590["create_tail<br/>L891"]
+    call_2bab6153e6["create_tail.qbez<br/>L921"]
+    call_f143ea3431["create_tiger_toe<br/>L1017"]
+    call_4a474e7bc9["create_tiger_toe.skel_pt<br/>L1035"]
+    call_2f5689be90["create_tube_mesh<br/>L201"]
+    call_ef1082f0a4["create_wing<br/>L728"]
+    call_14de509536["create_wing._eval_curve<br/>L806"]
+    call_c9cc917668["cross_matrix<br/>L113"]
+    call_b8cddfd7a7["decompose_nurbs_handles<br/>L450"]
+    call_a292339f3e["euler_deg<br/>L1175"]
+    call_3b4ca0b559["join_objs<br/>L39"]
+    call_3651e0ec71["lerp_sample<br/>L103"]
+    call_0394daf3b8["linear_combination<br/>L1335"]
+    call_b28b7af693["main<br/>L1746"]
+    call_bf3a0e8877["mesh_world_bounds<br/>L1201"]
+    call_7f6ce615fb["new_mesh_obj<br/>L49"]
+    call_1e1e22d9a0["ordered_polyline_vertices<br/>L415"]
+    call_8bf9320424["polar_bezier_skeleton<br/>L160"]
+    call_c22642ea8d["polar_bezier_skeleton.p2c<br/>L173"]
+    call_6222428e03["quat_align_vecs<br/>L1178"]
+    call_43c5b92e9c["random_convex_coord<br/>L1323"]
+    call_13e5bc8faa["raycast_surface<br/>L1252"]
+    call_5e144e6fd8["rdict_comb<br/>L1344"]
+    call_615d695556["recompose_nurbs_handles<br/>L482"]
+    call_6e27ebf25c["refine_open_skeleton<br/>L437"]
+    call_1a16d1fd4c["rodrigues<br/>L121"]
+    call_34997a9bc2["rotate_match_directions<br/>L128"]
+    call_9f7308435b["sample_beak_params<br/>L1559"]
+    call_210f80a1f8["sample_beak_params.local_n<br/>L1565"]
+    call_c7c752379a["sel<br/>L30"]
+    call_c72f5059fb["shade_smooth_all<br/>L1609"]
+    call_f5c888e941["skeleton_to_tangents<br/>L141"]
+    call_8a6281866e["smooth_taper_arr<br/>L150"]
+    call_a5d110310e["tag_part<br/>L1604"]
+    call_403c15b3a9["transform_points<br/>L1198"]
+    call_8552ae46bc["translate_part<br/>L1312"]
+    call_f9b844cfc5["tree_world_bounds<br/>L1217"]
+    call_2bb049f2f0 -->|"CALL · L559"| call_d4a364f23b
+    call_2bb049f2f0 -->|"CALL · L565"| call_14495134cd
+    call_2bb049f2f0 -->|"CALL · L567"| call_a1ed5b770d
+    call_038a072baf -->|"CALL · L603"| call_53bcb0b19e
+    call_038a072baf -->|"CALL · L603"| call_bbc782a533
+    call_038a072baf -->|"CALL · L604"| call_baa89017a4
+    call_038a072baf -->|"CALL · L606"| call_1d6ecc3a73
+    call_038a072baf -->|"CALL · L606"| call_55aaf5b0f6
+    call_3138f3d70b -->|"CALL · L1246"| call_403c15b3a9
+    call_3138f3d70b -->|"CALL · L1247"| call_48a3d3fa30
+    call_3138f3d70b -->|"CALL · L1248"| call_2a30ecddbd
+    call_2eae3df19a -->|"CALL · L706"| call_8a6281866e
+    call_2eae3df19a -->|"CALL · L719"| call_f5c888e941
+    call_2eae3df19a -->|"CALL · L721"| call_34997a9bc2
+    call_2eae3df19a -->|"CALL · L726"| call_7b24e27e19
+    call_2eae3df19a -->|"CALL · L727"| call_7f6ce615fb
+    call_41327e8351 -->|"CALL · L71"| call_c7c752379a
+    call_fdcd07af25 -->|"CALL · L82"| call_c7c752379a
+    call_cfa31e8c7d -->|"CALL · L61"| call_c7c752379a
+    call_48a3d3fa30 -->|"CALL · L36"| call_c7c752379a
+    call_5836519653 -->|"CALL · L1285"| call_13e5bc8faa
+    call_5836519653 -->|"CALL · L1290"| call_6222428e03
+    call_5836519653 -->|"CALL · L1296"| call_a292339f3e
+    call_5836519653 -->|"CALL · L1309"| call_3138f3d70b
+    call_754139db38 -->|"CALL · L1617"| call_8de254690e
+    call_754139db38 -->|"CALL · L1619"| call_f18eb89e9a
+    call_754139db38 -->|"CALL · L1621"| call_a5d110310e
+    call_754139db38 -->|"CALL · L1625"| call_6069b86590
+    call_754139db38 -->|"CALL · L1628"| call_5836519653
+    call_754139db38 -->|"CALL · L1635"| call_0f06cdde5d
+    call_754139db38 -->|"CALL · L1640"| call_4fcecbe037
+    call_754139db38 -->|"CALL · L1650"| call_76877ed754
+    call_754139db38 -->|"CALL · L1667"| call_ef1082f0a4
+    call_754139db38 -->|"CALL · L1677"| call_13e5bc8faa
+    call_754139db38 -->|"CALL · L1683"| call_4b3ec19ea5
+    call_754139db38 -->|"CALL · L1693"| call_8552ae46bc
+    call_754139db38 -->|"CALL · L1700"| call_cb7560f0c1
+    call_754139db38 -->|"CALL · L1708"| call_3651e0ec71
+    call_754139db38 -->|"CALL · L1715"| call_3138f3d70b
+    call_754139db38 -->|"CALL · L1725"| call_c72f5059fb
+    call_754139db38 -->|"CALL · L1726"| call_d05d321d9c
+    call_754139db38 -->|"CALL · L1738"| call_3b4ca0b559
+    call_754139db38 -->|"CALL · L1741"| call_f9b844cfc5
+    call_d05d321d9c -->|"CALL · L1318"| call_f9b844cfc5
+    call_14d5d4b7a8 -->|"CALL · L400"| call_f5c888e941
+    call_14d5d4b7a8 -->|"CALL · L401"| call_3651e0ec71
+    call_14d5d4b7a8 -->|"CALL · L412"| call_34997a9bc2
+    call_4fcecbe037 -->|"CALL · L1588"| call_9f7308435b
+    call_4fcecbe037 -->|"CALL · L1593"| call_038a072baf
+    call_4fcecbe037 -->|"CALL · L1594"| call_7b24e27e19
+    call_4fcecbe037 -->|"CALL · L1595"| call_7f6ce615fb
+    call_4fcecbe037 -->|"CALL · L1596"| call_cfa31e8c7d
+    call_4fcecbe037 -->|"CALL · L1598"| call_48a3d3fa30
+    call_4fcecbe037 -->|"CALL · L1600"| call_3b4ca0b559
+    call_16aaae0d42 -->|"CALL · L629"| call_7f6ce615fb
+    call_cb7560f0c1 -->|"CALL · L1088"| call_91c606fc24
+    call_cb7560f0c1 -->|"CALL · L1100"| call_2f5689be90
+    call_cb7560f0c1 -->|"CALL · L1126"| call_f143ea3431
+    call_cb7560f0c1 -->|"CALL · L1135"| call_48a3d3fa30
+    call_cb7560f0c1 -->|"CALL · L1154"| call_095b001c24
+    call_cb7560f0c1 -->|"CALL · L1168"| call_3b4ca0b559
+    call_095b001c24 -->|"CALL · L1152"| call_3651e0ec71
+    call_0f06cdde5d -->|"CALL · L646"| call_2f5689be90
+    call_0f06cdde5d -->|"CALL · L672"| call_41327e8351
+    call_0f06cdde5d -->|"CALL · L674"| call_cfa31e8c7d
+    call_4b3ec19ea5 -->|"CALL · L968"| call_2f5689be90
+    call_4b3ec19ea5 -->|"CALL · L986"| call_4288d6069b
+    call_4b3ec19ea5 -->|"CALL · L995"| call_2eae3df19a
+    call_4b3ec19ea5 -->|"CALL · L1010"| call_3b4ca0b559
+    call_4288d6069b -->|"CALL · L976"| call_3651e0ec71
+    call_f18eb89e9a -->|"CALL · L511"| call_b8cddfd7a7
+    call_f18eb89e9a -->|"CALL · L521"| call_42e3096eba
+    call_f18eb89e9a -->|"CALL · L537"| call_615d695556
+    call_f18eb89e9a -->|"CALL · L540"| call_7b24e27e19
+    call_f18eb89e9a -->|"CALL · L541"| call_7f6ce615fb
+    call_f18eb89e9a -->|"CALL · L544"| call_cfa31e8c7d
+    call_f18eb89e9a -->|"CALL · L547"| call_6e27ebf25c
+    call_42e3096eba -->|"CALL · L519"| call_91c606fc24
+    call_6069b86590 -->|"CALL · L907"| call_2f5689be90
+    call_6069b86590 -->|"CALL · L933"| call_2bab6153e6
+    call_6069b86590 -->|"CALL · L935"| call_91c606fc24
+    call_6069b86590 -->|"CALL · L937"| call_16aaae0d42
+    call_6069b86590 -->|"CALL · L940"| call_48a3d3fa30
+    call_6069b86590 -->|"CALL · L949"| call_3b4ca0b559
+    call_f143ea3431 -->|"CALL · L1027"| call_2f5689be90
+    call_f143ea3431 -->|"CALL · L1031"| call_cfa31e8c7d
+    call_f143ea3431 -->|"CALL · L1043"| call_4a474e7bc9
+    call_f143ea3431 -->|"CALL · L1044"| call_48a3d3fa30
+    call_f143ea3431 -->|"CALL · L1067"| call_3b4ca0b559
+    call_4a474e7bc9 -->|"CALL · L1036"| call_3651e0ec71
+    call_2f5689be90 -->|"CALL · L216"| call_8bf9320424
+    call_2f5689be90 -->|"CALL · L219"| call_8a6281866e
+    call_2f5689be90 -->|"CALL · L233"| call_f5c888e941
+    call_2f5689be90 -->|"CALL · L235"| call_34997a9bc2
+    call_2f5689be90 -->|"CALL · L241"| call_7b24e27e19
+    call_2f5689be90 -->|"CALL · L242"| call_7f6ce615fb
+    call_ef1082f0a4 -->|"CALL · L776"| call_8bf9320424
+    call_ef1082f0a4 -->|"CALL · L780"| call_8a6281866e
+    call_ef1082f0a4 -->|"CALL · L782"| call_2eae3df19a
+    call_ef1082f0a4 -->|"CALL · L851"| call_14de509536
+    call_ef1082f0a4 -->|"CALL · L874"| call_16aaae0d42
+    call_ef1082f0a4 -->|"CALL · L880"| call_48a3d3fa30
+    call_ef1082f0a4 -->|"CALL · L883"| call_3b4ca0b559
+    call_ef1082f0a4 -->|"CALL · L884"| call_fdcd07af25
+    call_b8cddfd7a7 -->|"CALL · L453"| call_f5c888e941
+    call_b8cddfd7a7 -->|"CALL · L455"| call_34997a9bc2
+    call_0394daf3b8 -->|"CALL · L1339"| call_0394daf3b8
+    call_b28b7af693 -->|"CALL · L1750"| call_754139db38
+    call_b28b7af693 -->|"CALL · L1754"| call_f9b844cfc5
+    call_8bf9320424 -->|"CALL · L178"| call_c22642ea8d
+    call_13e5bc8faa -->|"CALL · L1255"| call_f5c888e941
+    call_13e5bc8faa -->|"CALL · L1256"| call_3651e0ec71
+    call_13e5bc8faa -->|"CALL · L1262"| call_a292339f3e
+    call_13e5bc8faa -->|"CALL · L1263"| call_6222428e03
+    call_13e5bc8faa -->|"CALL · L1267"| call_7da4d8745d
+    call_5e144e6fd8 -->|"CALL · L1351"| call_0394daf3b8
+    call_615d695556 -->|"CALL · L494"| call_14d5d4b7a8
+    call_6e27ebf25c -->|"CALL · L443"| call_7f6ce615fb
+    call_6e27ebf25c -->|"CALL · L444"| call_cfa31e8c7d
+    call_6e27ebf25c -->|"CALL · L445"| call_1e1e22d9a0
+    call_6e27ebf25c -->|"CALL · L446"| call_c7c752379a
+    call_1a16d1fd4c -->|"CALL · L124"| call_c9cc917668
+    call_34997a9bc2 -->|"CALL · L138"| call_1a16d1fd4c
+    call_9f7308435b -->|"CALL · L1560"| call_43c5b92e9c
+    call_9f7308435b -->|"CALL · L1561"| call_5e144e6fd8
+    call_9f7308435b -->|"CALL · L1571"| call_210f80a1f8
+    call_210f80a1f8 -->|"CALL · L1566"| call_91c606fc24
+    call_c72f5059fb -->|"CALL · L1613"| call_c7c752379a
+    call_8552ae46bc -->|"CALL · L1314"| call_3138f3d70b
+    call_f9b844cfc5 -->|"CALL · L1218"| call_bf3a0e8877
+```
+
+## Blender part attachment tree
+
+```mermaid
+flowchart TD
+    part_4cb84941e3["beak"]
+    part_02083f4579["body"]
+    part_e46512f181["eye_-1"]
+    part_dc673e2a33["eye_1"]
+    part_d737fc8222["foot_-1"]
+    part_677b8a98ba["foot_1"]
+    part_1a954628a9["head"]
+    part_1a4fb10fac["leg_-1"]
+    part_b66b689567["leg_1"]
+    part_fbf5f2a287["tail"]
+    part_414d9b397a["wing_-1"]
+    part_7f18816e35["wing_1"]
+    part_02083f4579 -->|"DIRECTED_CODE · L1638"| part_1a954628a9
+    part_02083f4579 -->|"DIRECTED_CODE · L1686"| part_1a4fb10fac
+    part_02083f4579 -->|"DIRECTED_CODE · L1686"| part_b66b689567
+    part_02083f4579 -->|"DIRECTED_CODE · L1628"| part_fbf5f2a287
+    part_02083f4579 -->|"DIRECTED_CODE · L1671"| part_414d9b397a
+    part_02083f4579 -->|"DIRECTED_CODE · L1671"| part_7f18816e35
+    part_1a954628a9 -->|"DIRECTED_CODE · L1642"| part_4cb84941e3
+    part_1a954628a9 -->|"DIRECTED_CODE · L1652"| part_e46512f181
+    part_1a954628a9 -->|"DIRECTED_CODE · L1652"| part_dc673e2a33
+    part_1a4fb10fac -->|"METHOD_DATAFLOW · L1715"| part_d737fc8222
+    part_b66b689567 -->|"METHOD_DATAFLOW · L1715"| part_677b8a98ba
+```

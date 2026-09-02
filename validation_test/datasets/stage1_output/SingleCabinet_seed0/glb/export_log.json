@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/SingleCabinet_seed0/SingleCabinet_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/SingleCabinet_seed0/glb/SingleCabinet_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 122.1,
+  "latency_s": 0.1,
+  "error": null
+}

@@ -1,0 +1,3 @@
+- Projections look like sharp, low-poly pyramids rather than organic coral mounds; they need to be integrated into the surface and smoothed.
+- Margins are only slightly wavy; they should be more "deeply scalloped" with higher amplitude distortion.
+- The olive-green color is too subtle in the renders; the material needs a more distinct contrast.

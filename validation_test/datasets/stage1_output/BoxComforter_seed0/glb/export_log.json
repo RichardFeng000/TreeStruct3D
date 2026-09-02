@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BoxComforter_seed0/BoxComforter_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BoxComforter_seed0/glb/BoxComforter_seed0.glb",
+  "status": "OK",
+  "n_meshes": 2,
+  "size_kb": 494.9,
+  "latency_s": 0.1,
+  "error": null
+}

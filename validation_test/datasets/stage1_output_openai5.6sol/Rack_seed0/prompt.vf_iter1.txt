@@ -1,0 +1,398 @@
+Original text-to-3D task:
+
+A tall industrial warehouse storage rack rendered as a 3D model, featuring a dark steel frame with vertical perforated uprights connected by horizontal beams at multiple levels.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import math
+from mathutils import Vector
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    if datablocks is not bpy.data.materials:
+        for datablock in list(datablocks):
+            if datablock.users == 0:
+                datablocks.remove(datablock)
+
+scene = bpy.context.scene
+scene.unit_settings.system = 'METRIC'
+scene.unit_settings.length_unit = 'METERS'
+
+# Materials.
+def make_material(name, color, metallic=0.0, roughness=0.5):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Metallic"].default_value = metallic
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat
+
+steel_mat = make_material("Dark Steel", (0.035, 0.045, 0.055), 0.85, 0.28)
+beam_mat = make_material("Beam Steel", (0.075, 0.095, 0.115), 0.8, 0.3)
+edge_mat = make_material("Pressed Steel Details", (0.12, 0.14, 0.15), 0.75, 0.32)
+bolt_mat = make_material("Fasteners", (0.16, 0.17, 0.18), 0.9, 0.22)
+
+def add_bevel(obj, width=0.01, segments=2):
+    modifier = obj.modifiers.new(name="Edge Bevel", type='BEVEL')
+    modifier.width = width
+    modifier.segments = segments
+    modifier.limit_method = 'ANGLE'
+    modifier.angle_limit = math.radians(25.0)
+
+def create_box(name, location, dimensions, material, bevel=0.0):
+    bpy.ops.mesh.primitive_cube_add(location=location)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    if bevel > 0.0:
+        add_bevel(obj, bevel, 2)
+    return obj
+
+def create_bar(name, p1, p2, thickness, width, material, bevel=0.006):
+    start = Vector(p1)
+    end = Vector(p2)
+    direction = end - start
+    length = direction.length
+    midpoint = (start + end) * 0.5
+    bpy.ops.mesh.primitive_cube_add(location=midpoint)
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = (thickness, width, length)
+    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_quaternion = direction.to_track_quat('Z', 'X')
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    obj.data.materials.append(material)
+    if bevel > 0.0:
+        add_bevel(obj, bevel, 2)
+    return obj
+
+def create_capsule_cutters(name, center_x, center_y, z_values,
+                           slot_width=0.066, slot_height=0.14, depth=0.34,
+                           arc_segments=6):
+    vertices = []
+    faces = []
+    radius = slot_width * 0.5
+    straight_half = max(0.0, (slot_height - slot_width) * 0.5)
+    profile = []
+
+    for i in range(arc_segments + 1):
+        angle = math.pi * i / arc_segments
+        profile.append((radius * math.cos(angle),
+                        straight_half + radius * math.sin(angle)))
+    for i in range(arc_segments + 1):
+        angle = math.pi + math.pi * i / arc_segments
+        profile.append((radius * math.cos(angle),
+                        -straight_half + radius * math.sin(angle)))
+
+    count = len(profile)
+    half_depth = depth * 0.5
+
+    for z_center in z_values:
+        base = len(vertices)
+        for y_offset in (-half_depth, half_depth):
+            for px, pz in profile:
+                vertices.append((center_x + px, center_y + y_offset, z_center + pz))
+
+        faces.append(tuple(base + i for i in reversed(range(count))))
+        faces.append(tuple(base + count + i for i in range(count)))
+
+        for i in range(count):
+            j = (i + 1) % count
+            faces.append((base + i, base + j, base + count + j, base + count + i))
+
+    mesh = bpy.data.meshes.new(name + "_Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    cutter = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(cutter)
+    return cutter
+
+def create_cylinder(name, location, radius, depth, material, rotation=(0.0, 0.0, 0.0),
+                    vertices=16, bevel=0.003):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(material)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = False
+    if bevel > 0.0:
+        add_bevel(obj, bevel, 2)
+    return obj
+
+# Main dimensions.
+rack_width = 5.2
+rack_depth = 1.7
+rack_height = 6.0
+post_x_positions = (-rack_width * 0.5, rack_width * 0.5)
+post_y_positions = (-rack_depth * 0.5, rack_depth * 0.5)
+post_width = 0.20
+post_depth = 0.16
+post_bottom = 0.10
+post_top = rack_height
+post_height = post_top - post_bottom
+post_center_z = (post_top + post_bottom) * 0.5
+
+# Base plates and uprights with genuine through-perforations.
+slot_z_values = []
+z = 0.30
+while z <= 5.84:
+    slot_z_values.append(z)
+    z += 0.23
+
+for side_index, x in enumerate(post_x_positions):
+    for depth_index, y in enumerate(post_y_positions):
+        prefix = "L" if x < 0 else "R"
+        prefix += "_Front" if y < 0 else "_Rear"
+
+        create_box(
+            prefix + "_FootPlate",
+            (x, y, 0.035),
+            (0.38, 0.36, 0.07),
+            steel_mat,
+            0.012
+        )
+
+        post = create_box(
+            prefix + "_PerforatedUpright",
+            (x, y, post_center_z),
+            (post_width, post_depth, post_height),
+            steel_mat,
+            0.0
+        )
+
+        cutter = create_capsule_cutters(
+            prefix + "_SlotCutters",
+            x,
+            y,
+            slot_z_values,
+            slot_width=0.068,
+            slot_height=0.142,
+            depth=0.30,
+            arc_segments=7
+        )
+
+        bpy.context.view_layer.objects.active = post
+        post.select_set(True)
+        boolean = post.modifiers.new(name="Punched Perforations", type='BOOLEAN')
+        boolean.operation = 'DIFFERENCE'
+        boolean.solver = 'EXACT'
+        boolean.object = cutter
+        try:
+            bpy.ops.object.modifier_apply(modifier=boolean.name)
+        except RuntimeError:
+            pass
+        post.select_set(False)
+
+        bpy.data.objects.remove(cutter, do_unlink=True)
+        add_bevel(post, 0.009, 2)
+
+        # Reinforced cap and lower collar.
+        create_box(
+            prefix + "_TopCap",
+            (x, y, 6.025),
+            (0.24, 0.20, 0.05),
+            edge_mat,
+            0.008
+        )
+        create_box(
+            prefix + "_LowerCollar",
+            (x, y, 0.18),
+            (0.245, 0.205, 0.16),
+            edge_mat,
+            0.008
+        )
+
+        # Anchor fasteners on each base plate.
+        anchor_offsets = ((-0.125, -0.105), (0.125, 0.105))
+        for anchor_index, (ox, oy) in enumerate(anchor_offsets):
+            create_cylinder(
+                prefix + "_Anchor_" + str(anchor_index + 1),
+                (x + ox, y + oy, 0.09),
+                0.035,
+                0.06,
+                bolt_mat,
+                vertices=12,
+                bevel=0.004
+            )
+            create_cylinder(
+                prefix + "_AnchorWasher_" + str(anchor_index + 1),
+                (x + ox, y + oy, 0.065),
+                0.055,
+                0.012,
+                edge_mat,
+                vertices=16,
+                bevel=0.002
+            )
+
+# Horizontal load beams on front and rear faces.
+beam_levels = (1.18, 2.50, 3.82, 5.14)
+beam_span = rack_width - post_width
+beam_center_length = beam_span + 0.02
+
+for level_index, beam_z in enumerate(beam_levels):
+    for y_index, y in enumerate(post_y_positions):
+        face_name = "Front" if y < 0 else "Rear"
+        inward = 1.0 if y < 0 else -1.0
+
+        create_box(
+            "LoadBeam_%s_%02d" % (face_name, level_index + 1),
+            (0.0, y, beam_z),
+            (beam_center_length, 0.135, 0.22),
+            beam_mat,
+            0.012
+        )
+
+        # Rolled upper and lower lips make the beam a pressed industrial profile.
+        create_box(
+            "UpperLip_%s_%02d" % (face_name, level_index + 1),
+            (0.0, y + inward * 0.072, beam_z + 0.087),
+            (beam_center_length, 0.075, 0.048),
+            edge_mat,
+            0.006
+        )
+        create_box(
+            "LowerLip_%s_%02d" % (face_name, level_index + 1),
+            (0.0, y + inward * 0.072, beam_z - 0.087),
+            (beam_center_length, 0.075, 0.048),
+            edge_mat,
+            0.006
+        )
+
+        # End connector plates with projecting hooked shoulders.
+        for x_index, x in enumerate(post_x_positions):
+            connector_x = x + (0.055 if x < 0 else -0.055)
+            create_box(
+                "Connector_%s_L%02d_%s" % (
+                    face_name, level_index + 1, "Left" if x < 0 else "Right"
+                ),
+                (connector_x, y, beam_z),
+                (0.095, 0.235, 0.40),
+                edge_mat,
+                0.008
+            )
+
+            for bolt_index, bolt_z in enumerate((beam_z - 0.105, beam_z + 0.105)):
+                outward_x = x - 0.105 if x < 0 else x + 0.105
+                create_cylinder(
+                    "BeamPin_%s_%02d_%02d_%02d" % (
+                        face_name, level_index + 1, x_index + 1, bolt_index + 1
+                    ),
+                    (outward_x, y, bolt_z),
+                    0.029,
+                    0.055,
+                    bolt_mat,
+                    rotation=(0.0, math.pi * 0.5, 0.0),
+                    vertices=12,
+                    bevel=0.003
+                )
+
+    # Depth-spanning pallet support rails at every level.
+    for support_index, support_x in enumerate((-1.62, 0.0, 1.62)):
+        create_box(
+            "DepthSupport_L%02d_%02d" % (level_index + 1, support_index + 1),
+            (support_x, 0.0, beam_z + 0.135),
+            (0.13, rack_depth - 0.12, 0.075),
+            beam_mat,
+            0.008
+        )
+        # Small end tabs seated over the front and rear beams.
+        for y in post_y_positions:
+            create_box(
+                "SupportTab_L%02d_%02d_%s" % (
+                    level_index + 1,
+                    support_index + 1,
+                    "F" if y < 0 else "R"
+                ),
+                (support_x, y, beam_z + 0.125),
+                (0.19, 0.19, 0.045),
+                edge_mat,
+                0.006
+            )
+
+# Bracing in both end frames.
+for side_index, x in enumerate(post_x_positions):
+    side_name = "Left" if x < 0 else "Right"
+    brace_x = x
+
+    # Horizontal frame ties.
+    for tie_index, tie_z in enumerate((0.72, 2.02, 3.34, 4.66, 5.72)):
+        create_bar(
+            "SideTie_%s_%02d" % (side_name, tie_index + 1),
+            (brace_x, -0.78, tie_z),
+            (brace_x, 0.78, tie_z),
+            0.055,
+            0.07,
+            edge_mat,
+            0.005
+        )
+
+    # Continuous alternating zig-zag diagonal braces.
+    zigzag_points = [
+        (brace_x, -0.78, 0.34),
+        (brace_x, 0.78, 1.35),
+        (brace_x, -0.78, 2.37),
+        (brace_x, 0.78, 3.39),
+        (brace_x, -0.78, 4.41),
+        (brace_x, 0.78, 5.48),
+    ]
+    for brace_index in range(len(zigzag_points) - 1):
+        create_bar(
+            "DiagonalBrace_%s_%02d" % (side_name, brace_index + 1),
+            zigzag_points[brace_index],
+            zigzag_points[brace_index + 1],
+            0.06,
+            0.075,
+            steel_mat,
+            0.006
+        )
+
+    # Gusset plates at diagonal attachment points.
+    for gusset_index, point in enumerate(zigzag_points):
+        create_box(
+            "BraceGusset_%s_%02d" % (side_name, gusset_index + 1),
+            point,
+            (0.075, 0.20, 0.20),
+            edge_mat,
+            0.006
+        )
+
+# Upper depth ties complete the rectangular frame.
+for x in (-1.72, 0.0, 1.72):
+    create_box(
+        "TopDepthTie_%s" % str(x).replace("-", "N").replace(".", "_"),
+        (x, 0.0, 5.91),
+        (0.11, rack_depth - 0.06, 0.09),
+        steel_mat,
+        0.007
+    )
+
+# Set useful display options and leave the assembly selected only by name hierarchy.
+for obj in bpy.context.scene.objects:
+    if obj.type == 'MESH':
+        obj.color = (0.05, 0.06, 0.07, 1.0)
+        obj.select_set(False)
+
+scene.cursor.location = (0.0, 0.0, 0.0)
+bpy.context.view_layer.update()
+</previous_code>
+
+You are reviewing iteration 1 of 2. The attached images are the current rendered views of the script output: Image_005, Image_015, Image_025, and Image_035.
+
+Compare the renders against the original task. If the object is already good enough, return NEEDS_FIX: NO. If there are important visible issues, return NEEDS_FIX: YES and a complete corrected Blender Python script.
+
+
+[reference images: Image_005.png, Image_015.png, Image_025.png, Image_035.png]

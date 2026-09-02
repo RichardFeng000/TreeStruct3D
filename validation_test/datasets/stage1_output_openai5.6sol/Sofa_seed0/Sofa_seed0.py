@@ -1,0 +1,283 @@
+import bpy
+import math
+
+# Clear the scene.
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+for collection in (bpy.data.meshes, bpy.data.curves, bpy.data.materials):
+    for datablock in list(collection):
+        if datablock.users == 0:
+            collection.remove(datablock)
+
+
+def make_material(name, color, roughness):
+    material = bpy.data.materials.new(name=name)
+    material.diffuse_color = (*color, 1.0)
+    material.use_nodes = True
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = roughness
+    return material
+
+
+upholstery = make_material(
+    "Warm Gray Upholstery",
+    (0.43, 0.40, 0.36),
+    0.88
+)
+recess_material = make_material(
+    "Dark Recessed Upholstery",
+    (0.20, 0.18, 0.16),
+    0.92
+)
+foot_material = make_material(
+    "Dark Wooden Feet",
+    (0.045, 0.035, 0.028),
+    0.58
+)
+
+
+def add_rounded_box(
+    name,
+    location,
+    dimensions,
+    bevel_width,
+    material,
+    rotation=(0.0, 0.0, 0.0),
+    bevel_segments=6,
+    smooth=True
+):
+    bpy.ops.mesh.primitive_cube_add(
+        location=location,
+        rotation=rotation
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.dimensions = dimensions
+    bpy.ops.object.transform_apply(
+        location=False,
+        rotation=False,
+        scale=True
+    )
+
+    bevel = obj.modifiers.new("Rounded Upholstered Edges", 'BEVEL')
+    bevel.width = min(
+        bevel_width,
+        min(dimensions) * 0.45
+    )
+    bevel.segments = bevel_segments
+    bevel.limit_method = 'ANGLE'
+
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=bevel.name)
+
+    if smooth:
+        for polygon in obj.data.polygons:
+            polygon.use_smooth = True
+
+    obj.data.materials.append(material)
+    return obj
+
+
+# Main upholstered platform.
+add_rounded_box(
+    "Main Sectional Base",
+    (0.0, 0.34, 0.42),
+    (7.18, 1.78, 0.50),
+    0.12,
+    upholstery
+)
+
+# Perpendicular platform beneath the chaise.
+add_rounded_box(
+    "Chaise Platform",
+    (2.46, -0.61, 0.42),
+    (1.78, 3.68, 0.50),
+    0.12,
+    upholstery
+)
+
+# Recessed lower front faces.
+add_rounded_box(
+    "Main Front Shadow",
+    (-0.78, -0.565, 0.40),
+    (5.05, 0.045, 0.25),
+    0.015,
+    recess_material,
+    bevel_segments=3,
+    smooth=False
+)
+
+add_rounded_box(
+    "Chaise Front Shadow",
+    (2.46, -2.465, 0.40),
+    (1.45, 0.045, 0.25),
+    0.015,
+    recess_material,
+    bevel_segments=3,
+    smooth=False
+)
+
+# Low structural back spanning the sectional.
+add_rounded_box(
+    "Upholstered Back Support",
+    (0.0, 1.12, 1.18),
+    (6.86, 0.36, 1.34),
+    0.11,
+    upholstery,
+    rotation=(math.radians(-2.5), 0.0, 0.0)
+)
+
+# Three separate conventional seat cushions.
+seat_centers = (-2.47, -0.83, 0.81)
+
+for index, x_position in enumerate(seat_centers, 1):
+    add_rounded_box(
+        f"Seat Cushion {index}",
+        (x_position, 0.22, 0.78),
+        (1.49, 1.28, 0.35),
+        0.14,
+        upholstery,
+        bevel_segments=7
+    )
+
+# Long chaise cushion attached to the right-hand section.
+add_rounded_box(
+    "Chaise Lounge Cushion",
+    (2.46, -0.60, 0.78),
+    (1.49, 3.00, 0.35),
+    0.15,
+    upholstery,
+    bevel_segments=7
+)
+
+# Narrow inset seams between the standard seat cushions.
+for index, x_position in enumerate((-1.65, -0.01), 1):
+    add_rounded_box(
+        f"Seat Separation {index}",
+        (x_position, 0.22, 0.908),
+        (0.038, 1.08, 0.035),
+        0.012,
+        recess_material,
+        bevel_segments=3,
+        smooth=False
+    )
+
+# Subtle tailored break across the chaise near its rear.
+add_rounded_box(
+    "Chaise Tailored Seam",
+    (2.46, 0.62, 0.908),
+    (1.26, 0.032, 0.035),
+    0.011,
+    recess_material,
+    bevel_segments=3,
+    smooth=False
+)
+
+# Four individually padded backrest segments with visibly varied heights.
+back_specs = (
+    ("Left Back Cushion", -2.47, 1.18),
+    ("Center Left Back Cushion", -0.83, 1.37),
+    ("Center Right Back Cushion", 0.81, 1.25),
+    ("Chaise Back Cushion", 2.46, 1.43),
+)
+
+back_tilt = math.radians(-6.0)
+
+for name, x_position, height in back_specs:
+    add_rounded_box(
+        name,
+        (x_position, 1.00, 0.91 + height * 0.5),
+        (1.49, 0.40, height),
+        0.16,
+        upholstery,
+        rotation=(back_tilt, 0.0, 0.0),
+        bevel_segments=7
+    )
+
+# Shallow dark joins between the back cushions, kept behind their faces.
+for index, x_position in enumerate((-1.65, -0.01, 1.635), 1):
+    add_rounded_box(
+        f"Back Cushion Join {index}",
+        (x_position, 0.784, 1.48),
+        (0.035, 0.025, 0.78),
+        0.009,
+        recess_material,
+        rotation=(back_tilt, 0.0, 0.0),
+        bevel_segments=2,
+        smooth=False
+    )
+
+# Solid armrest at the left end of the conventional sofa.
+add_rounded_box(
+    "Left Solid Armrest",
+    (-3.55, 0.28, 0.91),
+    (0.56, 1.90, 1.19),
+    0.16,
+    upholstery,
+    bevel_segments=7
+)
+
+# Solid armrest running along the outside of the chaise.
+add_rounded_box(
+    "Right Chaise Armrest",
+    (3.55, -0.60, 0.91),
+    (0.56, 3.76, 1.19),
+    0.16,
+    upholstery,
+    bevel_segments=7
+)
+
+# Slightly raised padded caps make the armrests read as solid upholstery.
+add_rounded_box(
+    "Left Armrest Cap",
+    (-3.55, 0.28, 1.49),
+    (0.43, 1.67, 0.15),
+    0.07,
+    upholstery,
+    bevel_segments=5
+)
+
+add_rounded_box(
+    "Right Armrest Cap",
+    (3.55, -0.60, 1.49),
+    (0.43, 3.50, 0.15),
+    0.07,
+    upholstery,
+    bevel_segments=5
+)
+
+# Recessed support feet beneath both branches.
+foot_positions = (
+    (-3.25, 0.93),
+    (-3.25, -0.26),
+    (-1.15, 0.93),
+    (-1.15, -0.26),
+    (0.95, 0.93),
+    (0.95, -0.26),
+    (3.25, 0.93),
+    (3.25, -0.20),
+    (3.25, -2.20),
+    (1.72, -2.20),
+)
+
+for index, (x_position, y_position) in enumerate(foot_positions, 1):
+    add_rounded_box(
+        f"Recessed Foot {index:02d}",
+        (x_position, y_position, 0.13),
+        (0.31, 0.31, 0.22),
+        0.035,
+        foot_material,
+        bevel_segments=3,
+        smooth=False
+    )
+
+# Leave only the coherent mesh assembly selected.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in bpy.context.scene.objects:
+    if obj.type == 'MESH':
+        obj.select_set(True)
+
+bpy.context.view_layer.update()

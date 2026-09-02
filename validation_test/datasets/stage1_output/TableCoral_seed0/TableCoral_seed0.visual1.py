@@ -1,0 +1,192 @@
+import bpy
+import bmesh
+import random
+import math
+from mathutils import Vector
+
+def clear_scene():
+    """Clears all objects from the current scene."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_coral_material():
+    """Creates a procedural material for the coral with sandy beige and olive-green variations."""
+    mat = bpy.data.materials.new(name="CoralMaterial")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for node in nodes:
+        nodes.remove(node)
+        
+    output = nodes.new('ShaderNodeOutputMaterial')
+    principled = nodes.new('ShaderNodeBsdfPrincipled')
+    noise = nodes.new('ShaderNodeTexNoise')
+    color_ramp = nodes.new('ShaderNodeValToRGB')
+    
+    # Increase scale for more frequent color variation
+    noise.inputs['Scale'].default_value = 15.0
+    noise.inputs['Detail'].default_value = 16.0
+    
+    # Color Ramp: Sandy Beige, Warm Tan, Olive Green
+    elements = color_ramp.color_ramp.elements
+    elements[0].position = 0.3
+    elements[0].color = (0.85, 0.78, 0.6, 1.0) # Sandy Beige
+    
+    if len(elements) < 2:
+        element_mid = elements.new(0.6)
+    else:
+        element_mid = elements[1]
+        element_mid.position = 0.6
+    element_mid.color = (0.7, 0.55, 0.4, 1.0) # Warm Tan
+    
+    if len(elements) < 3:
+        element_end = elements.new(0.85)
+    else:
+        element_end = elements[2]
+        element_end.position = 0.85
+    element_end.color = (0.35, 0.4, 0.2, 1.0) # Olive Green
+    
+    links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
+    links.new(color_ramp.outputs['Color'], principled.inputs['Base Color'])
+    links.new(principled.outputs['BSDF'], output.inputs['Surface'])
+    
+    principled.inputs['Roughness'].default_value = 0.95
+    return mat
+
+def create_table_coral():
+    """Procedurally generates a table coral geometry."""
+    bm = bmesh.new()
+    
+    # Parameters for the plate
+    rings = 32 # Higher resolution for better deformation and subdivision
+    segments = 128
+    base_radius = 4.0
+    thickness = 0.3
+    
+    verts_map = {} 
+    for r_idx in range(rings):
+        r_scale = r_idx / float(rings - 1)
+        for s_idx in range(segments):
+            angle = (2 * math.pi * s_idx) / segments
+            
+            # Deeply scalloped margins: higher amplitude and complex frequencies
+            distort = 0.0
+            if r_idx > rings // 3:
+                weight = (r_idx - rings // 3) / (rings * 0.66)
+                scallop = (1.2 * math.sin(5 * angle) + 
+                           0.8 * math.cos(11 * angle) + 
+                           0.5 * math.sin(23 * angle))
+                distort = weight * scallop
+            
+            rad = r_scale * base_radius + distort
+            x = math.cos(angle) * rad
+            y = math.sin(angle) * rad
+            # Organic curvature: slight bowl shape
+            z = 0.2 * (1.0 - r_scale**2) 
+            
+            v = bm.verts.new(Vector((x, y, z)))
+            verts_map[(r_idx, s_idx)] = v
+
+    bm.verts.ensure_lookup_table()
+    for r in range(rings - 1):
+        for s in range(segments):
+            s_next = (s + 1) % segments
+            v1 = verts_map[(r, s)]
+            v2 = verts_map[(r, s_next)]
+            v3 = verts_map[(r+1, s_next)]
+            v4 = verts_map[(r+1, s)]
+            try:
+                bm.faces.new((v1, v2, v3, v4))
+            except:
+                pass
+
+    # Organic projections (mounds) instead of shards
+    num_mounds = 15
+    for _ in range(num_mounds):
+        # Pick a random center for the mound
+        center_r = random.randint(2, rings - 3)
+        center_s = random.randint(0, segments - 1)
+        height = random.uniform(0.5, 1.8)
+        radius_influence = random.uniform(3, 7)
+        
+        # Lift surrounding vertices to create a smooth hump
+        for r in range(max(0, center_r - radius_influence), min(rings, center_r + radius_influence)):
+            for s in range(segments):
+                # Calculate distance on the ring/segment grid (approximate)
+                # Wrapping around segments
+                dist_s = abs(s - center_s)
+                dist_s = min(dist_s, segments - dist_s)
+                dist_r = abs(r - center_r)
+                
+                dist_sq = dist_r**2 + (dist_s * (base_radius/segments))**2
+                if dist_sq < radius_influence**2:
+                    falloff = 1.0 - (math.sqrt(dist_sq) / radius_influence)
+                    verts_map[(r, s)].co.z += falloff * height
+
+    # Bottom surface
+    bottom_verts_map = {}
+    for r in range(rings):
+        for s in range(segments):
+            v_top = verts_map[(r, s)]
+            # Ensure bottom reflects top shape but is slightly flattened/offset
+            v_bot = bm.verts.new(v_top.co + Vector((0, 0, -thickness)))
+            bottom_verts_map[(r, s)] = v_bot
+
+    for r in range(rings - 1):
+        for s in range(segments):
+            s_next = (s + 1) % segments
+            v1 = bottom_verts_map[(r, s)]
+            v2 = bottom_verts_map[(r, s_next)]
+            v3 = bottom_verts_map[(r+1, s_next)]
+            v4 = bottom_verts_map[(r+1, s)]
+            try:
+                bm.faces.new((v2, v1, v4, v3)) 
+            except:
+                pass
+
+    for s in range(segments):
+        s_next = (s + 1) % segments
+        vt1 = verts_map[(rings-1, s)]
+        vt2 = verts_map[(rings-1, s_next)]
+        vb1 = bottom_verts_map[(rings-1, s)]
+        vb2 = bottom_verts_map[(rings-1, s_next)]
+        try:
+            bm.faces.new((vt1, vt2, vb2, vb1))
+        except:
+            pass
+
+    mesh = bpy.data.meshes.new("TableCoralMesh")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("TableCoral", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def apply_surface_detail(obj):
+    """Adds modifiers to create the fine granular polyp texture."""
+    # Smooth out the mounds and scallops
+    subsurf = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 3
+
+    # Displacement for granular look (polyps)
+    displace = obj.modifiers.new(name="Polyps", type='DISPLACE')
+    tex = bpy.data.textures.new("PolypTexture", type='STUCCI')
+    tex.noise_scale = 0.03 # Finer grains
+    tex.turbulence = 8.0
+    
+    displace.texture = tex
+    displace.strength = 0.1
+
+def main():
+    clear_scene()
+    coral_obj = create_table_coral()
+    apply_surface_detail(coral_obj)
+    coral_mat = create_coral_material()
+    coral_obj.data.materials.append(coral_mat)
+    coral_obj.location = (0, 0, 0)
+
+if __name__ == "__main__":
+    main()

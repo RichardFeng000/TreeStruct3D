@@ -1,0 +1,48 @@
+{
+  "instance": "Scallop_seed0",
+  "timestamp": "2026-07-20T04:51:50+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 82.1,
+  "code_chars": 9588,
+  "input_tokens": 10981,
+  "output_tokens": 3106,
+  "thoughts_tokens": 1750,
+  "total_tokens": 15837,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 1,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- Raised growth-ring curves extend beyond the shell margins, creating large floating wire loops; replace them with surface-integrated corrugation.\n- The outer pattern reads as a jagged checkerboard rather than concentric brown-and-cream growth bands.\n- Several radial accents hover across the open cavity instead of following attached shell surfaces.\n- Preserve the fan silhouette and hinge, but use cleaner scalloped rims, radial ribs, and continuous dark interiors.",
+      "raw_chars": 10113
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model clearly presents two attached, partially open fan-shaped valves with strong radial texture, scalloped edges, brown-and-cream growth bands, and a darker interior.",
+      "raw_chars": 212
+    }
+  ],
+  "error": null
+}

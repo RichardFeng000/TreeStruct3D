@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pallet_seed0/Pallet_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 22,
+  "extent": 1.2000000476837158,
+  "n_views_rendered": 4,
+  "latency_s": 2.2,
+  "error": null
+}

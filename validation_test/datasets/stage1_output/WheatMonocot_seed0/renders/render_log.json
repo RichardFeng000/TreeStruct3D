@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/WheatMonocot_seed0/WheatMonocot_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 12,
+  "extent": 4.2407097816467285,
+  "n_views_rendered": 4,
+  "latency_s": 1.79,
+  "error": null
+}

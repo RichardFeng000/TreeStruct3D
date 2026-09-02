@@ -1,0 +1,2 @@
+- The color of the pot is far too light; it appears light gray instead of the requested "dark matte blue-gray".
+- The subtle surface variation (noise) is not visible in the renders, appearing as a flat color.

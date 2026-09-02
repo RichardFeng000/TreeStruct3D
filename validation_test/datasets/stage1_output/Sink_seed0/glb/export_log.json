@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Sink_seed0/Sink_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Sink_seed0/glb/Sink_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 88.0,
+  "latency_s": 0.13,
+  "error": null
+}

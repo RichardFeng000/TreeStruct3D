@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Shirt_seed0/Shirt_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 2,
+  "extent": 1.459999918937683,
+  "n_views_rendered": 4,
+  "latency_s": 2.02,
+  "error": null
+}

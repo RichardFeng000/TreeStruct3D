@@ -1,0 +1,12 @@
+{
+  "model": "Output",
+  "n_total": 212,
+  "n_pass": 212,
+  "pass_rate": 1.0,
+  "by_status": {
+    "OK": 212
+  },
+  "top_errors": [],
+  "failed_instances": [],
+  "mean_latency_s": 4.77
+}

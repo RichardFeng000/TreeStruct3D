@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.01,
+  "error": "ValueError: faces.new(...): found the same (BMVert) used multiple times\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py\", line 172, in <module>\n    main()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py\", line 161, in main\n    leaf_obj, top_indices, bot_indices = build_banana_leaf()\n                                         ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/Output/LeafBananaTree_seed0/LeafBananaTree_seed0.py\", line 133, in build_banana_leaf\n    bm.faces.new([grid[res_u-1][j], grid[res_u-1][j+1], bot_grid[res_u-1][j+1], grid[res_u-1][j]])\nValueError: faces.new(...): found the same (BMVert) used multiple times\n"
+}

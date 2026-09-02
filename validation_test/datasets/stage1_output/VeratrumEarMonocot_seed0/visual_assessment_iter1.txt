@@ -1,0 +1,3 @@
+- The renders are extremely dark; the colors need to be significantly brightened so the gradient from base to tip is visible.
+- Bracts look like thin needles rather than leaf-like bracts; they need to be wider and fewer in number to create a more natural "overlapping" effect.
+- The shape of the bracts should be modified to feel more organic/leafy (wider at the base, tapering smoothly).

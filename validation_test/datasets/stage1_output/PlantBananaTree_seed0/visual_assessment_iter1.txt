@@ -1,0 +1,4 @@
+- The midrib is not "prominent"; it's barely visible or appears as a dip.
+- Parallel venation is missing; previous attempt created transverse ripples instead of longitudinal veins.
+- Attachment between petiole and leaf blade looks disjointed/disconnected in renders.
+- Overall silhouette lacks the graceful arching characteristic of a young banana plant.

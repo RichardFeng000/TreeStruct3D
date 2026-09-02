@@ -1,0 +1,3 @@
+- Missing parts: The main rectangular body of the door and all six panels are completely absent from the render.
+- Floating pieces: Only the arch cap and the handle are visible, floating in empty space.
+- Wrong overall shape: The result is a fragmented set of components rather than a cohesive door.

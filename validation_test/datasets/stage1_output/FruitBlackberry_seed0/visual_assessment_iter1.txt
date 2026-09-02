@@ -1,0 +1,3 @@
+- The berry is a hollow shell; there are large gaps between drupelets, making it look like a cage rather than a solid fruit.
+- Drupelets are not "closely packed" as requested; they lack the dense, honeycomb cluster appearance.
+- The internal void is visible through the gaps, which ruins the illusion of volume and deep shadowing.

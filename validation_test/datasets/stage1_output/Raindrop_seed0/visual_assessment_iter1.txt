@@ -1,0 +1,3 @@
+- The bottom edge of the raindrop is jagged/serrated in the renders instead of being a smooth circular base. This is likely due to N-gon triangulation artifacts at the slice plane.
+- The "blue-gray" color is barely perceptible; it needs more saturation or brightness to be visible as translucent glass in various lighting conditions.
+- I will rewrite the geometry creation to flatten all bottom vertices to exactly Z=0, merge duplicates, and fill the base with a triangle fan instead of a single N-gon to ensure a perfectly smooth silhouette.

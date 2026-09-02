@@ -1,0 +1,5 @@
+- The rendered object looks like a thick, broken disc rather than a dinner plate.
+- There is no recessed center (the "shallow well") or raised rim border as requested.
+- The color is too light; it's not the dark navy blue specified.
+- Geometry artifacts (visible gaps/missing faces) are present on the sides.
+- The foot ring is either absent or merged into a flat base.

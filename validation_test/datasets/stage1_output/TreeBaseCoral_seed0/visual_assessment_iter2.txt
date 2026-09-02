@@ -1,0 +1,4 @@
+- Visible gaps and seams at joints because vertices between segments are not welded (merged).
+- The "shared central root" is implemented as overlapping cylinders, which creates unnatural intersections rather than a unified base.
+- Branching is slightly too clumped; needs more sprawl to match the "wide, irregular footprint" description.
+- Need to use bmesh.ops.remove_doubles before subdivision to create a single manifold smooth skin.

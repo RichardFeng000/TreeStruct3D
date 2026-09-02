@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "ERR_EXEC",
+  "n_meshes": 0,
+  "extent": null,
+  "n_views_rendered": 0,
+  "latency_s": 0.07,
+  "error": "TypeError: BlendDataMeshes.new(): required parameter \"name\" not specified\nTraceback (most recent call last):\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 228, in <module>\n    meshes = _run_user_script(args.script)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py\", line 87, in _run_user_script\n    runpy.run_path(path, run_name=\"__main__\")\n  File \"<frozen runpy>\", line 291, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py\", line 248, in <module>\n    create_beetle()\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py\", line 241, in create_beetle\n    create_leg(s, idx)\n  File \"/Users/fengruiding/Downloads/3d_code/Output/Beetle_seed0/Beetle_seed0.py\", line 177, in create_leg\n    leg_obj = bpy.data.objects.new(f\"Leg_{'L' if side == -1 else 'R'}_{index}\", bpy.data.meshes.new())\n                                                                                ^^^^^^^^^^^^^^^^^^^^^\nTypeError: BlendDataMeshes.new(): required parameter \"name\" not specified\n"
+}

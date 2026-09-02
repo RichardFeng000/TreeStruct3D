@@ -1,0 +1,3 @@
+- The midrib is barely visible; it was implemented as a single strip of faces rather than a volumetric ridge.
+- The geometry lacks the distinct "raised" quality mentioned in the description.
+- I will rewrite the vertex generation to create five points per cross-section (Left Edge, Rib Left, Rib Top, Rib Right, Right Edge) to ensure a physical, visible midrib structure.

@@ -1,0 +1,43 @@
+{
+  "instance": "CauliflowerCoral_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 1,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Floating/disconnected pieces: Several small spheres are hovering above and around the main mass.\n- Missing geometric detail: The surface is far too smooth; it lacks the \"fine, granular surface bumps\" described.\n- Wrong proportions: The overall shape is a generic clump rather than a \"low and wide\" coral structure.\n- Color accuracy: The resulting color looks more like light gray/white than warm sandy beige/tan."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- The surface is too smooth; it lacks the granular, rough \"cauliflower\" texture described.\n- There are visible floating fragments around the base that should be fused into the main mass.\n- The overall form is a bit too \"melted\"; it needs more distinct knobby clusters rather than blurred blobs."
+    }
+  ]
+}

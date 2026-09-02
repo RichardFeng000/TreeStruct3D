@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Pillow_seed0/Pillow_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 1,
+  "extent": 0.42463427782058716,
+  "n_views_rendered": 4,
+  "latency_s": 112.7,
+  "error": null
+}

@@ -1,0 +1,233 @@
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+# Clear scene
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for block in list(bpy.data.meshes):
+    bpy.data.meshes.remove(block)
+for block in list(bpy.data.materials):
+    bpy.data.materials.remove(block)
+for block in list(bpy.data.textures):
+    bpy.data.textures.remove(block)
+
+random.seed(42)
+
+def scalloped_radius(angle, base_radius):
+    r = base_radius
+    r += 0.6 * math.sin(angle * 6 + 0.3)
+    r += 0.35 * math.sin(angle * 11 + 1.5)
+    r += 0.22 * math.sin(angle * 17 + 2.2)
+    r += 0.12 * math.sin(angle * 29 + 0.7)
+    r += 0.08 * math.sin(angle * 43 + 1.1)
+    return max(r, base_radius * 0.45)
+
+def create_coral():
+    bm = bmesh.new()
+    base_radius = 4.0
+    segments = 128
+    rings = 18
+    plate_thickness = 0.22
+
+    # Top surface with warping
+    top_verts = []
+    for ring in range(rings + 1):
+        ring_verts = []
+        t = ring / rings
+        for seg in range(segments):
+            angle = (seg / segments) * 2 * math.pi
+            r = scalloped_radius(angle, base_radius) * t
+            z = 0.18 * (1 - t**2) * (1 + 0.1 * math.sin(angle * 5))
+            z += 0.03 * math.sin(angle * 24 + t * 8) * (1 - t)
+            z += 0.015 * math.sin(angle * 13 + t * 5)
+            z += 0.02 * math.sin(angle * 7 + t * 3) * (1 - t)
+            x = r * math.cos(angle)
+            y = r * math.sin(angle)
+            v = bm.verts.new((x, y, z))
+            ring_verts.append(v)
+        top_verts.append(ring_verts)
+
+    for ring in range(rings):
+        for seg in range(segments):
+            ns = (seg + 1) % segments
+            bm.faces.new([top_verts[ring][seg], top_verts[ring][ns],
+                          top_verts[ring+1][ns], top_verts[ring+1][seg]])
+
+    # Bottom surface with tapering and warping
+    bottom_verts = []
+    for ring in range(rings + 1):
+        ring_verts = []
+        t = ring / rings
+        for seg in range(segments):
+            angle = (seg / segments) * 2 * math.pi
+            r = scalloped_radius(angle, base_radius) * t
+            thickness = plate_thickness * (1 - 0.5 * t) * (1 + 0.1 * math.sin(angle * 4))
+            z = -thickness - 0.12 * (1 - t**2)
+            z -= 0.02 * math.sin(angle * 11 + t * 3)
+            z -= 0.01 * math.sin(angle * 9 + t * 2)
+            x = r * math.cos(angle)
+            y = r * math.sin(angle)
+            v = bm.verts.new((x, y, z))
+            ring_verts.append(v)
+        bottom_verts.append(ring_verts)
+
+    for ring in range(rings):
+        for seg in range(segments):
+            ns = (seg + 1) % segments
+            bm.faces.new([bottom_verts[ring][seg], bottom_verts[ring+1][seg],
+                          bottom_verts[ring+1][ns], bottom_verts[ring][ns]])
+
+    # Side faces
+    for seg in range(segments):
+        ns = (seg + 1) % segments
+        bm.faces.new([top_verts[rings][seg], top_verts[rings][ns],
+                      bottom_verts[rings][ns], bottom_verts[rings][seg]])
+
+    # Upright projections - more numerous and varied
+    top_cands = [v for v in bm.verts if v.co.z > 0.02 and 0.4 < math.sqrt(v.co.x**2 + v.co.y**2) < 3.5]
+
+    placed = []
+    attempts = 0
+    if top_cands:
+        while len(placed) < 40 and attempts < 600:  # Increased count and attempts
+            attempts += 1
+            bv = random.choice(top_cands)
+            bp = bv.co.copy()
+            if any((bp - p).length < 0.2 for p in placed):  # Tighter spacing
+                continue
+            placed.append(bp)
+
+            h = random.uniform(0.2, 0.9)  # Wider height range
+            rb = random.uniform(0.06, 0.18)
+            rt = rb * random.uniform(0.1, 0.4)
+            ps = 10
+            pr = 8  # More rings for smoother taper
+            tx = random.uniform(-0.15, 0.15)
+            ty = random.uniform(-0.15, 0.15)
+
+            pv = []
+            for ring in range(pr + 1):
+                t = ring / pr
+                r = rb * (1 - t) + rt * t
+                z = bp.z + h * t
+                rv = []
+                for seg in range(ps):
+                    a = (seg / ps) * 2 * math.pi
+                    v = bm.verts.new((bp.x + r*math.cos(a) + tx*t, bp.y + r*math.sin(a) + ty*t, z))
+                    rv.append(v)
+                pv.append(rv)
+
+            for ring in range(pr):
+                for seg in range(ps):
+                    ns = (seg + 1) % ps
+                    bm.faces.new([pv[ring][seg], pv[ring][ns], pv[ring+1][ns], pv[ring+1][seg]])
+            bm.faces.new(pv[pr])
+
+    mesh = bpy.data.meshes.new("TableCoral")
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj = bpy.data.objects.new("TableCoral", mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+def add_modifiers(obj):
+    subsurf = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 3
+
+    # Stronger displacement for polyp texture
+    tex = bpy.data.textures.new("PolypNoise", type='CLOUDS')
+    if hasattr(tex, 'noise_scale'):
+        tex.noise_scale = 0.06  # Finer scale
+    if hasattr(tex, 'noise_depth'):
+        tex.noise_depth = 8
+    disp = obj.modifiers.new(name="PolypDisp", type='DISPLACE')
+    disp.texture = tex
+    disp.strength = 0.08  # Increased strength
+    disp.mid_level = 0.5
+
+    # Additional fine detail
+    tex2 = bpy.data.textures.new("FinePolyp", type='CLOUDS')
+    if hasattr(tex2, 'noise_scale'):
+        tex2.noise_scale = 0.015
+    if hasattr(tex2, 'noise_depth'):
+        tex2.noise_depth = 6
+    disp2 = obj.modifiers.new(name="FinePolypDisp", type='DISPLACE')
+    disp2.texture = tex2
+    disp2.strength = 0.02
+    disp2.mid_level = 0.5
+
+def add_material(obj):
+    mat = bpy.data.materials.new(name="CoralMat")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    for node in nodes:
+        nodes.remove(node)
+
+    output = nodes.new('ShaderNodeOutputMaterial')
+    principled = nodes.new('ShaderNodeBsdfPrincipled')
+    ramp = nodes.new('ShaderNodeValToRGB')
+
+    # Correct color ramp: sandy beige to warm tan with olive-green variation
+    ramp.color_ramp.elements[0].position = 0.0
+    ramp.color_ramp.elements[0].color = (0.85, 0.75, 0.55, 1.0)  # Sandy beige
+    ramp.color_ramp.elements[1].position = 1.0
+    ramp.color_ramp.elements[1].color = (0.70, 0.55, 0.35, 1.0)  # Warm tan
+    olive = ramp.color_ramp.elements.new(0.5)
+    olive.color = (0.65, 0.60, 0.40, 1.0)  # Olive-green variation
+
+    noise_tex = nodes.new('ShaderNodeTexNoise')
+    noise_tex.inputs['Scale'].default_value = 10.0  # Finer noise for polyp variation
+    noise_tex.inputs['Detail'].default_value = 12.0
+
+    olive_noise = nodes.new('ShaderNodeTexNoise')
+    olive_noise.inputs['Scale'].default_value = 4.0
+    olive_noise.inputs['Detail'].default_value = 8.0
+
+    mix = nodes.new('ShaderNodeMixRGB')
+    mix.blend_type = 'MIX'
+
+    olive_color = nodes.new('ShaderNodeRGB')
+    olive_color.outputs['Color'].default_value = (0.55, 0.58, 0.35, 1.0)
+
+    links.new(noise_tex.outputs['Fac'], ramp.inputs['Fac'])
+    links.new(ramp.outputs['Color'], mix.inputs['Color1'])
+    links.new(olive_noise.outputs['Fac'], mix.inputs['Fac'])
+    links.new(olive_color.outputs['Color'], mix.inputs['Color2'])
+    links.new(mix.outputs['Color'], principled.inputs['Base Color'])
+
+    principled.inputs['Roughness'].default_value = 0.95
+    for spec_name in ['Specular IOR Level', 'Specular']:
+        if spec_name in principled.inputs:
+            principled.inputs[spec_name].default_value = 0.15
+            break
+
+    links.new(principled.outputs['BSDF'], output.inputs['Surface'])
+    obj.data.materials.append(mat)
+
+# Create object
+obj = create_coral()
+add_modifiers(obj)
+add_material(obj)
+
+# Enable smooth shading
+for poly in obj.data.polygons:
+    poly.use_smooth = True
+
+# Add a simple shadow-casting plane below the coral (hidden from render)
+bpy.ops.mesh.primitive_plane_add(size=10, location=(0, 0, -0.5))
+shadow_plane = bpy.context.active_object
+shadow_plane.name = "ShadowPlane"
+shadow_plane.hide_render = True  # Not visible, only for shadow
+shadow_plane.location.z = -0.5  # Below coral
+
+# Add a light to cast shadow
+bpy.ops.object.light_add(type='SUN', location=(5, -5, 10))
+sun = bpy.context.active_object
+sun.data.energy = 5.0
+sun.data.angle = 0.1

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Sofa_seed0/Sofa_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Sofa_seed0/glb/Sofa_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 526.1,
+  "latency_s": 0.13,
+  "error": null
+}

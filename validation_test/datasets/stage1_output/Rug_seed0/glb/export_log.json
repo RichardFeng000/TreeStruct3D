@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Rug_seed0/Rug_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Rug_seed0/glb/Rug_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 135.9,
+  "latency_s": 0.86,
+  "error": null
+}

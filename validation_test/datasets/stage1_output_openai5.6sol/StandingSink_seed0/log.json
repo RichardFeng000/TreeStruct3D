@@ -1,0 +1,48 @@
+{
+  "instance": "StandingSink_seed0",
+  "timestamp": "2026-07-20T04:53:22+00:00",
+  "provider": "openai",
+  "model": "gpt-5.6-sol",
+  "temperature": 1.0,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 71.67,
+  "code_chars": 12813,
+  "input_tokens": 13332,
+  "output_tokens": 4136,
+  "thoughts_tokens": 636,
+  "total_tokens": 18104,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 2,
+  "render_attempts": 1,
+  "render_history": [
+    {
+      "iter": 1,
+      "status": "OK",
+      "n_meshes": 20,
+      "error_brief": ""
+    }
+  ],
+  "final_render_status": "OK",
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "FIX",
+      "assessment": "- The marble is overwhelmingly white and densely streaked; make it predominantly dark forest green with sparse, subtle pale veining.\n- The basin recess is visually obscured and appears nearly flat; deepen and clearly define the inner bowl and rim.\n- The basin\u2019s sides flare too aggressively into a pointed vessel shape; use a broader, softer classic square sink profile.",
+      "raw_chars": 13241
+    },
+    {
+      "iter": 2,
+      "decision": "DONE",
+      "assessment": "The model clearly delivers the glossy forest-green veined basin, chrome gooseneck faucet with two handles, and classic tapered pedestal silhouette.",
+      "raw_chars": 188
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,3 @@
+- The shape is too lumpy and "jittery" (high-frequency noise), resembling melted wax rather than a smooth, river-worn pebble.
+- The material appears as a stark flat white in the renders; it lacks the nuanced cream tones and subtle "inner luminescence" requested.
+- Need to replace random vertex jitter with low-frequency organic deformation and refine the cream/glow colors.

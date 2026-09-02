@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/BathroomSink_seed0/BathroomSink_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/BathroomSink_seed0/glb/BathroomSink_seed0.glb",
+  "status": "OK",
+  "n_meshes": 4,
+  "size_kb": 181.7,
+  "latency_s": 0.13,
+  "error": null
+}

@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/Dragonfly_seed0/Dragonfly_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/Dragonfly_seed0/glb/Dragonfly_seed0.glb",
+  "status": "OK",
+  "n_meshes": 38,
+  "size_kb": 948.8,
+  "latency_s": 0.23,
+  "error": null
+}

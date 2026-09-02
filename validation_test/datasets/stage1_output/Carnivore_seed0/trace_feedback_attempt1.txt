@@ -1,0 +1,242 @@
+Original text-to-3D task:
+
+A large carnivorous quadruped rendered as a textured 3D model. The creature resembles a big cat such as a tiger, with a powerful, muscular body covered in a dense, fluffy fur coat rendered with a particle hair system. The fur coloring is a warm orange-red with dark black horizontal stripe markings across the body, flanks, and legs, and lighter creamy-white areas on the underbelly and muzzle. The animal stands in a low, slightly crouching pose with four thick legs ending in dark clawed paws. The head is broad and rounded with small white and gray facial markings.
+
+Previous Blender Python script:
+
+<previous_code>
+import bpy
+import bmesh
+import math
+import random
+from mathutils import Vector
+
+def clear_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def create_material(name, color_main, color_accent, is_tiger=True):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    # Principled BSDF
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    output = nodes.new('ShaderNodeOutputMaterial')
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    if not is_tiger:
+        bsdf.inputs['Base Color'].default_value = color_main
+        return mat
+
+    # Procedural Tiger Stripes Logic
+    tex_coord = nodes.new('ShaderNodeTexCoord')
+    mapping = nodes.new('ShaderNodeMapping')
+    
+    # Wave texture for stripes
+    wave = nodes.new('ShaderNodeTexWave')
+    wave.wave_type = 'BANDS'
+    wave.inputs['Scale'].default_value = 5.0
+    wave.inputs['Distortion'].default_value = 15.0
+    
+    # Noise to break up the stripes
+    noise = nodes.new('ShaderNodeTexNoise')
+    noise.inputs['Scale'].default_value = 2.0
+    
+    mix_stripes = nodes.new('ShaderNodeMixRGB')
+    mix_stripes.blend_type = 'MULTIPLY'
+    
+    # ColorRamp for stripes (Black and Orange)
+    ramp_stripes = nodes.new('ShaderNodeValTorgb')
+    ramp_stripes.color_ramp.elements[0].position = 0.4
+    ramp_stripes.color_ramp.elements[0].color = color_accent
+    ramp_stripes.color_ramp.elements[1].position = 0.6
+    ramp_stripes.color_ramp.elements[1].color = color_main
+
+    # Gradient for belly (White)
+    grad = nodes.new('ShaderNodeTexGradient')
+    ramp_belly = nodes.new('ShaderNodeValTorgb')
+    ramp_belly.color_ramp.elements[0].position = 0.2
+    ramp_belly.color_ramp.elements[0].color = (1, 1, 1, 1) # White
+    ramp_belly.color_ramp.elements[1].position = 0.5
+    ramp_belly.color_ramp.elements[1].color = (0, 0, 0, 1) # Mask
+
+    # Mixing belly mask with stripes
+    mix_final = nodes.new('ShaderNodeMixRGB')
+    mix_final.blend_type = 'MIX'
+    
+    links.new(tex_coord.outputs['Generated'], mapping.inputs['Vector'])
+    links.new(mapping.outputs['Vector'], wave.inputs['Vector'])
+    links.new(wave.outputs['Color'], ramp_stripes.inputs['Fac'])
+    links.new(ramp_stripes.outputs['Color'], mix_final.inputs[1])
+    
+    links.new(tex_coord.outputs['Generated'], grad.inputs['Vector'])
+    links.new(grad.outputs['Color'], ramp_belly.inputs['Fac'])
+    links.new(ramp_belly.outputs['Color'], mix_final.inputs['Fac'])
+    
+    # We want the belly to be white, so we swap inputs or use a different logic
+    # Simplified: Use Gradient to mix White with Striped pattern
+    mix_belly = nodes.new('ShaderNodeMixRGB')
+    mix_belly.blend_type = 'MIX'
+    links.new(ramp_belly.outputs['Color'], mix_belly.inputs['Fac'])
+    links.new(mix_final.outputs['Color'], mix_belly.inputs[1]) # Orange/Black
+    links.new(nodes.new('ShaderNodeRGB').outputs[0], mix_belly.inputs[2]) 
+    # Wait, simpler: just link the ramp_stripes and use a gradient for white.
+    
+    # Re-do final color chain
+    final_color = nodes.new('ShaderNodeMixRGB')
+    final_color.blend_type = 'MIX'
+    links.new(ramp_belly.outputs['Color'], final_color.inputs['Fac'])
+    links.new(ramp_stripes.outputs['Color'], final_color.inputs[1]) # Top
+    # Set belly color to white
+    white_node = nodes.new('ShaderNodeRGB')
+    white_node.outputs[0].default_value = (0.9, 0.9, 0.8, 1)
+    links.new(white_node.outputs[0], final_color.inputs[2]) # Bottom
+    
+    links.new(final_color.outputs['Color'], bsdf.inputs['Base Color'])
+
+    return mat
+
+def create_limb(name, pos, rot, scale=(0.3, 0.3, 1.5)):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.3, depth=1.5, location=pos, rotation=rot)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.scale = scale
+    return obj
+
+def build_creature():
+    # 1. Create Torso
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 1))
+    body = bpy.context.active_object
+    body.name = "Body"
+    body.scale = (2.2, 0.8, 0.9)
+
+    # 2. Create Head
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.6, location=(2.5, 0, 1.4))
+    head = bpy.context.active_object
+    head.name = "Head"
+    head.scale = (1.1, 1.0, 0.9)
+
+    # Muzzle
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.3, location=(3.0, 0, 1.2))
+    muzzle = bpy.context.active_object
+    muzzle.scale = (1.2, 0.8, 0.7)
+
+    # 3. Create Legs
+    legs_pos = [
+        (1.2, 0.5, 0.4),   # Front Right
+        (1.2, -0.5, 0.4),  # Front Left
+        (-1.2, 0.5, 0.4),  # Back Right
+        (-1.2, -0.5, 0.4)  # Back Left
+    ]
+    legs = []
+    for i, pos in enumerate(legs_pos):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.25, depth=1.2, location=pos)
+        leg = bpy.context.active_object
+        leg.name = f"Leg_{i}"
+        # Crouch pose: rotate slightly
+        if i < 2: # Front legs
+            leg.rotation_euler[1] = math.radians(-15)
+        else: # Back legs
+            leg.rotation_euler[1] = math.radians(10)
+        legs.append(leg)
+
+    # 4. Create Tail
+    bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.15, depth=2.0, location=(-2.7, 0, 1))
+    tail = bpy.context.active_object
+    tail.name = "Tail"
+    tail.rotation_euler[1] = math.radians(-30)
+    tail.scale = (0.5, 0.5, 1.2)
+
+    # Join all parts into one mesh for the fur system and material
+    bpy.ops.object.select_all(action='DESELECT')
+    body.select_set(True)
+    head.select_set(True)
+    muzzle.select_set(True)
+    tail.select_set(True)
+    for leg in legs:
+        leg.select_set(True)
+    
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()
+
+    # Apply Subdivision Surface for organic look
+    subsurf = body.modifiers.new(name="Subdiv", type='SUBSURF')
+    subsurf.levels = 2
+    subsurf.render_levels = 3
+
+    return body
+
+def apply_fur(obj):
+    # Create Particle System
+    part = obj.modifiers.new(name="Fur", type='PARTICLE_SYSTEM')
+    psys = obj.particle_systems[0]
+    settings = psys.settings
+    
+    settings.type = 'HAIR'
+    settings.render_type = 'PATH'
+    settings.count = 50000 # Dense fur
+    settings.hair_length = 0.15
+    
+    # Roughness for "fluffy" look
+    settings.roughness_1 = 0.2
+    settings.roughness_2 = 0.1
+    
+    # Child particles for extreme density without crashing Blender
+    settings.child_type = 'INTERPOLATED'
+    settings.children_count = 10
+
+def main():
+    clear_scene()
+    
+    creature = build_creature()
+    
+    # Material: Orange-Red, Black stripes, White belly
+    orange = (0.8, 0.3, 0.1, 1)
+    black = (0.02, 0.02, 0.02, 1)
+    tiger_mat = create_material("TigerFur", orange, black, is_tiger=True)
+    creature.data.materials.append(tiger_mat)
+    
+    apply_fur(creature)
+    
+    # Final positioning to ensure it's at origin and slightly crouching
+    creature.location = (0, 0, 0)
+
+if __name__ == "__main__":
+    main()
+</previous_code>
+
+Blender validation failed.
+
+status: ERR_EXEC
+n_meshes: 0
+n_views_rendered: 0
+
+Traceback / error:
+
+RuntimeError: Error: Node type ShaderNodeValTorgb undefined
+
+Traceback (most recent call last):
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 228, in <module>
+    meshes = _run_user_script(args.script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/3dcodebench/core/render.py", line 87, in _run_user_script
+    runpy.run_path(path, run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/fengruiding/Downloads/3d_code/Output/Carnivore_seed0/Carnivore_seed0.py", line 201, in <module>
+    main()
+  File "/Users/fengruiding/Downloads/3d_code/Output/Carnivore_seed0/Carnivore_seed0.py", line 192, in main
+    tiger_mat = create_material("TigerFur", orange, black, is_tiger=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fengruiding/Downloads/3d_code/Output/Carnivore_seed0/Carnivore_seed0.py", line 45, in create_material
+    ramp_stripes = nodes.new('ShaderNodeValTorgb')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Error: Node type ShaderNodeValTorgb undefined
+
+This is repair attempt 2 of 4.
+
+Return a complete corrected Blender 5.0 Python script only. Do not include prose, Markdown fences, XML tags, or explanations.

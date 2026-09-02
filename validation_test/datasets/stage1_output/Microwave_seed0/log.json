@@ -1,0 +1,43 @@
+{
+  "instance": "Microwave_seed0",
+  "model": "google/gemma-4-31b",
+  "status": "OK",
+  "render_history": [
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 24,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 29,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    },
+    {
+      "stage": "trace",
+      "attempt": 0,
+      "status": "OK",
+      "n_meshes": 26,
+      "n_views_rendered": 4,
+      "error": "(no error text recorded)"
+    }
+  ],
+  "visual_history": [
+    {
+      "iteration": 1,
+      "status": "FIX_APPLIED",
+      "assessment": "- Colors are far too light; the body looks beige/tan instead of dark brown, and the top is royal blue instead of dark navy.\n- Ventilation slots appear as protruding grey blocks rather than slits or recessed gaps along the front lower edge.\n- The overall lighting in previous renders makes materials look washed out; need to use significantly darker RGB values."
+    },
+    {
+      "iteration": 2,
+      "status": "FIX_APPLIED",
+      "assessment": "- Missing geometric detail: Ventilation slots along the front lower edge are not visible in the renders (they are buried inside the body).\n- Color accuracy: The \"dark brown\" body appears too light/tan in the render; it needs to be a richer, deeper dark brown.\n- Alignment: The ventilation slots should be clearly placed on the surface of the front face."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "instance": "Bottle_seed0",
+  "timestamp": "2026-07-09T15:57:19+00:00",
+  "provider": "openai",
+  "model": "glm-5.2",
+  "temperature": 0.7,
+  "thinking": "medium",
+  "task": "text_to_3d",
+  "prompt_type": "description",
+  "max_images": null,
+  "seed": null,
+  "status": "OK",
+  "latency_s": 4.15,
+  "code_chars": 13484,
+  "input_tokens": 6398,
+  "output_tokens": 49,
+  "thoughts_tokens": null,
+  "total_tokens": 6447,
+  "cache_read_tokens": 0,
+  "cache_creation_tokens": 0,
+  "cost_usd": null,
+  "parse_attempts": 1,
+  "render_attempts": 0,
+  "render_history": [],
+  "final_render_status": null,
+  "critique_history": [
+    {
+      "iter": 1,
+      "decision": "DONE",
+      "assessment": "The render accurately shows a tapered conical bottle with a narrow neck, a metallic cap, and a colorful striped label band with decorative elements \u2014 matching the description.",
+      "raw_chars": 224
+    }
+  ],
+  "critique_provider": "openai",
+  "critique_model": "qwen3-vl-235b-a22b-instruct",
+  "error": null
+}

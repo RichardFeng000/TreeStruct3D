@@ -1,0 +1,9 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/TreeBaseCoral_seed0/TreeBaseCoral_seed0.py",
+  "out_glb": "/Users/fengruiding/Downloads/3d_code/Output/TreeBaseCoral_seed0/glb/TreeBaseCoral_seed0.glb",
+  "status": "OK",
+  "n_meshes": 1,
+  "size_kb": 4259.4,
+  "latency_s": 0.15,
+  "error": null
+}

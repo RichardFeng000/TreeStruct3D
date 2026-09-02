@@ -1,0 +1,12 @@
+{
+  "script": "/Users/fengruiding/Downloads/3d_code/Output/FruitBlackberry_seed0/FruitBlackberry_seed0.py",
+  "samples": 32,
+  "resolution": 512,
+  "engine": "CYCLES",
+  "status": "OK",
+  "n_meshes": 146,
+  "extent": 3.4433335065841675,
+  "n_views_rendered": 4,
+  "latency_s": 9.0,
+  "error": null
+}
