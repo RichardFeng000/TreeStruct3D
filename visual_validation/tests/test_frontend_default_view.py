@@ -2,13 +2,24 @@ from pathlib import Path
 import unittest
 
 
-FRONTEND = Path(__file__).resolve().parents[1] / "frontend" / "model_playground.html"
+FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
+FRONTEND = FRONTEND_DIR / "model_playground.html"
 
 
 class FrontendDefaultViewTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = FRONTEND.read_text(encoding="utf-8")
+
+    def test_project_frontend_html_is_english_only(self):
+        for path in sorted(FRONTEND_DIR.glob("*.html")):
+            source = path.read_text(encoding="utf-8")
+            self.assertIn('<html lang="en">', source, path.name)
+            self.assertNotRegex(
+                source,
+                r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]",
+                path.name,
+            )
 
     def test_initial_graph_view_is_3d_hierarchy(self):
         self.assertIn("const graphState = {\n      view: 'tree3d',", self.source)
