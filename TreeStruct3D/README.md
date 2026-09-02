@@ -94,8 +94,17 @@ cp configs/config.example.yaml config.local.yaml
 export TREESTRUCT3D_API_KEY=your-api-key
 ```
 
+Set the required `api_format`, `api_url`, and `model` values in
+`config.local.yaml` before running either phase.
+
 `config.local.yaml`, every other `configs/*.yaml` file, logs, and generated
 outputs are ignored by Git. Never commit provider credentials.
+
+The selected YAML is the only user-facing source for model API settings,
+including the protocol, endpoint, credential reference, model, token limits,
+reasoning levels, API timeout, transport retries, phase-level model attempts,
+inter-instance delay, and OpenAI background-request policy. The commands do not
+provide a second command-line source for these settings.
 
 Supported API formats are:
 
@@ -104,9 +113,10 @@ Supported API formats are:
 - `openai_chat_completions`
 - `gemini_generate_content`
 
-Use `--config PATH` to select another local configuration. Use `--model ID` to
-override only its model identifier while retaining the endpoint, API format,
-credential, and token settings.
+Use `--config PATH` to select another local configuration, and use the same
+file for extraction and generation. See the complete
+[configuration reference](docs/CONFIGURATION.md) for every field, validation
+rule, supported protocol, and credential-handling convention.
 
 ## Quick start
 
@@ -114,6 +124,7 @@ Extract one structure blueprint:
 
 ```bash
 ./extract_structure.sh \
+  --config config.local.yaml \
   --instances Bird_seed0 \
   --overwrite
 ```
@@ -122,6 +133,7 @@ Generate and validate its Blender program:
 
 ```bash
 ./generate_3d.sh \
+  --config config.local.yaml \
   --instances Bird_seed0 \
   --overwrite \
   --render-samples 16 \

@@ -110,12 +110,25 @@ cp TreeStruct3D/configs/config.example.yaml TreeStruct3D/config.local.yaml
 export TREESTRUCT3D_API_KEY=your-api-key
 ```
 
+Set the required `api_format`, `api_url`, and `model` values in
+`TreeStruct3D/config.local.yaml` before running either phase.
+
+The selected YAML is the single source for all model API and request-policy
+settings; neither model-facing command accepts command-line overrides for
+them. See the
+[configuration reference](TreeStruct3D/docs/CONFIGURATION.md) for the complete
+schema and provider examples.
+
 Extract a structure blueprint and generate one Blender program:
 
 ```bash
 cd TreeStruct3D
-./extract_structure.sh --instances Bird_seed0 --overwrite
+./extract_structure.sh \
+  --config config.local.yaml \
+  --instances Bird_seed0 \
+  --overwrite
 ./generate_3d.sh \
+  --config config.local.yaml \
   --instances Bird_seed0 \
   --overwrite \
   --render-samples 16 \

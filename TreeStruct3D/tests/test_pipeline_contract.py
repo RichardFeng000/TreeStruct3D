@@ -1,3 +1,4 @@
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -180,46 +181,94 @@ class PipelineContractTest(unittest.TestCase):
         ):
             self.assertNotIn(old_prompt, source)
 
-    def test_model_can_be_overridden_without_changing_provider_config(self):
-        parser_source = (ROOT / "generate_3d.py").read_text(encoding="utf-8")
-        self.assertIn('parser.add_argument(\n        "--model"', parser_source)
-        self.assertIn('config["model"] = args.model', parser_source)
-
-    def test_descriptive_cli_names_and_prerelease_aliases_match(self):
-        with mock.patch(
-            "sys.argv",
-            [
-                "generate_3d.py",
+    def test_model_request_policy_is_config_only(self):
+        generation_source = (ROOT / "generate_3d.py").read_text(encoding="utf-8")
+        extraction_source = (ROOT / "extract_structure.py").read_text(
+            encoding="utf-8"
+        )
+        for source in (generation_source, extraction_source):
+            for option in (
+                "--model",
                 "--api-timeout",
-                "11",
-                "--generation-retries",
-                "4",
-                "--request-delay",
-                "0.5",
-                "--validator-root",
-                "/tmp/validator",
-            ],
-        ):
-            current = generate_3d.parse_args()
-        with mock.patch(
-            "sys.argv",
-            [
-                "generate_3d.py",
                 "--timeout",
-                "11",
                 "--retries",
-                "4",
+                "--request-delay",
                 "--sleep",
-                "0.5",
-                "--validation-test-root",
-                "/tmp/validator",
-            ],
-        ):
-            legacy = generate_3d.parse_args()
-        self.assertEqual(current.timeout, legacy.timeout)
-        self.assertEqual(current.retries, legacy.retries)
-        self.assertEqual(current.sleep, legacy.sleep)
-        self.assertEqual(current.validator_root, legacy.validator_root)
+            ):
+                self.assertNotIn(f'"{option}"', source)
+            self.assertNotIn('config["model"] = args.model', source)
+        self.assertIn(
+            'args.timeout = config["api_timeout_seconds"]',
+            generation_source,
+        )
+        self.assertIn(
+            'args.retries = config["generation_retries"]',
+            generation_source,
+        )
+        self.assertIn(
+            'args.sleep = config["request_delay_seconds"]',
+            generation_source,
+        )
+        self.assertIn(
+            'args.retries = config["extraction_retries"]',
+            extraction_source,
+        )
+        self.assertIn(
+            'args.sleep = config["request_delay_seconds"]',
+            extraction_source,
+        )
+        self.assertIn(
+            'timeout=config["api_timeout_seconds"]',
+            extraction_source,
+        )
+
+    def test_complete_example_declares_every_supported_api_field(self):
+        example = ROOT / "configs" / "config.example.yaml"
+        with tempfile.TemporaryDirectory() as temporary:
+            configured = Path(temporary) / "config.yaml"
+            configured.write_text(
+                example.read_text(encoding="utf-8").replace(
+                    "your-model-id",
+                    "test-model",
+                ),
+                encoding="utf-8",
+            )
+            with mock.patch.dict(
+                "os.environ",
+                {"TREESTRUCT3D_API_KEY": "test-key"},
+            ):
+                config = generate_3d.load_config(configured)
+        self.assertEqual(
+            set(config),
+            generate_3d.SUPPORTED_API_CONFIG_KEYS,
+        )
+        self.assertEqual(config["api_timeout_seconds"], 0)
+        self.assertEqual(config["api_retries"], 0)
+        self.assertEqual(config["extraction_retries"], 2)
+        self.assertEqual(config["generation_retries"], 2)
+        self.assertEqual(config["request_delay_seconds"], 0.0)
+
+    def test_removed_request_policy_overrides_are_rejected(self):
+        cases = (
+            (generate_3d.parse_args, "--model", "other-model"),
+            (generate_3d.parse_args, "--api-timeout", "30"),
+            (generate_3d.parse_args, "--generation-retries", "4"),
+            (generate_3d.parse_args, "--request-delay", "0.5"),
+            (extract_structure.parse_args, "--extraction-retries", "4"),
+        )
+        for parser, option, value in cases:
+            with self.subTest(option=option):
+                with mock.patch("sys.argv", ["command", option, value]):
+                    with mock.patch("sys.stderr", new=io.StringIO()):
+                        with self.assertRaises(SystemExit):
+                            parser()
+
+    def test_standalone_renderer_uses_non_api_option_names(self):
+        source = (ROOT / "treestruct3d" / "render.py").read_text(encoding="utf-8")
+        self.assertIn('p.add_argument("--result-group"', source)
+        self.assertIn('p.add_argument("--render-timeout"', source)
+        self.assertNotIn('p.add_argument("--model"', source)
+        self.assertNotIn('p.add_argument("--timeout"', source)
 
     def test_default_outputs_are_local_to_the_project(self):
         expected = ROOT / "outputs"

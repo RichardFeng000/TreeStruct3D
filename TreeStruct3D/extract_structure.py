@@ -17,7 +17,6 @@ from treestruct3d.structure_extraction import (
 )
 from generate_3d import (
     AmbiguousRemoteResultError,
-    API_FORMAT_LMSTUDIO,
     DEFAULT_CONFIG,
     DEFAULT_DATA_DIR,
     DEFAULT_OUTPUT_DIR,
@@ -52,11 +51,6 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_CONFIG,
         help="Provider and model configuration (default: config.local.yaml).",
-    )
-    parser.add_argument(
-        "--model",
-        default=None,
-        help="Override the extraction model; use the strongest available planner.",
     )
     parser.add_argument(
         "--data-dir",
@@ -100,39 +94,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--instances", nargs="*", default=None)
     parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument(
-        "--api-timeout",
-        "--timeout",
-        dest="timeout",
-        type=int,
-        default=0,
-        help=(
-            "Total model API wall-clock timeout in seconds; 0 means no "
-            "client-side limit. The old --timeout spelling remains accepted."
-        ),
-    )
-    parser.add_argument(
-        "--extraction-retries",
-        "--retries",
-        dest="retries",
-        type=int,
-        default=2,
-        help=(
-            "Retries after a safely retryable API error or invalid blueprint. "
-            "The old --retries spelling remains accepted."
-        ),
-    )
-    parser.add_argument(
-        "--request-delay",
-        "--sleep",
-        dest="sleep",
-        type=float,
-        default=0.0,
-        help=(
-            "Delay in seconds between completed instances. The old --sleep "
-            "spelling remains accepted."
-        ),
-    )
     return parser.parse_args()
 
 
@@ -232,7 +193,7 @@ def extract_one(
         "schema_version": "treestruct3d.structure-extraction-log/v1",
         "instance": instance,
         "model": config["model"],
-        "api_format": config.get("api_format", API_FORMAT_LMSTUDIO),
+        "api_format": config["api_format"],
         "status": None,
         "input": "prompt_description_only",
         "reads_reference_python": False,
@@ -333,12 +294,12 @@ def main() -> None:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     config = load_config(args.config)
+    args.retries = config["extraction_retries"]
+    args.sleep = config["request_delay_seconds"]
     if config.get("structure_max_output_tokens") is not None:
         config["max_output_tokens"] = config["structure_max_output_tokens"]
     if config.get("structure_reasoning_effort"):
         config["reasoning_effort"] = config["structure_reasoning_effort"]
-    if args.model:
-        config["model"] = args.model
     system_prompt = args.system_prompt.read_text(encoding="utf-8")
     instances = iter_instances(args.data_dir, args.instances)
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -348,6 +309,15 @@ def main() -> None:
             timespec="seconds"
         ),
         "model": config["model"],
+        "api_format": config["api_format"],
+        "api_policy": {
+            "max_output_tokens": config.get("max_output_tokens"),
+            "reasoning_effort": config.get("reasoning_effort"),
+            "timeout_seconds": config["api_timeout_seconds"],
+            "transport_retries": config["api_retries"],
+            "extraction_retries": config["extraction_retries"],
+            "request_delay_seconds": config["request_delay_seconds"],
+        },
         "input": "3DCodeBench natural-language prompt only",
         "reads_reference_python": False,
         "injected_into_generation": False,
@@ -399,7 +369,7 @@ def main() -> None:
             instance=instance,
             description=description,
             out_dir=out_dir,
-            timeout=args.timeout,
+            timeout=config["api_timeout_seconds"],
             retries=args.retries,
         )
         if blueprint is None:

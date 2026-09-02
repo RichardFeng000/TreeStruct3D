@@ -1,14 +1,35 @@
+# TreeStruct3D model API configuration.
 # Copy this file to config.local.yaml and keep credentials out of Git.
+# Both model-facing commands read API settings only from the selected config.
+
+# Required provider fields.
+# api_format must be one of: lmstudio_responses, openai_responses,
+# openai_chat_completions, or gemini_generate_content.
 api_format: lmstudio_responses
 api_url: http://127.0.0.1:1234/api/v1/chat
 api_key: ${TREESTRUCT3D_API_KEY}
 model: your-model-id
-max_output_tokens: 8192
 
-# Optional phase-specific overrides.
-# structure_max_output_tokens: 8192
-# structure_reasoning_effort: high
-# code_max_output_tokens: 32768
-# code_reasoning_effort: low
-# structure_repair_max_output_tokens: 32768
-# structure_repair_reasoning_effort: high
+# Shared model-request policy. A timeout of 0 means no client-side wall-clock
+# limit for foreground requests. api_retries applies only to failures known to
+# be safe to repeat. The phase retry counts preserve the default pipeline flow.
+max_output_tokens: 8192
+reasoning_effort: null
+api_timeout_seconds: 0
+api_retries: 0
+extraction_retries: 2
+generation_retries: 2
+request_delay_seconds: 0.0
+
+# Optional phase-specific overrides. null inherits the shared value above.
+structure_max_output_tokens: null
+structure_reasoning_effort: null
+code_max_output_tokens: null
+code_reasoning_effort: null
+structure_repair_max_output_tokens: null
+structure_repair_reasoning_effort: null
+
+# Used only by api_format: openai_responses.
+openai_background: true
+openai_poll_interval: 5.0
+openai_request_timeout: 60

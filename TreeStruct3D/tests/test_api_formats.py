@@ -21,6 +21,7 @@ from generate_3d import (
     extract_message,
     extract_reasoning,
     gemini_user_parts,
+    load_config,
     normalize_api_timeout,
     safe_to_retry_api_error,
 )
@@ -93,6 +94,54 @@ class ApiFormatTest(unittest.TestCase):
         self.assertIsNone(normalize_api_timeout(-1))
         self.assertIsNone(normalize_api_timeout(None))
         self.assertEqual(normalize_api_timeout(600), 600)
+
+    def test_load_config_resolves_credentials_and_applies_documented_defaults(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "config.yaml"
+            path.write_text(
+                "\n".join(
+                    (
+                        "api_format: openai_responses",
+                        "api_url: https://example.test/v1/responses",
+                        "api_key: ${TREE_TEST_API_KEY}",
+                        "model: test-model",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with mock.patch.dict(
+                "os.environ",
+                {"TREE_TEST_API_KEY": "test-key"},
+            ):
+                config = load_config(path)
+
+        self.assertEqual(config["api_key"], "test-key")
+        self.assertEqual(config["api_timeout_seconds"], 0)
+        self.assertEqual(config["api_retries"], 0)
+        self.assertEqual(config["extraction_retries"], 2)
+        self.assertEqual(config["generation_retries"], 2)
+        self.assertEqual(config["request_delay_seconds"], 0.0)
+        self.assertTrue(config["openai_background"])
+
+    def test_load_config_rejects_invalid_api_policy_before_a_request(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "config.yaml"
+            path.write_text(
+                "\n".join(
+                    (
+                        "api_format: openai_responses",
+                        "api_url: https://example.test/v1/responses",
+                        "api_key: test-key",
+                        "model: test-model",
+                        "api_timeout_seconds: -1",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(SystemExit, "api_timeout_seconds"):
+                load_config(path)
 
     def test_openai_chat_completions_payload_matches_tokenpony_template(self):
         payload = build_api_payload(
@@ -352,6 +401,29 @@ class ApiFormatTest(unittest.TestCase):
             )
             self.assertEqual(kwargs["background_poll_interval"], 7.0)
             self.assertEqual(kwargs["background_request_timeout"], 45)
+
+    def test_configured_call_applies_safe_transport_retries(self):
+        config = {
+            "api_url": "https://example.test/v1/responses",
+            "api_key": "test-key",
+            "model": "test-model",
+            "api_format": API_FORMAT_OPENAI_RESPONSES,
+            "api_retries": 1,
+        }
+        with mock.patch(
+            "generate_3d.call_model_api",
+            side_effect=[RuntimeError("HTTP 503: busy"), {"status": "completed"}],
+        ) as call, mock.patch("generate_3d.time.sleep") as sleep:
+            response = call_configured_model_api(
+                config,
+                "system",
+                "user",
+                timeout=0,
+            )
+
+        self.assertEqual(response["status"], "completed")
+        self.assertEqual(call.call_count, 2)
+        sleep.assert_called_once_with(1)
 
     def test_native_openai_responses_message_is_extracted(self):
         response = {

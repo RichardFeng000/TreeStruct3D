@@ -107,6 +107,26 @@ SUPPORTED_API_FORMATS = {
     API_FORMAT_OPENAI_CHAT,
     API_FORMAT_OPENAI_RESPONSES,
 }
+API_CONFIG_DEFAULTS = {
+    "max_output_tokens": None,
+    "reasoning_effort": None,
+    "structure_max_output_tokens": None,
+    "structure_reasoning_effort": None,
+    "code_max_output_tokens": None,
+    "code_reasoning_effort": None,
+    "structure_repair_max_output_tokens": None,
+    "structure_repair_reasoning_effort": None,
+    "api_timeout_seconds": 0,
+    "api_retries": 0,
+    "extraction_retries": 2,
+    "generation_retries": 2,
+    "request_delay_seconds": 0.0,
+    "openai_background": True,
+    "openai_poll_interval": 5.0,
+    "openai_request_timeout": 60,
+}
+REQUIRED_API_CONFIG_KEYS = {"api_format", "api_url", "api_key", "model"}
+SUPPORTED_API_CONFIG_KEYS = REQUIRED_API_CONFIG_KEYS | set(API_CONFIG_DEFAULTS)
 
 # Explicit transport seam for deterministic unit tests. Production leaves this
 # unset and therefore always uses the isolated request worker for finite
@@ -242,11 +262,6 @@ def parse_args() -> argparse.Namespace:
         help="Provider and model configuration (default: config.local.yaml).",
     )
     parser.add_argument(
-        "--model",
-        default=None,
-        help="Override only the model ID from the local config.",
-    )
-    parser.add_argument(
         "--data-dir",
         type=Path,
         default=DEFAULT_DATA_DIR,
@@ -304,28 +319,6 @@ def parse_args() -> argparse.Namespace:
             "Reuse an existing canonical Python script and resume from Blender, "
             "structural, and visual validation without submitting a new initial "
             "generation request. Instances without a script still run normally."
-        ),
-    )
-    parser.add_argument(
-        "--api-timeout",
-        "--timeout",
-        dest="timeout",
-        type=int,
-        default=0,
-        help=(
-            "Total model API wall-clock timeout in seconds; 0 means no "
-            "client-side limit. The old --timeout spelling remains accepted."
-        ),
-    )
-    parser.add_argument(
-        "--generation-retries",
-        "--retries",
-        dest="retries",
-        type=int,
-        default=2,
-        help=(
-            "Retries for initial generation after an explicit safe-to-retry "
-            "failure. The old --retries spelling remains accepted."
         ),
     )
     parser.add_argument(
@@ -417,17 +410,6 @@ def parse_args() -> argparse.Namespace:
         "--no-render-verify",
         action="store_true",
         help="Disable Blender validation, traceback repair, and visual feedback.",
-    )
-    parser.add_argument(
-        "--request-delay",
-        "--sleep",
-        dest="sleep",
-        type=float,
-        default=0.0,
-        help=(
-            "Delay in seconds between completed instances. The old --sleep "
-            "spelling remains accepted."
-        ),
     )
     return parser.parse_args()
 
@@ -637,7 +619,7 @@ def append_flow_event(
 
 def load_config(path: Path) -> dict:
     try:
-        config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except FileNotFoundError as exc:
         raise SystemExit(
             f"Configuration file not found: {path}. Copy "
@@ -645,13 +627,35 @@ def load_config(path: Path) -> dict:
         ) from exc
     except OSError as exc:
         raise SystemExit(f"Could not read configuration {path}: {exc}") from exc
-    config.setdefault("api_format", API_FORMAT_LMSTUDIO)
+    except yaml.YAMLError as exc:
+        raise SystemExit(f"Invalid YAML configuration {path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise SystemExit(f"Configuration root must be a mapping: {path}")
+
+    config = dict(loaded)
+    unknown = [name for name in config if name not in SUPPORTED_API_CONFIG_KEYS]
+    if unknown:
+        unknown_labels = sorted(str(name) for name in unknown)
+        print(
+            f"Warning: ignoring unsupported config key(s) in {path}: "
+            f"{', '.join(unknown_labels)}",
+            file=sys.stderr,
+        )
+        for name in unknown:
+            config.pop(name)
+    for name, default in API_CONFIG_DEFAULTS.items():
+        config.setdefault(name, default)
+
     key = config.get("api_key")
     if isinstance(key, str) and key.startswith("${") and key.endswith("}"):
         config["api_key"] = os.environ.get(key[2:-1])
-    missing = [key for key in ("api_url", "api_key", "model") if not config.get(key)]
+    missing = [key for key in sorted(REQUIRED_API_CONFIG_KEYS) if not config.get(key)]
     if missing:
         raise SystemExit(f"Missing required config key(s) in {path}: {', '.join(missing)}")
+
+    for name in ("api_format", "api_url", "api_key", "model"):
+        if not isinstance(config[name], str):
+            raise SystemExit(f"Config key {name} in {path} must be a string.")
     if config["api_format"] not in SUPPORTED_API_FORMATS:
         raise SystemExit(
             f"Unsupported api_format in {path}: {config['api_format']}. "
@@ -659,6 +663,77 @@ def load_config(path: Path) -> dict:
         )
     if str(config["api_key"]).startswith(("YOUR_", "<")):
         raise SystemExit(f"Replace the api_key placeholder in {path}.")
+    if config["model"].strip().lower() == "your-model-id":
+        raise SystemExit(f"Replace the model placeholder in {path}.")
+    for name in (
+        "max_output_tokens",
+        "structure_max_output_tokens",
+        "code_max_output_tokens",
+        "structure_repair_max_output_tokens",
+    ):
+        value = config[name]
+        if value is not None and (
+            isinstance(value, bool) or not isinstance(value, int) or value <= 0
+        ):
+            raise SystemExit(
+                f"Config key {name} in {path} must be a positive integer or null."
+            )
+    for name in (
+        "reasoning_effort",
+        "structure_reasoning_effort",
+        "code_reasoning_effort",
+        "structure_repair_reasoning_effort",
+    ):
+        value = config[name]
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise SystemExit(
+                f"Config key {name} in {path} must be a non-empty string or null."
+            )
+    if (
+        isinstance(config["api_timeout_seconds"], bool)
+        or not isinstance(config["api_timeout_seconds"], (int, float))
+        or config["api_timeout_seconds"] < 0
+    ):
+        raise SystemExit(
+            f"Config key api_timeout_seconds in {path} must be a non-negative number."
+        )
+    for name in ("api_retries", "extraction_retries", "generation_retries"):
+        value = config[name]
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise SystemExit(
+                f"Config key {name} in {path} must be a non-negative integer."
+            )
+    if (
+        isinstance(config["request_delay_seconds"], bool)
+        or not isinstance(config["request_delay_seconds"], (int, float))
+        or config["request_delay_seconds"] < 0
+    ):
+        raise SystemExit(
+            f"Config key request_delay_seconds in {path} must be a "
+            "non-negative number."
+        )
+    if not isinstance(config["openai_background"], bool):
+        raise SystemExit(
+            f"Config key openai_background in {path} must be true or false."
+        )
+    if (
+        isinstance(config["openai_poll_interval"], bool)
+        or not isinstance(config["openai_poll_interval"], (int, float))
+        or config["openai_poll_interval"] <= 0
+    ):
+        raise SystemExit(
+            f"Config key openai_poll_interval in {path} must be a positive number."
+        )
+    request_timeout = config["openai_request_timeout"]
+    if request_timeout is not None and (
+        isinstance(request_timeout, bool)
+        or not isinstance(request_timeout, (int, float))
+        or request_timeout <= 0
+    ):
+        raise SystemExit(
+            f"Config key openai_request_timeout in {path} must be a positive "
+            "number or null."
+        )
     return config
 
 
@@ -1395,7 +1470,7 @@ def call_configured_model_api(
 ) -> dict:
     """Call one configured provider, enabling durable OpenAI background mode."""
 
-    api_format = config.get("api_format", API_FORMAT_LMSTUDIO)
+    api_format = config["api_format"]
     state_path = None
     if (
         api_format == API_FORMAT_OPENAI_RESPONSES
@@ -1403,20 +1478,33 @@ def call_configured_model_api(
         and response_path is not None
     ):
         state_path = background_state_path(response_path)
-    return call_model_api(
-        api_url=config["api_url"],
-        api_key=config["api_key"],
-        model=config["model"],
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        timeout=timeout,
-        max_output_tokens=config.get("max_output_tokens"),
-        api_format=api_format,
-        reasoning_effort=config.get("reasoning_effort"),
-        background_state=state_path,
-        background_poll_interval=float(config.get("openai_poll_interval", 5.0)),
-        background_request_timeout=config.get("openai_request_timeout", 60),
-    )
+    retries = max(0, int(config.get("api_retries", 0)))
+    for attempt in range(retries + 1):
+        try:
+            return call_model_api(
+                api_url=config["api_url"],
+                api_key=config["api_key"],
+                model=config["model"],
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                timeout=timeout,
+                max_output_tokens=config.get("max_output_tokens"),
+                api_format=api_format,
+                reasoning_effort=config.get("reasoning_effort"),
+                background_state=state_path,
+                background_poll_interval=float(
+                    config.get("openai_poll_interval", 5.0)
+                ),
+                background_request_timeout=config.get(
+                    "openai_request_timeout",
+                    60,
+                ),
+            )
+        except (RuntimeError, urllib.error.URLError, TimeoutError) as exc:
+            if not safe_to_retry_api_error(exc) or attempt >= retries:
+                raise
+            time.sleep(2 ** attempt)
+    raise AssertionError("unreachable API retry loop")
 
 
 def call_code(
@@ -1426,23 +1514,13 @@ def call_code(
     timeout: int,
     response_path: Path | None = None,
 ) -> tuple[str, dict]:
-    retries = max(0, int(config.get("api_retries", 0)))
-    response = None
-    for attempt in range(retries + 1):
-        try:
-            response = call_configured_model_api(
-                config=config,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                timeout=timeout,
-                response_path=response_path,
-            )
-            break
-        except (RuntimeError, urllib.error.URLError, TimeoutError) as exc:
-            if not safe_to_retry_api_error(exc) or attempt >= retries:
-                raise
-            time.sleep(2 ** attempt)
-    assert response is not None
+    response = call_configured_model_api(
+        config=config,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        timeout=timeout,
+        response_path=response_path,
+    )
     if response_path is not None:
         persist_response(response_path, response)
     code = strip_code_fence(extract_message(response))
@@ -2222,26 +2300,14 @@ def visual_feedback_loop(
             baseline_render_dir=baseline_render_dir,
         )
         try:
-            retries = max(0, int(config.get("api_retries", 0)))
-            response = None
-            for api_attempt in range(retries + 1):
-                try:
-                    response_path = (
-                        out_dir / f"visual_response_iter{iteration}.json"
-                    )
-                    response = call_configured_model_api(
-                        config=config,
-                        system_prompt=visual_system_prompt,
-                        user_prompt=user_content,
-                        timeout=args.timeout,
-                        response_path=response_path,
-                    )
-                    break
-                except (RuntimeError, urllib.error.URLError, TimeoutError) as exc:
-                    if not safe_to_retry_api_error(exc) or api_attempt >= retries:
-                        raise
-                    time.sleep(2 ** api_attempt)
-            assert response is not None
+            response_path = out_dir / f"visual_response_iter{iteration}.json"
+            response = call_configured_model_api(
+                config=config,
+                system_prompt=visual_system_prompt,
+                user_prompt=user_content,
+                timeout=args.timeout,
+                response_path=response_path,
+            )
             persist_response(response_path, response)
             text = extract_message(response)
             decision, assessment, fixed_code = parse_critique_response(text)
@@ -2390,12 +2456,13 @@ def main() -> None:
         raise SystemExit(str(exc)) from exc
     args.blender = str(resolve_blender_executable(args.blender))
     config = load_config(args.config)
+    args.timeout = config["api_timeout_seconds"]
+    args.retries = config["generation_retries"]
+    args.sleep = config["request_delay_seconds"]
     if config.get("code_max_output_tokens") is not None:
         config["max_output_tokens"] = config["code_max_output_tokens"]
     if config.get("code_reasoning_effort"):
         config["reasoning_effort"] = config["code_reasoning_effort"]
-    if args.model:
-        config["model"] = args.model
     system_prompt = args.system_prompt.read_text(encoding="utf-8")
     instances = iter_instances(args.data_dir, args.instances)
     validation_probe = (
@@ -2474,10 +2541,18 @@ def main() -> None:
             "write final status and chronological logs",
         ],
         "model": config["model"],
-        "api_format": config.get("api_format", API_FORMAT_LMSTUDIO),
+        "api_format": config["api_format"],
+        "api_policy": {
+            "max_output_tokens": config.get("max_output_tokens"),
+            "reasoning_effort": config.get("reasoning_effort"),
+            "timeout_seconds": config["api_timeout_seconds"],
+            "transport_retries": config["api_retries"],
+            "generation_retries": config["generation_retries"],
+            "request_delay_seconds": config["request_delay_seconds"],
+        },
         "openai_background": (
             bool(config.get("openai_background", True))
-            if config.get("api_format") == API_FORMAT_OPENAI_RESPONSES
+            if config["api_format"] == API_FORMAT_OPENAI_RESPONSES
             else False
         ),
         "openai_poll_interval": config.get("openai_poll_interval", 5.0),
@@ -2489,9 +2564,11 @@ def main() -> None:
 
     print(f"Model: {config['model']}", flush=True)
     print(
-        f"API format: {config.get('api_format', API_FORMAT_LMSTUDIO)}",
+        f"API format: {config['api_format']}",
         flush=True,
     )
+    print(f"API timeout: {config['api_timeout_seconds']}s", flush=True)
+    print(f"API transport retries: {config['api_retries']}", flush=True)
     print(f"Instances: {len(instances)}", flush=True)
     print(f"Output: {args.output_dir}", flush=True)
     print(f"Output prefix: {args.output_prefix or '(none)'}", flush=True)
@@ -2601,7 +2678,7 @@ def main() -> None:
                 "instance": name,
                 "output_instance": output_name,
                 "model": config["model"],
-                "api_format": config.get("api_format", API_FORMAT_LMSTUDIO),
+                "api_format": config["api_format"],
                 "status": None,
                 "project": PROJECT_NAME,
                 "pipeline": "structure_guided_text_to_blender",

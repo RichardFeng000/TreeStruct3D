@@ -53,10 +53,24 @@ Render snapshots are stored under `render_history/`.
 The preferred validator option is `--validator-root`; the old
 `--validation-test-root` spelling remains an alias.
 
-The clearer `--api-timeout` and `--request-delay` names replace `--timeout` and
-`--sleep`. Generation uses `--generation-retries`; extraction uses
-`--extraction-retries`. All three pre-release spellings remain accepted as
-aliases.
+Model request settings now have one reproducible source: the YAML selected by
+`--config`. Move former command-line values as follows:
+
+| Former option | Configuration field |
+| --- | --- |
+| `--model MODEL` | `model: MODEL` |
+| `--api-timeout SECONDS` or `--timeout SECONDS` | `api_timeout_seconds: SECONDS` |
+| extraction `--retries N` | `extraction_retries: N` |
+| generation `--retries N` | `generation_retries: N` |
+| `--request-delay SECONDS` or `--sleep SECONDS` | `request_delay_seconds: SECONDS` |
+
+These command-line request-policy options are no longer accepted. This changes
+where the same values are declared, not the default retry sequence.
+
+The standalone batch renderer now uses `--result-group` instead of the
+misleading `--model`, and `--render-timeout` instead of `--timeout`. These
+options select an existing output folder and a Blender subprocess limit; they
+never configure a model API.
 
 ## Prompt invariants
 

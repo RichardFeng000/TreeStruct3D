@@ -14,7 +14,7 @@ data was selected at.
 Two-mode script:
 
     1. Orchestrator (normal Python): discover instances under
-       `outputs/<model>/<inst>/` and spawn a Blender subprocess per
+       `outputs/<result-group>/<inst>/` and spawn a Blender subprocess per
        generated `.py` file.
     2. Blender mode (with `--blender-render`): runs inside Blender,
        executes the generated script, sets up its own camera + lights,
@@ -28,11 +28,11 @@ Per-instance log fields (written into `<inst>/renders/render_log.json`):
     latency_s, error, ...
 
 Usage:
-    # Render every instance produced for one model
-    python -m treestruct3d.render --model gemini-3-flash-preview
+    # Render every instance in one result group
+    python -m treestruct3d.render --result-group experiment-a
 
     # A subset for testing
-    python -m treestruct3d.render --model gemini-3-flash-preview \\
+    python -m treestruct3d.render --result-group experiment-a \\
         --instances ArmChair_seed0 BeverageFridge_seed0
 """
 
@@ -344,8 +344,8 @@ def parse_cli():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=__doc__.split("\n\n", 1)[0],
     )
-    p.add_argument("--model",         required=True,
-                   help="Sub-folder name under `results/`.")
+    p.add_argument("--result-group",  required=True,
+                   help="Sub-folder name under the results root.")
     p.add_argument("--results-root",  type=Path, default=DEFAULT_RESULTS_ROOT)
     p.add_argument("--blender",       default=DEFAULT_BLENDER)
     p.add_argument("--samples",       type=int, default=64)
@@ -356,7 +356,8 @@ def parse_cli():
                    help="Limit to these instance folder names.")
     p.add_argument("--workers",       type=int, default=1,
                    help="Parallel Blender subprocesses (1 is safest on single GPU).")
-    p.add_argument("--timeout",       type=int, default=240,
+    p.add_argument("--render-timeout", dest="render_timeout",
+                   type=int, default=240,
                    help="Per-instance Blender timeout in seconds.")
     p.add_argument("--overwrite",     action="store_true")
     return p.parse_args()
@@ -397,12 +398,17 @@ def render_one(args, this_script: Path, instance_dir: Path):
            "--engine",     args.engine]
     t0 = time.time()
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=args.timeout)
+        subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=args.render_timeout,
+        )
     except subprocess.TimeoutExpired:
         log_path.write_text(json.dumps({
             "script":   str(gen_script),
             "status":   "ERR_TIMEOUT",
-            "error":    f"Blender subprocess exceeded {args.timeout}s",
+            "error":    f"Blender subprocess exceeded {args.render_timeout}s",
             "n_meshes": 0,
             "n_views_rendered": 0,
             "latency_s": round(time.time() - t0, 2),
@@ -435,11 +441,11 @@ def main():
             "Blender executable does not exist: "
             f"{args.blender}. Pass --blender or set TREESTRUCT3D_BLENDER."
         )
-    model_dir = args.results_root / args.model
-    if not model_dir.exists():
-        raise SystemExit(f"No such model dir: {model_dir}")
+    result_group_dir = args.results_root / args.result_group
+    if not result_group_dir.exists():
+        raise SystemExit(f"No such result group: {result_group_dir}")
 
-    instance_dirs = sorted(d for d in model_dir.iterdir() if d.is_dir())
+    instance_dirs = sorted(d for d in result_group_dir.iterdir() if d.is_dir())
     if args.instances:
         keep = set(args.instances)
         instance_dirs = [d for d in instance_dirs if d.name in keep]
@@ -448,11 +454,11 @@ def main():
 
     this_script = Path(__file__).resolve()
 
-    print(f"Model:       {args.model}")
+    print(f"Result group: {args.result_group}")
     print(f"Instances:   {len(instance_dirs)}")
     print(f"Engine:      {args.engine}, samples={args.samples}, res={args.resolution}")
     print(f"Workers:     {args.workers}")
-    print(f"Timeout:     {args.timeout}s per instance")
+    print(f"Render timeout: {args.render_timeout}s per instance")
     print(f"Overwrite:   {args.overwrite}")
     print()
 
