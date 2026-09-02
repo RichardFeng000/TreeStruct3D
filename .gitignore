@@ -10,6 +10,13 @@
 !/THIRD_PARTY_NOTICES.md
 !/CONTRIBUTING.md
 !/SECURITY.md
+!/figures/
+/figures/*
+!/figures/figure-1-controlled-editing.png
+!/figures/appendix-figure-6a-gpt-5-5.png
+!/figures/appendix-figure-6b-gpt-5-6-sol.png
+!/figures/appendix-figure-6c-gemini-3-1-pro.png
+!/figures/appendix-figure-6d-gemini-3-5-flash.png
 !/.github/
 !/.github/**
 !/TreeStruct3D/

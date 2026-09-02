@@ -10,6 +10,14 @@ This repository is the official implementation of the research project
 **TreeStruct3D: Enabling Structural Editability in Agentic Procedural 3D
 Modeling**.
 
+## Controlled editing at a glance
+
+![Controlled editing comparisons between 3DCodeBench and TreeStruct3D across four vision-language models](figures/figure-1-controlled-editing.png)
+
+*Figure 1. Each pair compares 3DCodeBench and TreeStruct3D in the default,
+parent-rescaled, and child-rescaled configurations. The 0.4× and 1.6× scales
+are qualitative stress tests; quantitative evaluation uses 0.8× and 1.2×.*
+
 ## What TreeStruct3D does
 
 1. Extracts a connected part-and-attachment blueprint from an object
@@ -162,3 +170,29 @@ separate licenses that apply to the benchmark text and reference factories.
 
 The project is distributed under the Apache License 2.0. See
 [LICENSE](LICENSE).
+
+## Appendix: Qualitative editing gallery
+
+The complete four-panel appendix gallery is shown below in paper order. Each
+row compares the default asset with exaggerated 0.4× and 1.6× parent- and
+child-side edits; row labels inside the panels identify the edited attachment.
+
+### (a) GPT-5.5
+
+![TreeStruct3D qualitative editing examples generated with GPT-5.5](figures/appendix-figure-6a-gpt-5-5.png)
+
+### (b) GPT-5.6 Sol
+
+![TreeStruct3D qualitative editing examples generated with GPT-5.6 Sol](figures/appendix-figure-6b-gpt-5-6-sol.png)
+
+### (c) Gemini 3.1 Pro
+
+![TreeStruct3D qualitative editing examples generated with Gemini 3.1 Pro](figures/appendix-figure-6c-gemini-3-1-pro.png)
+
+### (d) Gemini 3.5 Flash
+
+![TreeStruct3D qualitative editing examples generated with Gemini 3.5 Flash](figures/appendix-figure-6d-gemini-3-5-flash.png)
+
+*Figure 6. Selected TreeStruct3D examples. The four panels are qualitative
+stress tests; every depicted attachment passes the post-hoc contact checks at
+0.8× and 1.2×.*
