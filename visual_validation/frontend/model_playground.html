@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TreeStruct3D Structural Inspector</title>
+  <title>TreeStruct3D Visual Validation</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1529,95 +1529,95 @@
 <body>
   <main id="app">
     <header class="topbar">
-      <div class="brand">TreeStruct3D Structural Inspector</div>
+      <div class="brand">TreeStruct3D Visual Validation</div>
       <div class="source-picker">
-        <label for="source-select">代码源</label>
-        <select id="source-select" aria-label="选择模型代码源"></select>
+        <label for="source-select">Code Source</label>
+        <select id="source-select" aria-label="Select model code source"></select>
       </div>
       <div class="model-picker">
-        <label for="model-select">模型</label>
-        <span id="must-watch-legend" class="must-watch-legend" title="GPT-5.6-sol 清单中的必看模型">★ 必看 46</span>
-        <select id="model-select" aria-label="选择模型"></select>
-        <button id="previous-model-button" type="button" aria-keyshortcuts="ArrowLeft" title="打开当前数据集的上一个 seed（快捷键：←）">← 上一个</button>
-        <button id="next-model-button" type="button" aria-keyshortcuts="ArrowRight" title="打开当前数据集的下一个 seed（快捷键：→）">下一个 →</button>
+        <label for="model-select">Model</label>
+        <span id="must-watch-legend" class="must-watch-legend" title="Must-watch models from the GPT-5.6-sol list">★ Must Watch 46</span>
+        <select id="model-select" aria-label="Select model"></select>
+        <button id="previous-model-button" type="button" aria-keyshortcuts="ArrowLeft" title="Open the previous seed in this dataset (shortcut: ←)">← Previous</button>
+        <button id="next-model-button" type="button" aria-keyshortcuts="ArrowRight" title="Open the next seed in this dataset (shortcut: →)">Next →</button>
       </div>
-      <div id="validation-turn-display" class="validation-turn-display" title="该案例首次通过 structural validation 的轮次">
+      <div id="validation-turn-display" class="validation-turn-display" title="The structural-validation turn when this case first passed">
         <span>Validation turn</span>
         <strong id="validation-turn-value">—</strong>
       </div>
-      <label id="failure-toggle-label" class="failure-switch" for="failure-toggle" title="将当前案例标记为失败（快捷键：空格）">
+      <label id="failure-toggle-label" class="failure-switch" for="failure-toggle" title="Mark the current case as failed (shortcut: Space)">
         <input id="failure-toggle" type="checkbox" aria-keyshortcuts="Space">
-        失败案例 <span id="failure-count" class="failure-count"></span>
+        Failed Case <span id="failure-count" class="failure-count"></span>
       </label>
-      <button id="problem-classify-button" type="button">问题分类（0）</button>
-      <button id="copy-selection-button" type="button" title="复制当前代码源和模型名称">复制当前选择</button>
+      <button id="problem-classify-button" type="button">Classify Issues (0)</button>
+      <button id="copy-selection-button" type="button" title="Copy the current code source and model name">Copy Selection</button>
       <div class="top-actions">
         <label class="switch" for="auto-update">
           <input id="auto-update" type="checkbox" checked>
-          自动更新
+          Auto Update
         </label>
-        <button id="reset-button" type="button">重置参数</button>
-        <button id="render-button" class="primary" type="button">生成模型</button>
+        <button id="reset-button" type="button">Reset Parameters</button>
+        <button id="render-button" class="primary" type="button">Generate Model</button>
       </div>
     </header>
 
     <div class="workspace">
       <aside class="sidebar">
         <div class="sidebar-head">
-          <h1 id="panel-title">参数</h1>
-          <p>停止拖动约 0.6 秒后，用 Blender 5.0 从空场景完整执行一次模型 Python。原始文件不会被修改。</p>
+          <h1 id="panel-title">Parameters</h1>
+          <p>About 0.6 seconds after dragging stops, Blender 5.0 executes the model Python from a clean scene. The original file is never modified.</p>
         </div>
         <div id="controls" aria-live="polite"></div>
       </aside>
 
-      <section id="graph-panel" class="graph-panel" aria-label="代码结构与零件父子树">
+      <section id="graph-panel" class="graph-panel" aria-label="Code structure and part hierarchy">
         <div class="graph-toolbar">
-          <div id="graph-tabs" class="graph-tabs" role="group" aria-label="节点图视图">
-            <div class="graph-tab-group primary" aria-label="常用视图">
-              <button type="button" data-graph-view="tree3d" disabled>3D 层级树</button>
-              <button type="button" data-graph-view="anchors" disabled>锚点关系图</button>
-              <button type="button" data-graph-view="parts">零件父子树</button>
+          <div id="graph-tabs" class="graph-tabs" role="group" aria-label="Node graph views">
+            <div class="graph-tab-group primary" aria-label="Primary views">
+              <button type="button" data-graph-view="tree3d" disabled>3D Hierarchy</button>
+              <button type="button" data-graph-view="anchors" disabled>Anchor Relations</button>
+              <button type="button" data-graph-view="parts">Part Hierarchy</button>
             </div>
-            <div class="graph-tab-group secondary" aria-label="代码分析视图">
-              <button type="button" data-graph-view="definitions">定义树</button>
-              <button type="button" data-graph-view="calls">调用节点图</button>
+            <div class="graph-tab-group secondary" aria-label="Code analysis views">
+              <button type="button" data-graph-view="definitions">Definition Tree</button>
+              <button type="button" data-graph-view="calls">Call Graph</button>
             </div>
           </div>
           <div class="graph-actions">
-            <input id="graph-search" type="text" placeholder="搜索节点" aria-label="搜索节点">
-            <button id="graph-expand" type="button">展开全部</button>
-            <button id="graph-fit" type="button">居中</button>
+            <input id="graph-search" type="text" placeholder="Search nodes" aria-label="Search nodes">
+            <button id="graph-expand" type="button">Expand All</button>
+            <button id="graph-fit" type="button">Center</button>
           </div>
-          <div id="anchor-controls" class="anchor-controls" hidden aria-label="锚点关系筛选">
-            <button class="anchor-mode active" type="button" data-anchor-mode="confirmed">父子方向</button>
-            <button class="anchor-mode" type="button" data-anchor-mode="shared">共享锚点</button>
-            <button class="anchor-mode" type="button" data-anchor-mode="issues">问题关系</button>
-            <button class="anchor-mode" type="button" data-anchor-mode="all">全部关系</button>
+          <div id="anchor-controls" class="anchor-controls" hidden aria-label="Anchor relation filters">
+            <button class="anchor-mode active" type="button" data-anchor-mode="confirmed">Parent–Child</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="shared">Shared Anchors</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="issues">Issues</button>
+            <button class="anchor-mode" type="button" data-anchor-mode="all">All Relations</button>
             <span class="anchor-controls-spacer"></span>
-            <button id="anchor-clear-focus" type="button" hidden>返回总览</button>
-            <button id="graph-fullscreen" type="button" aria-pressed="false">放大图</button>
+            <button id="anchor-clear-focus" type="button" hidden>Back to Overview</button>
+            <button id="graph-fullscreen" type="button" aria-pressed="false">Enlarge Graph</button>
           </div>
-          <div id="tree3d-controls" class="tree3d-controls" hidden aria-label="3D 层级树关系显示选项">
+          <div id="tree3d-controls" class="tree3d-controls" hidden aria-label="3D hierarchy relation display options">
             <label class="tree3d-toggle">
               <input id="tree3d-show-real-parts" type="checkbox">
-              <span>真实部件</span>
+              <span>Real Parts</span>
             </label>
             <label class="tree3d-toggle shared">
               <input id="tree3d-show-shared" type="checkbox" checked>
-              <span>显示共享锚点</span>
+              <span>Show Shared Anchors</span>
             </label>
             <label class="tree3d-toggle issues">
               <input id="tree3d-show-issues" type="checkbox">
-              <span>显示问题关系</span>
+              <span>Show Issue Relations</span>
             </label>
-            <span id="tree3d-control-note" class="tree3d-control-note">绿色球是父子共享的世界坐标节点</span>
-            <button id="tree3d-export-transparent" type="button">保存透明 PNG</button>
-            <button id="tree3d-fullscreen" type="button" aria-pressed="false">全屏</button>
+            <span id="tree3d-control-note" class="tree3d-control-note">Green spheres mark world-space anchors shared by parent and child</span>
+            <button id="tree3d-export-transparent" type="button">Save Transparent PNG</button>
+            <button id="tree3d-fullscreen" type="button" aria-pressed="false">Fullscreen</button>
           </div>
-          <div id="graph-legend" class="graph-legend" hidden aria-label="关系颜色与线型图例"></div>
+          <div id="graph-legend" class="graph-legend" hidden aria-label="Relation color and line-style legend"></div>
         </div>
         <div id="graph-stage">
-          <svg id="graph-svg" role="img" aria-label="从父节点到全部子节点的交互树">
+          <svg id="graph-svg" role="img" aria-label="Interactive tree from each parent to all child nodes">
             <defs>
               <marker id="graph-arrow-confirmed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#55d98b"></path>
@@ -1632,31 +1632,31 @@
             </g>
           </svg>
           <div id="tree3d-stage" hidden>
-            <canvas id="tree3d-canvas" aria-label="可旋转的三维父子层级树"></canvas>
+            <canvas id="tree3d-canvas" aria-label="Rotatable 3D parent-child hierarchy"></canvas>
             <div id="tree3d-tooltip" class="tree3d-tooltip" hidden></div>
-            <div class="tree3d-hint">拖动旋转 · 滚轮缩放 · 悬浮节点聚焦完整祖先/子树链路 · 移开恢复</div>
+            <div class="tree3d-hint">Drag to rotate · Scroll to zoom · Hover a node to focus its full ancestor/subtree path · Move away to reset</div>
           </div>
         </div>
         <div class="graph-footer">
-          <div id="graph-status">正在分析节点关系…</div>
-          <div id="graph-detail">点击节点可查看父节点、全部直接子节点和源码行号。</div>
-          <div id="anchor-relations" class="anchor-relations" hidden aria-label="当前可见锚点关系列表"></div>
+          <div id="graph-status">Analyzing node relations…</div>
+          <div id="graph-detail">Click a node to view its parents, all direct children, and source line numbers.</div>
+          <div id="anchor-relations" class="anchor-relations" hidden aria-label="Currently visible anchor relations"></div>
         </div>
       </section>
 
-      <section class="viewer" aria-label="可旋转的三维模型预览">
+      <section class="viewer" aria-label="Rotatable 3D model preview">
         <canvas id="viewport"></canvas>
-        <div id="viewer-status" class="viewer-status">正在读取模型列表…</div>
+        <div id="viewer-status" class="viewer-status">Loading model list…</div>
         <div class="viewer-tools">
-          <button id="fit-button" type="button">居中</button>
-          <button id="rotate-button" type="button" aria-pressed="false">自动旋转</button>
+          <button id="fit-button" type="button">Center</button>
+          <button id="rotate-button" type="button" aria-pressed="false">Auto Rotate</button>
         </div>
         <div id="preview-selection" class="preview-selection" hidden>
           <span id="preview-selection-label"></span>
-          <button id="preview-selection-clear" type="button">取消高亮</button>
+          <button id="preview-selection-clear" type="button">Clear Highlight</button>
         </div>
         <div id="loading" class="loading-ring" aria-hidden="true"><div class="spinner"></div></div>
-        <div class="viewer-hint">左键旋转 · 右键平移 · 滚轮缩放</div>
+        <div class="viewer-hint">Left-drag to rotate · Right-drag to pan · Scroll to zoom</div>
       </section>
     </div>
   </main>
@@ -1665,23 +1665,23 @@
     <section class="problem-modal" role="dialog" aria-modal="true" aria-labelledby="problem-modal-heading">
       <header class="problem-modal-head">
         <div class="problem-modal-title">
-          <h2 id="problem-modal-heading">数据集问题分类</h2>
-          <p id="problem-classification-file">分类结果保存在当前数据集目录</p>
+          <h2 id="problem-modal-heading">Dataset Issue Classification</h2>
+          <p id="problem-classification-file">Classifications are saved in the current dataset directory</p>
         </div>
-        <span id="problem-progress" class="problem-progress">已分类 0 / 0</span>
-        <button id="problem-modal-close" type="button" aria-label="关闭问题分类">关闭</button>
+        <span id="problem-progress" class="problem-progress">Classified 0 / 0</span>
+        <button id="problem-modal-close" type="button" aria-label="Close issue classification">Close</button>
       </header>
       <div class="problem-modal-body">
         <aside class="problem-case-panel">
           <div class="problem-case-tools">
-            <input id="problem-case-search" type="text" placeholder="搜索问题案例" aria-label="搜索问题案例">
-            <select id="problem-case-filter" aria-label="筛选分类状态">
-              <option value="all">全部问题案例</option>
-              <option value="unclassified">只看未分类</option>
-              <option value="classified">只看已分类</option>
-              <option value="minor_fix">小问题</option>
-              <option value="regenerate">需要重新生成</option>
-              <option value="needs_review">待确认</option>
+            <input id="problem-case-search" type="text" placeholder="Search issue cases" aria-label="Search issue cases">
+            <select id="problem-case-filter" aria-label="Filter classification status">
+              <option value="all">All Issue Cases</option>
+              <option value="unclassified">Unclassified Only</option>
+              <option value="classified">Classified Only</option>
+              <option value="minor_fix">Minor Fix</option>
+              <option value="regenerate">Regeneration Required</option>
+              <option value="needs_review">Needs Review</option>
             </select>
           </div>
           <div id="problem-case-list" class="problem-case-list"></div>
@@ -1689,8 +1689,8 @@
 
         <section class="problem-preview-panel">
           <div class="problem-preview-head">
-            <h3 id="problem-current-label">请选择问题案例</h3>
-            <button id="problem-open-model" type="button">在主界面打开</button>
+            <h3 id="problem-current-label">Select an issue case</h3>
+            <button id="problem-open-model" type="button">Open in Main View</button>
           </div>
           <div id="problem-render-grid" class="problem-render-grid"></div>
         </section>
@@ -1698,34 +1698,34 @@
         <form id="problem-form" class="problem-form-panel">
           <div class="problem-form-scroll">
             <fieldset class="problem-fieldset">
-              <legend>处理结论（单选）</legend>
-              <label class="problem-choice"><input type="radio" name="problem-resolution" value="minor_fix"> 小问题，可以修复</label>
-              <label class="problem-choice"><input type="radio" name="problem-resolution" value="regenerate"> 问题较大，需要重新生成</label>
-              <label class="problem-choice"><input type="radio" name="problem-resolution" value="needs_review"> 暂时不确定，需要再检查</label>
+              <legend>Resolution (select one)</legend>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="minor_fix"> Minor issue; can be fixed</label>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="regenerate"> Major issue; regeneration required</label>
+              <label class="problem-choice"><input type="radio" name="problem-resolution" value="needs_review"> Uncertain; needs further review</label>
             </fieldset>
 
             <fieldset class="problem-fieldset">
-              <legend>问题在哪里（可多选）</legend>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_shared_anchor"> 共享锚点遗失</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="structure_extract"> Structure Extract 问题</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="wrong_hierarchy"> 父子层级或结构关系错误</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="geometry_visual"> 几何、比例或外观问题</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_or_disconnected"> 零件缺失、悬浮或断开</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="runtime_error"> 代码执行或渲染错误</label>
-              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="other"> 其他问题</label>
+              <legend>Issue location (select all that apply)</legend>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_shared_anchor"> Missing shared anchor</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="structure_extract"> Structure Extract issue</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="wrong_hierarchy"> Incorrect parent-child hierarchy or structural relation</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="geometry_visual"> Geometry, proportion, or appearance issue</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="missing_or_disconnected"> Missing, floating, or disconnected part</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="runtime_error"> Code execution or rendering error</label>
+              <label class="problem-choice"><input type="checkbox" name="problem-issue" value="other"> Other issue</label>
             </fieldset>
 
             <label class="problem-notes-label" for="problem-notes">
-              具体说明
-              <textarea id="problem-notes" maxlength="8000" placeholder="例如：模型本身正常，但杯柄与杯身的共享锚点没有被 Structure Extract 抽取出来。"></textarea>
+              Details
+              <textarea id="problem-notes" maxlength="8000" placeholder="Example: The model itself is correct, but Structure Extract did not detect the shared anchor between the cup handle and body."></textarea>
             </label>
           </div>
           <footer class="problem-form-footer">
             <div id="problem-save-status" class="problem-save-status"></div>
             <div class="problem-footer-actions">
-              <button id="problem-previous" type="button">上一条</button>
-              <button id="problem-save" class="primary" type="submit">保存并下一条</button>
-              <button id="problem-next" type="button">下一条</button>
+              <button id="problem-previous" type="button">Previous</button>
+              <button id="problem-save" class="primary" type="submit">Save & Next</button>
+              <button id="problem-next" type="button">Next</button>
             </div>
           </footer>
         </form>
@@ -1958,7 +1958,7 @@
           return selection;
         }
       } catch (error) {
-        console.warn('无法读取上次选择：', error);
+        console.warn('Unable to read the previous selection:', error);
       }
       return null;
     }
@@ -1971,7 +1971,7 @@
           JSON.stringify({ source: sourceId, model: modelId }),
         );
       } catch (error) {
-        console.warn('无法保存当前选择：', error);
+        console.warn('Unable to save the current selection:', error);
       }
     }
 
@@ -1982,13 +1982,13 @@
       const star = modelOption?.dataset.mustWatch === 'true' ? '★ ' : '';
       const failed = modelOption?.dataset.failed === 'true' ? '✗ ' : '';
       if (!sourceLabel || !modelLabel) return '';
-      return `代码源：${sourceLabel}\n模型：${failed}${star}${modelLabel}`;
+      return `Code source: ${sourceLabel}\nModel: ${failed}${star}${modelLabel}`;
     }
 
     async function copyCurrentSelection() {
       const text = currentSelectionText();
       if (!text) {
-        setStatus('当前没有可复制的代码源和模型。', 'error');
+        setStatus('There is no code source and model to copy.', 'error');
         return;
       }
       try {
@@ -2002,20 +2002,20 @@
             textarea.style.opacity = '0';
             document.body.append(textarea);
             textarea.select();
-            if (!document.execCommand('copy')) throw new Error('复制失败');
+            if (!document.execCommand('copy')) throw new Error('Copy failed');
           } finally {
             textarea.remove();
           }
         }
         clearTimeout(copySelectionTimer);
-        copySelectionButton.textContent = '已复制';
+        copySelectionButton.textContent = 'Copied';
         copySelectionButton.classList.add('copied');
         copySelectionTimer = setTimeout(() => {
-          copySelectionButton.textContent = '复制当前选择';
+          copySelectionButton.textContent = 'Copy Selection';
           copySelectionButton.classList.remove('copied');
         }, 1600);
       } catch (error) {
-        setStatus(`复制失败：${String(error.message || error)}`, 'error');
+        setStatus(`Copy failed: ${String(error.message || error)}`, 'error');
       }
     }
 
@@ -2290,7 +2290,7 @@
 
     function formatGraphNumber(value) {
       const number = Number(value);
-      if (!Number.isFinite(number)) return '未知';
+      if (!Number.isFinite(number)) return 'Unknown';
       if (Math.abs(number) >= 0.01) return number.toFixed(4);
       return number.toExponential(2);
     }
@@ -2309,19 +2309,19 @@
     }
 
     function runtimeRelationLabel(edge) {
-      if (edge.runtime_pending) return '代码父→子 · 等待 Blender 5.0 计算锚点';
+      if (edge.runtime_pending) return 'Code parent → child · Waiting for Blender 5.0 to compute anchors';
       if (edge.shared_anchor) {
-        if (edge.parent_child_known) return '共享锚点 · 确认父→子';
-        return '共享锚点 · 方向未知';
+        if (edge.parent_child_known) return 'Shared anchor · Confirmed parent → child';
+        return 'Shared anchor · Direction unknown';
       }
       const labels = {
-        DIRECTED: '运行时确认父→子 · 估算锚点（非共享）',
-        DIRECTED_CODE: '代码确认父→子 · 估算锚点（非共享）',
-        COUPLED: '双向联动 · 估算锚点（非共享）',
-        DECLARED_CONSTRUCTION: '声明连接 · 估算锚点（非共享）',
-        UNDIRECTED_CONTACT: '仅接触 · 估算锚点（非共享）',
-        BROKEN_ATTACHMENT: '父子关系存在，但连接断裂或锚点错位',
-        UNOBSERVABLE: '证据不足 · 估算锚点（非共享）',
+        DIRECTED: 'Runtime-confirmed parent → child · Estimated anchors (not shared)',
+        DIRECTED_CODE: 'Code-confirmed parent → child · Estimated anchors (not shared)',
+        COUPLED: 'Bidirectional coupling · Estimated anchors (not shared)',
+        DECLARED_CONSTRUCTION: 'Declared connection · Estimated anchors (not shared)',
+        UNDIRECTED_CONTACT: 'Contact only · Estimated anchors (not shared)',
+        BROKEN_ATTACHMENT: 'Parent-child relation exists, but the connection is broken or anchors are misaligned',
+        UNOBSERVABLE: 'Insufficient evidence · Estimated anchors (not shared)',
       };
       return labels[edge.relation] || edge.relation;
     }
@@ -2350,10 +2350,10 @@
 
     function anchorModeLabel(mode) {
       return {
-        confirmed: '父子方向',
-        shared: '共享锚点',
-        issues: '问题关系',
-        all: '全部关系',
+        confirmed: 'Parent–Child',
+        shared: 'Shared Anchors',
+        issues: 'Issue Relations',
+        all: 'All Relations',
       }[mode] || mode;
     }
 
@@ -2371,8 +2371,8 @@
       const stats = authoredAnchorStats(edge);
       if (!stats) return '';
       return compact
-        ? `声明锚点 ${stats.valid}/${stats.count}`
-        : `源码声明锚点：${stats.valid}/${stats.count} 对落在父、子主体 Mesh 上`;
+        ? `Authored anchors ${stats.valid}/${stats.count}`
+        : `Source-authored anchors: ${stats.valid}/${stats.count} pairs lie on the parent and child body meshes`;
     }
 
     function anchorEdgeMatches(edge, mode = graphState.anchorMode) {
@@ -2425,7 +2425,7 @@
       const nodes = sourceNodes.filter((node) => nodeIds.has(node.id)).map((node) => ({
         ...node,
         kind: 'source_attachment_part',
-        group: node.group || '源码父子零件',
+        group: node.group || 'Source parent-child parts',
         origin: null,
         dimensions: null,
       }));
@@ -2437,7 +2437,7 @@
           relation: 'DIRECTED_CODE',
           source_relation: edge.relation,
           line: edge.line || 0,
-          evidence: `源码关系：${edge.evidence || edge.relation || '父子构建'}`,
+          evidence: `Source relation: ${edge.evidence || edge.relation || 'parent-child construction'}`,
           directed_verified: false,
           parent_child_known: true,
           direction_source: 'static_code',
@@ -2464,7 +2464,7 @@
       const roots = (partsView?.roots || []).filter((id) => nodeIds.has(id));
       if (!roots.length) roots.push(...nodes.map((node) => node.id).filter((id) => !incoming.has(id)));
       return {
-        label: '源码父子锚点图（Blender 验证中）',
+        label: 'Source parent-child anchor graph (Blender validation in progress)',
         roots,
         nodes,
         edges,
@@ -2523,13 +2523,13 @@
           return {
             className: 'edge-static-directed',
             markerEnd: 'url(#graph-arrow-code)',
-            label: `${edge.relation} · 待锚点验证`,
+            label: `${edge.relation} · Pending anchor validation`,
           };
         }
         return {
           className: 'edge-static-construction',
           markerEnd: 'url(#graph-arrow-code)',
-          label: `${edge.relation} · 构建关系`,
+          label: `${edge.relation} · Construction relation`,
         };
       }
       return { className: '', markerEnd: 'url(#graph-arrow-code)', label: edge.relation || '' };
@@ -2553,10 +2553,10 @@
         ).length || 0;
         button.textContent = `${anchorModeLabel(button.dataset.anchorMode)} ${count}`;
         button.title = ({
-          confirmed: '所有父→子方向；其中只有通过共享证据、接触和锚点对齐的关系会同时出现在“共享锚点”',
-          shared: '父子方向中的严格子集：必须有显式共享证据、几何接触，并且 A/B 锚点落入容差',
-          issues: '没有通过共享锚点验证的关系，包括断裂、错位、仅接触和证据不足',
-          all: '显示运行时分析得到的全部关系',
+          confirmed: 'All parent → child directions; only relations that pass shared-evidence, contact, and anchor-alignment checks also appear under Shared Anchors',
+          shared: 'A strict subset of parent-child directions: explicit shared evidence, geometric contact, and A/B anchors within tolerance are all required',
+          issues: 'Relations that failed shared-anchor validation, including broken, misaligned, contact-only, and insufficient-evidence cases',
+          all: 'Show every relation found by runtime analysis',
         })[button.dataset.anchorMode] || '';
         button.classList.toggle('active', active);
         button.setAttribute('aria-pressed', String(active));
@@ -2564,11 +2564,11 @@
       if (tree3dView) {
         graphLegend.hidden = false;
         graphLegend.innerHTML = `
-          <span class="graph-legend-item"><i class="graph-legend-line" style="border-color:#f1c75b"></i>金色：顶层根父节点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色：中间父/子节点与父子方向</span>
-          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>灰紫色：最底层纯子节点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>绿色连线与高亮点：共享锚点</span>
-          <span class="graph-legend-item"><i class="graph-legend-line broken"></i>红/橙虚线：问题关系</span>`;
+          <span class="graph-legend-item"><i class="graph-legend-line" style="border-color:#f1c75b"></i>Gold: top-level root parents</span>
+          <span class="graph-legend-item"><i class="graph-legend-line code"></i>Blue: intermediate parent/child nodes and parent-child directions</span>
+          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>Gray-purple: bottom-level leaf-only children</span>
+          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>Green lines and highlighted points: shared anchors</span>
+          <span class="graph-legend-item"><i class="graph-legend-line broken"></i>Red/orange dashed lines: issue relations</span>`;
         return;
       }
       if (graphState.view === 'anchors') {
@@ -2576,22 +2576,22 @@
         const anchorViewData = structureData?.views?.anchors;
         if (anchorViewData?.nodes?.length && !anchorViewData?.edges?.length) {
           graphLegend.innerHTML = `
-            <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>分析完成：当前模型有 ${anchorViewData.nodes.length} 个运行时 Mesh，未识别到物理父子或共享锚点关系</span>`;
+            <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>Analysis complete: the current model has ${anchorViewData.nodes.length} runtime meshes; no physical parent-child or shared-anchor relations were found</span>`;
           return;
         }
         graphLegend.innerHTML = `
-          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>绿色：共享锚点；带箭头表示父→子方向明确</span>
-          <span class="graph-legend-item"><i class="graph-legend-line code"></i>蓝色箭头：父→子方向已知，A/B 是算法估算锚点，非共享</span>
-          <span class="graph-legend-item"><i class="graph-legend-line contact"></i>黄色虚线：仅接触，A/B 是估算锚点，非共享</span>
-          <span class="graph-legend-item"><i class="graph-legend-line broken"></i>断裂/锚点错位</span>
-          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>灰色点线：仅几何接近，A/B 是估算锚点，非共享</span>`;
+          <span class="graph-legend-item"><i class="graph-legend-line confirmed"></i>Green: shared anchor; arrows indicate a known parent → child direction</span>
+          <span class="graph-legend-item"><i class="graph-legend-line code"></i>Blue arrow: known parent → child direction; A/B are estimated, non-shared anchors</span>
+          <span class="graph-legend-item"><i class="graph-legend-line contact"></i>Yellow dashed line: contact only; A/B are estimated, non-shared anchors</span>
+          <span class="graph-legend-item"><i class="graph-legend-line broken"></i>Broken attachment / anchor misalignment</span>
+          <span class="graph-legend-item"><i class="graph-legend-line unknown"></i>Gray dotted line: geometric proximity only; A/B are estimated, non-shared anchors</span>`;
         return;
       }
       if (graphState.view === 'parts') {
         graphLegend.hidden = false;
         graphLegend.innerHTML = `
-          <span class="graph-legend-item"><i class="graph-legend-line static-code"></i>静态父子候选：尚未通过共享锚点验证</span>
-          <span class="graph-legend-item"><i class="graph-legend-line static-construction"></i>函数构建关系：不是几何实线边</span>`;
+          <span class="graph-legend-item"><i class="graph-legend-line static-code"></i>Static parent-child candidate: not yet validated as a shared anchor</span>
+          <span class="graph-legend-item"><i class="graph-legend-line static-construction"></i>Function-construction relation: not a solid geometric edge</span>`;
         return;
       }
       graphLegend.hidden = true;
@@ -2601,50 +2601,50 @@
     function showAnchorEdgeDetail(edge) {
       const connector = isDirectedAnchorEdge(edge) ? ' → ' : ' — ';
       const contactLabel = edge.contact === null || edge.contact === undefined
-        ? '等待 Blender 5.0'
-        : (edge.contact ? '是' : '否');
+        ? 'Waiting for Blender 5.0'
+        : (edge.contact ? 'Yes' : 'No');
       const alignmentLabel = edge.geometric_anchor_aligned === null
         || edge.geometric_anchor_aligned === undefined
-        ? '等待 Blender 5.0'
-        : (edge.geometric_anchor_aligned ? '是' : '否');
+        ? 'Waiting for Blender 5.0'
+        : (edge.geometric_anchor_aligned ? 'Yes' : 'No');
       const lines = [
         `${edge.parent}${connector}${edge.child}`,
-        `关系：${runtimeRelationLabel(edge)}`,
-        `父子方向：${isDirectedAnchorEdge(edge) ? '已知' : '未知'}；接触：${contactLabel}；候选点落入距离阈值：${alignmentLabel}`,
-        `锚点性质：${edge.shared_anchor ? '共享锚点' : 'A/B 分离的非共享锚点候选'}`,
-        `锚点取得方式：${anchorMethodLabel(edge)}`,
-        `共享证据：${sharedAnchorEvidenceLabel(edge)}`,
-        `锚点间距：${formatGraphNumber(edge.anchor_gap)}；容差：${formatGraphNumber(edge.anchor_tolerance)}`,
+        `Relation: ${runtimeRelationLabel(edge)}`,
+        `Parent-child direction: ${isDirectedAnchorEdge(edge) ? 'Known' : 'Unknown'}; Contact: ${contactLabel}; Candidate within distance threshold: ${alignmentLabel}`,
+        `Anchor type: ${edge.shared_anchor ? 'Shared anchor' : 'Separate, non-shared A/B anchor candidates'}`,
+        `Anchor method: ${anchorMethodLabel(edge)}`,
+        `Shared evidence: ${sharedAnchorEvidenceLabel(edge)}`,
+        `Anchor gap: ${formatGraphNumber(edge.anchor_gap)}; Tolerance: ${formatGraphNumber(edge.anchor_tolerance)}`,
       ];
       const authoredSummary = authoredAnchorSummary(edge);
       if (authoredSummary) {
         lines.push(
           authoredSummary,
-          `父端锚点到主体顶点：${formatGraphNumber(edge.parent_anchor_vertex_gap)}；子端锚点到主体顶点：${formatGraphNumber(edge.child_anchor_vertex_gap)}`
+          `Parent anchor to body vertex: ${formatGraphNumber(edge.parent_anchor_vertex_gap)}; Child anchor to body vertex: ${formatGraphNumber(edge.child_anchor_vertex_gap)}`
         );
       }
       if (edge.parameter_invariance) {
         lines.push(
-          `参数扰动：父节点单独变大=${edge.parameter_invariance.parent_scale_passed ? '通过' : '失败'}；子节点单独变大=${edge.parameter_invariance.child_scale_passed ? '通过' : '失败'}`
+          `Parameter perturbation: enlarge parent only=${edge.parameter_invariance.parent_scale_passed ? 'Pass' : 'Fail'}; enlarge child only=${edge.parameter_invariance.child_scale_passed ? 'Pass' : 'Fail'}`
         );
       }
       if (edge.anchor_a?.length === 3 && edge.anchor_b?.length === 3) {
         lines.push(
-          `A 世界坐标：(${edge.anchor_a.map((value) => formatGraphNumber(value)).join(', ')})`,
-          `B 世界坐标：(${edge.anchor_b.map((value) => formatGraphNumber(value)).join(', ')})`
+          `A world coordinates: (${edge.anchor_a.map((value) => formatGraphNumber(value)).join(', ')})`,
+          `B world coordinates: (${edge.anchor_b.map((value) => formatGraphNumber(value)).join(', ')})`
         );
       }
       graphDetail.textContent = lines.join('\n');
     }
 
     function sharedAnchorCoordinate(edge) {
-      if (edge.anchor_a?.length !== 3 || edge.anchor_b?.length !== 3) return '坐标不可用';
+      if (edge.anchor_a?.length !== 3 || edge.anchor_b?.length !== 3) return 'Coordinates unavailable';
       const midpoint = edge.anchor_a.map((value, index) => (value + edge.anchor_b[index]) / 2);
       return `(${midpoint.map((value) => formatGraphNumber(value)).join(', ')})`;
     }
 
     function compactSharedAnchorCoordinate(edge) {
-      if (edge.anchor_a?.length !== 3 || edge.anchor_b?.length !== 3) return '坐标不可用';
+      if (edge.anchor_a?.length !== 3 || edge.anchor_b?.length !== 3) return 'Coordinates unavailable';
       const midpoint = edge.anchor_a.map((value, index) => (value + edge.anchor_b[index]) / 2);
       return midpoint.map((value) => {
         const normalized = Math.abs(value) < 0.005 ? 0 : value;
@@ -2653,59 +2653,59 @@
     }
 
     function anchorPointCoordinate(values) {
-      if (values?.length !== 3) return '坐标不可用';
+      if (values?.length !== 3) return 'Coordinates unavailable';
       return `(${values.map((value) => formatGraphNumber(value)).join(', ')})`;
     }
 
     function anchorIssueLabel(edge) {
-      if (edge.runtime_pending) return '代码父子关系已识别；等待 Blender 计算 A/B 锚点';
-      if (edge.parameter_invariance_failed) return '默认锚点成立，但改变父/子尺寸后失效';
-      if (edge.relation === 'BROKEN_ATTACHMENT') return '断裂：连接锚点未对齐';
+      if (edge.runtime_pending) return 'Code parent-child relation found; waiting for Blender to compute A/B anchors';
+      if (edge.parameter_invariance_failed) return 'Default anchor passes, but fails after changing the parent or child size';
+      if (edge.relation === 'BROKEN_ATTACHMENT') return 'Broken attachment: connection anchors are misaligned';
       const authored = authoredAnchorStats(edge);
       if (authored && authored.valid < authored.count) {
-        return `声明锚点 ${authored.valid}/${authored.count} 有效`;
+        return `Authored anchors: ${authored.valid}/${authored.count} valid`;
       }
       if (isDirectedAnchorEdge(edge) && edge.contact && !edge.shared_anchor) {
-        return '父子关系成立；A/B 是估算锚点，未共享';
+        return 'Parent-child relation confirmed; A/B are estimated anchors and are not shared';
       }
       if (edge.geometric_anchor_aligned && !edge.shared_anchor) {
-        return '几何接近；A/B 是估算锚点，未共享';
+        return 'Geometrically close; A/B are estimated anchors and are not shared';
       }
-      if (edge.contact && !edge.shared_anchor) return '对象接触，但 A/B 锚点不共享';
-      if (!edge.contact && !edge.shared_anchor) return '对象未接触，A/B 锚点不共享';
+      if (edge.contact && !edge.shared_anchor) return 'Objects are in contact, but the A/B anchors are not shared';
+      if (!edge.contact && !edge.shared_anchor) return 'Objects are not in contact, and the A/B anchors are not shared';
       return runtimeRelationLabel(edge);
     }
 
     function anchorMethodLabel(edge) {
       if (edge.shared_anchor && edge.parameter_invariance?.passed) {
-        return '源码显式共享锚点；Blender 5.0 已分别放大父节点和子节点并重新核验';
+        return 'Explicit shared anchor in source; Blender 5.0 revalidated it after independently enlarging the parent and child';
       }
-      if (edge.shared_anchor) return '源码显式共享锚点，并由 Blender 5.0 核验';
+      if (edge.shared_anchor) return 'Explicit shared anchor in source, verified by Blender 5.0';
       if (edge.anchor_method === 'static_source_attachment_pending_runtime') {
-        return '已从源码识别父子调用；A/B 世界坐标和接触状态正在由 Blender 5.0 计算';
+        return 'Parent-child call found in source; Blender 5.0 is computing A/B world coordinates and contact state';
       }
       if (edge.anchor_method === 'authored_local_mesh_vertices') {
         const summary = authoredAnchorSummary(edge);
         return edge.authored_anchor_valid
-          ? `${summary || '源码父/子局部锚点有效'}，并在世界坐标重合`
-          : `${summary || '源码传入了局部锚点，但至少一个端点无效'}；断开的小补丁不计作主体 Mesh 锚点`;
+          ? `${summary || 'Source-authored parent/child local anchors are valid'} and coincide in world space`
+          : `${summary || 'Source provides local anchors, but at least one endpoint is invalid'}; detached patches do not count as body-mesh anchors`;
       }
       if (edge.anchor_method === 'nearest_evaluated_mesh_vertex_samples') {
-        return 'Blender 5.0 从两张 Mesh 各取最多 96 个顶点样本，再选择距离最近的 A/B 点；这是估算，不是源码锚点';
+        return 'Blender 5.0 samples up to 96 vertices from each mesh and selects the nearest A/B points; these are estimates, not source-authored anchors';
       }
-      return edge.anchor_estimated ? '算法估算，非源码声明' : '未知';
+      return edge.anchor_estimated ? 'Algorithm estimate, not source-authored' : 'Unknown';
     }
 
     function sharedAnchorEvidenceLabel(edge) {
       return ({
-        runtime_direction: '运行时单向联动',
-        code_direction: '代码单向数据流',
-        runtime_or_code_coupling: '运行时双向联动或代码双向连接',
-        code_construction: '代码连接/构建记录',
-        explicit_anchor_id: '父子对象声明了相同锚点 ID',
-        declared_world_anchor: '源码声明了同一世界坐标锚点',
-        authored_anchor_pair: '源码声明了配对的父/子局部锚点',
-      })[edge.shared_anchor_evidence] || (edge.shared_anchor ? '已证明（未标注来源）' : '没有显式共享证据');
+        runtime_direction: 'One-way runtime coupling',
+        code_direction: 'One-way code data flow',
+        runtime_or_code_coupling: 'Bidirectional runtime coupling or code connection',
+        code_construction: 'Code connection/construction record',
+        explicit_anchor_id: 'Parent and child declare the same anchor ID',
+        declared_world_anchor: 'Source declares the same world-space anchor',
+        authored_anchor_pair: 'Source declares a paired parent/child local anchor',
+      })[edge.shared_anchor_evidence] || (edge.shared_anchor ? 'Proven (source not specified)' : 'No explicit shared evidence');
     }
 
     function renderSharedAnchorLanes(rawView, view) {
@@ -2713,10 +2713,10 @@
       if (!view.edges.length) {
         const message = makeSvg('text', { class: 'graph-empty', x: 410, y: 120 });
         message.textContent = graphState.anchorFocusNode
-          ? `${graphState.anchorFocusNode} 没有共享锚点关系`
-          : '当前模型没有共享锚点关系';
+          ? `${graphState.anchorFocusNode} has no shared-anchor relations`
+          : 'The current model has no shared-anchor relations';
         graphNodes.append(message);
-        graphStatus.textContent = `共享锚点 · 0/${rawView.edges.length} 条关系`;
+        graphStatus.textContent = `Shared Anchors · 0/${rawView.edges.length} relations`;
         graphState.positions = new Map();
         graphState.content = { minX: 0, minY: 0, width: 820, height: 240 };
         updateGraphTransform();
@@ -2777,10 +2777,10 @@
         meta.textContent = truncateNodeLabel(node.part_name || node.group || node.id, 34);
         group.append(meta);
         const title = makeSvg('title');
-        title.textContent = `${role}：${node.label}\n悬停：仅高亮这个对象；移开：取消全部高亮`;
+        title.textContent = `${role}: ${node.label}\nHover: highlight only this object; move away: clear all highlights`;
         group.append(title);
         group.addEventListener('pointerenter', () => {
-          highlightPreviewGraphNodes([node], view, `${role}：${node.label}`);
+          highlightPreviewGraphNodes([node], view, `${role}: ${node.label}`);
         });
         group.addEventListener('pointerleave', () => {
           clearPreviewPartHighlight();
@@ -2837,7 +2837,7 @@
           'data-anchor-edge': key,
           role: 'button',
           tabindex: '0',
-          'aria-label': `查看 ${edge.parent} 与 ${edge.child} 的共享锚点`,
+          'aria-label': `View the shared anchor between ${edge.parent} and ${edge.child}`,
         });
         center.append(makeSvg('rect', {
           x: 0,
@@ -2851,7 +2851,7 @@
           x: centerWidth / 2,
           y: 16,
         });
-        centerTitle.textContent = confirmed ? '共享锚点 · 确认父 → 子' : '共享锚点已证明 · 方向未知';
+        centerTitle.textContent = confirmed ? 'Shared Anchor · Confirmed Parent → Child' : 'Shared Anchor Proven · Direction Unknown';
         center.append(centerTitle);
         const coordinate = makeSvg('text', {
           class: 'anchor-lane-center-coordinate',
@@ -2866,15 +2866,15 @@
           y: 53,
         });
         const authored = authoredAnchorSummary(edge, true);
-        centerMeta.textContent = `${authored ? `${authored} · ` : ''}间距 ${formatGraphNumber(edge.anchor_gap)} · 容差 ${formatGraphNumber(edge.anchor_tolerance)}`;
+        centerMeta.textContent = `${authored ? `${authored} · ` : ''}Gap ${formatGraphNumber(edge.anchor_gap)} · Tolerance ${formatGraphNumber(edge.anchor_tolerance)}`;
         center.append(centerMeta);
         const centerTooltip = makeSvg('title');
-        centerTooltip.textContent = `${edge.parent} — ${edge.child}\n${runtimeRelationLabel(edge)}\n悬停：高亮两个对象并显示共享锚点；移开：取消全部高亮`;
+        centerTooltip.textContent = `${edge.parent} — ${edge.child}\n${runtimeRelationLabel(edge)}\nHover: highlight both objects and show the shared anchor; move away: clear all highlights`;
         center.append(centerTooltip);
         center.addEventListener('pointerenter', () => {
           const pairLabel = confirmed
-            ? `父节点：${edge.parent} + 子节点：${edge.child}`
-            : `端点 A：${edge.parent} + 端点 B：${edge.child}`;
+            ? `Parent: ${edge.parent} + Child: ${edge.child}`
+            : `Endpoint A: ${edge.parent} + Endpoint B: ${edge.child}`;
           highlightPreviewGraphNodes(
             [parentNode, childNode],
             view,
@@ -2887,9 +2887,9 @@
         });
 
         graphNodes.append(
-          endpointGroup(parentNode, leftX, endpointY, confirmed ? '父节点' : '端点 A', 'a'),
+          endpointGroup(parentNode, leftX, endpointY, confirmed ? 'Parent' : 'Endpoint A', 'a'),
           center,
-          endpointGroup(childNode, rightX, endpointY, confirmed ? '子节点' : '端点 B', 'b')
+          endpointGroup(childNode, rightX, endpointY, confirmed ? 'Child' : 'Endpoint B', 'b')
         );
         if (!positions.has(parentNode.id)) positions.set(parentNode.id, { x: leftX, y: endpointY });
         if (!positions.has(childNode.id)) positions.set(childNode.id, { x: rightX, y: endpointY });
@@ -2902,8 +2902,8 @@
         width: laneWidth + 16,
         height: view.edges.length * (laneHeight + laneGap) + 6,
       };
-      const focus = graphState.anchorFocusNode ? ` · 只看 ${graphState.anchorFocusNode}` : '';
-      graphStatus.textContent = `共享锚点 · ${view.edges.length} 条关系${focus} · 悬停父/子框只高亮对应对象；悬停中间框高亮双方和锚点；移开即清除`;
+      const focus = graphState.anchorFocusNode ? ` · Showing only ${graphState.anchorFocusNode}` : '';
+      graphStatus.textContent = `Shared Anchors · ${view.edges.length} relations${focus} · Hover a parent/child box to highlight that object; hover the center box to highlight both objects and the anchor; move away to clear`;
       updateGraphTransform();
     }
 
@@ -2912,10 +2912,10 @@
       if (!view.edges.length) {
         const message = makeSvg('text', { class: 'graph-empty', x: 470, y: 120 });
         message.textContent = graphState.anchorFocusNode
-          ? `${graphState.anchorFocusNode} 没有问题关系`
-          : '当前模型没有问题关系';
+          ? `${graphState.anchorFocusNode} has no issue relations`
+          : 'The current model has no issue relations';
         graphNodes.append(message);
-        graphStatus.textContent = `问题关系 · 0/${rawView.edges.length} 条关系`;
+        graphStatus.textContent = `Issue Relations · 0/${rawView.edges.length} relations`;
         graphState.positions = new Map();
         graphState.content = { minX: 0, minY: 0, width: 960, height: 240 };
         updateGraphTransform();
@@ -2975,7 +2975,7 @@
         meta.textContent = truncateNodeLabel(node.part_name || node.group || node.id, 30);
         group.append(meta);
         const title = makeSvg('title');
-        title.textContent = `${role}：${node.label}`;
+        title.textContent = `${role}: ${node.label}`;
         group.append(title);
         return group;
       }
@@ -3026,7 +3026,7 @@
           'data-anchor-edge': key,
           role: 'button',
           tabindex: '0',
-          'aria-label': `查看 ${edge.parent} 与 ${edge.child} 的锚点问题`,
+          'aria-label': `View the anchor issue between ${edge.parent} and ${edge.child}`,
         });
         center.append(makeSvg('rect', {
           x: 0,
@@ -3048,7 +3048,7 @@
           y: 34,
         });
         const authored = authoredAnchorStats(edge);
-        const pointKind = authored ? '声明锚点代表点' : '估算锚点';
+        const pointKind = authored ? 'authored-anchor representative' : 'estimated anchor';
         coordinateA.textContent = `A ${pointKind} ${anchorPointCoordinate(edge.anchor_a)}`;
         center.append(coordinateA);
         const coordinateB = makeSvg('text', {
@@ -3064,16 +3064,16 @@
           y: 66,
         });
         const authoredMeta = authoredAnchorSummary(edge, true);
-        meta.textContent = `${authoredMeta ? `${authoredMeta} · ` : ''}间距 ${formatGraphNumber(edge.anchor_gap)} · 接触 ${edge.contact ? '是' : '否'}`;
+        meta.textContent = `${authoredMeta ? `${authoredMeta} · ` : ''}Gap ${formatGraphNumber(edge.anchor_gap)} · Contact ${edge.contact ? 'Yes' : 'No'}`;
         center.append(meta);
         const tooltip = makeSvg('title');
         tooltip.textContent = `${edge.parent} — ${edge.child}\n${anchorIssueLabel(edge)}`;
         center.append(tooltip);
 
         graphNodes.append(
-          issueEndpointGroup(leftNode, leftX, endpointY, '对象 A', 'a'),
+          issueEndpointGroup(leftNode, leftX, endpointY, 'Object A', 'a'),
           center,
-          issueEndpointGroup(rightNode, rightX, endpointY, '对象 B', 'b')
+          issueEndpointGroup(rightNode, rightX, endpointY, 'Object B', 'b')
         );
         if (!positions.has(leftNode.id)) positions.set(leftNode.id, { x: leftX, y: endpointY });
         if (!positions.has(rightNode.id)) positions.set(rightNode.id, { x: rightX, y: endpointY });
@@ -3086,8 +3086,8 @@
         width: laneWidth + 16,
         height: view.edges.length * (laneHeight + laneGap) + 6,
       };
-      const focus = graphState.anchorFocusNode ? ` · 只看 ${graphState.anchorFocusNode}` : '';
-      graphStatus.textContent = `问题关系 · ${view.edges.length} 条${focus} · 点击中间问题卡同时高亮对象 A/B；仅几何接近但无连接证据的关系也归入此处`;
+      const focus = graphState.anchorFocusNode ? ` · Showing only ${graphState.anchorFocusNode}` : '';
+      graphStatus.textContent = `Issue Relations · ${view.edges.length}${focus} · Click the center issue card to highlight objects A/B together; geometric proximity without connection evidence also appears here`;
       updateGraphTransform();
     }
 
@@ -3102,7 +3102,7 @@
       if (!view.edges.length) {
         const empty = document.createElement('div');
         empty.className = 'anchor-relation-meta';
-        empty.textContent = `“${anchorModeLabel(graphState.anchorMode)}”模式下没有关系，请切换上方筛选。`;
+        empty.textContent = `No relations in “${anchorModeLabel(graphState.anchorMode)}” mode. Choose another filter above.`;
         anchorRelations.append(empty);
         return;
       }
@@ -3114,7 +3114,7 @@
         button.className = 'anchor-relation-card';
         button.dataset.anchorEdge = key;
         button.classList.toggle('active', graphState.selectedEdge === key);
-        button.setAttribute('aria-label', `查看第 ${index + 1} 条关系：${edge.parent} 到 ${edge.child}`);
+        button.setAttribute('aria-label', `View relation ${index + 1}: ${edge.parent} to ${edge.child}`);
 
         const swatch = document.createElement('span');
         swatch.className = `anchor-relation-swatch ${visual.className}`;
@@ -3125,7 +3125,7 @@
         const meta = document.createElement('span');
         meta.className = 'anchor-relation-meta';
         const authored = authoredAnchorSummary(edge, true);
-        meta.textContent = `${runtimeRelationLabel(edge)}${authored ? ` · ${authored}` : ''} · 间距 ${formatGraphNumber(edge.anchor_gap)}`;
+        meta.textContent = `${runtimeRelationLabel(edge)}${authored ? ` · ${authored}` : ''} · Gap ${formatGraphNumber(edge.anchor_gap)}`;
         content.append(main, meta);
         button.append(swatch, content);
         anchorRelations.append(button);
@@ -3143,10 +3143,10 @@
         const nodeById = new Map(view.nodes.map((node) => [node.id, node]));
         const endpoints = [nodeById.get(edge.parent), nodeById.get(edge.child)].filter(Boolean);
         const pairLabel = issuePair
-          ? `问题对象 A：${edge.parent} + 问题对象 B：${edge.child}`
+          ? `Issue object A: ${edge.parent} + Issue object B: ${edge.child}`
           : (isStrictAnchorEdge(edge)
-            ? `父节点：${edge.parent} + 子节点：${edge.child}`
-            : `端点 A：${edge.parent} + 端点 B：${edge.child}`);
+            ? `Parent: ${edge.parent} + Child: ${edge.child}`
+            : `Endpoint A: ${edge.parent} + Endpoint B: ${edge.child}`);
         highlightPreviewGraphNodes(
           endpoints,
           view,
@@ -3541,9 +3541,9 @@
     }
 
     function tree3dNodeRole(id, layout) {
-      if (layout.roots.has(id)) return '根父节点';
-      if (!(layout.outgoing.get(id) || []).length) return '纯子节点';
-      return '子节点 / 父节点';
+      if (layout.roots.has(id)) return 'Root Parent';
+      if (!(layout.outgoing.get(id) || []).length) return 'Leaf Child';
+      return 'Child / Parent';
     }
 
     function tree3dPairKey(parent, child) {
@@ -3676,7 +3676,7 @@
     }
 
     function updateTree3DSelectionStatus() {
-      const baseStatus = tree3dRoot.userData.baseStatus || '3D 层级树';
+      const baseStatus = tree3dRoot.userData.baseStatus || '3D Hierarchy';
       if (!tree3dSelection) {
         graphStatus.textContent = baseStatus;
         return;
@@ -3684,8 +3684,8 @@
       const visibleCount = tree3dSelection.partIds.size;
       const totalCount = tree3dLastView?.nodes?.length || visibleCount;
       graphStatus.textContent = visibleCount >= totalCount
-        ? `${baseStatus} · 当前节点链路覆盖整棵树，没有可弱化分支`
-        : `${baseStatus} · 已聚焦完整链路 ${visibleCount}/${totalCount} 个节点 · 其余分支已弱化`;
+        ? `${baseStatus} · The current node path covers the entire tree; there are no branches to dim`
+        : `${baseStatus} · Focused full path: ${visibleCount}/${totalCount} nodes · Other branches dimmed`;
     }
 
     function buildTree3DRealPart(node, position, role, view) {
@@ -3724,7 +3724,7 @@
         ? (nodeName.includes('topslab')
           ? 3.6
           : (nodeName.includes('bottomshelf') ? 3.25 : 2.2))
-        : (role === '根父节点' ? 1.8 : (role === '纯子节点' ? 1.25 : 1.5));
+        : (role === 'Root Parent' ? 1.8 : (role === 'Leaf Child' ? 1.25 : 1.5));
       const displayScale = targetSize / longest;
       const surfaceMeshes = [...group.children];
       for (const child of surfaceMeshes) {
@@ -3799,8 +3799,8 @@
       const view = tree3dSourceView();
       tree3dLastView = view;
       if (!view?.nodes?.length) {
-        graphStatus.textContent = '3D 层级树：当前没有可显示的零件节点';
-        tree3dControlNote.textContent = '等待父子关系数据';
+        graphStatus.textContent = '3D Hierarchy: no part nodes are available to display';
+        tree3dControlNote.textContent = 'Waiting for parent-child relation data';
         return;
       }
 
@@ -3823,16 +3823,16 @@
         const position = layout.positions.get(node.id);
         if (!position) continue;
         const role = tree3dNodeRole(node.id, layout);
-        const color = role === '根父节点'
+        const color = role === 'Root Parent'
           ? 0xf1c75b
-          : (role === '纯子节点' ? 0x98a2b7 : 0x68a7eb);
-        const radius = role === '根父节点' ? 0.32 : (role === '纯子节点' ? 0.19 : 0.26);
+          : (role === 'Leaf Child' ? 0x98a2b7 : 0x68a7eb);
+        const radius = role === 'Root Parent' ? 0.32 : (role === 'Leaf Child' ? 0.19 : 0.26);
         let mesh = graphState.tree3dShowRealParts
           ? buildTree3DRealPart(node, position, role, view)
           : null;
         if (!mesh) {
           mesh = new THREE.Mesh(
-            role === '纯子节点'
+            role === 'Leaf Child'
               ? new THREE.SphereGeometry(radius, 24, 16)
               : new THREE.IcosahedronGeometry(radius, 3),
             new THREE.MeshStandardMaterial({
@@ -3840,7 +3840,7 @@
               roughness: 0.46,
               metalness: 0.04,
               emissive: color,
-              emissiveIntensity: role === '根父节点' ? 0.16 : 0.07,
+              emissiveIntensity: role === 'Root Parent' ? 0.16 : 0.07,
             })
           );
           mesh.position.copy(position);
@@ -3854,13 +3854,13 @@
           displayedPartGroups.set(node.id, mesh);
         }
         const labelSprite = addTree3DLabel(
-          `${role === '根父节点' ? 'ROOT · ' : ''}${truncateNodeLabel(node.label || node.id, 28)}`,
-          position.clone().add(new THREE.Vector3(0, role === '根父节点' ? 0.53 : 0.42, 0)),
+          `${role === 'Root Parent' ? 'ROOT · ' : ''}${truncateNodeLabel(node.label || node.id, 28)}`,
+          position.clone().add(new THREE.Vector3(0, role === 'Root Parent' ? 0.53 : 0.42, 0)),
           {
-            border: role === '根父节点'
+            border: role === 'Root Parent'
               ? 'rgba(241, 199, 91, 0.76)'
-              : (role === '纯子节点' ? 'rgba(152, 162, 183, 0.48)' : 'rgba(104, 167, 235, 0.62)'),
-            background: role === '根父节点'
+              : (role === 'Leaf Child' ? 'rgba(152, 162, 183, 0.48)' : 'rgba(104, 167, 235, 0.62)'),
+            background: role === 'Root Parent'
               ? 'rgba(25, 22, 14, 0.84)'
               : 'rgba(9, 16, 25, 0.80)',
             focusPartId: node.id,
@@ -3870,7 +3870,7 @@
         labelSprite.userData.tree3dHitKey = `part:${node.id}`;
         labelSprite.userData.tree3dExportHide = true;
         tree3dInteractiveObjects.push(labelSprite);
-        if (role === '根父节点') {
+        if (role === 'Root Parent') {
           const exportRootLabel = addTree3DLabel(
             'ROOT',
             position.clone().add(new THREE.Vector3(
@@ -4138,7 +4138,7 @@
           const authored = authoredAnchorStats(edge);
           if (authored) {
             const issueLabel = addTree3DLabel(
-              `锚点 ${authored.valid}/${authored.count}`,
+              `Anchors ${authored.valid}/${authored.count}`,
               midpoint.clone().add(new THREE.Vector3(0, -0.32, 0)),
               {
                 fontSize: 15,
@@ -4175,7 +4175,7 @@
       const rootCount = layout.roots.size;
       const leafCount = view.nodes.filter((node) => !(layout.outgoing.get(node.id) || []).length).length;
       const middleCount = Math.max(0, view.nodes.length - rootCount - leafCount);
-      tree3dRoot.userData.baseStatus = `${graphState.tree3dShowRealParts ? '真实部件金字塔' : '3D 层级树'} · 顶层根父节点 ${rootCount} · 中间父/子节点 ${middleCount} · 底层纯子节点 ${leafCount}`;
+      tree3dRoot.userData.baseStatus = `${graphState.tree3dShowRealParts ? 'Real-Part Pyramid' : '3D Hierarchy'} · Top-level root parents ${rootCount} · Intermediate parent/child nodes ${middleCount} · Bottom-level leaf children ${leafCount}`;
       updateTree3DSelectionStatus();
       const authoredTotals = (view.edges || []).reduce(
         (totals, edge) => {
@@ -4189,9 +4189,9 @@
         { valid: 0, count: 0 }
       );
       const authoredNote = authoredTotals.count
-        ? ` · 声明锚点 ${authoredTotals.valid}/${authoredTotals.count}`
+        ? ` · Authored anchors ${authoredTotals.valid}/${authoredTotals.count}`
         : '';
-      tree3dControlNote.textContent = `共享关系 ${sharedCount}/${sharedEdges.length} · 问题关系 ${shownIssues}/${issueEdges.length}${authoredNote}`;
+      tree3dControlNote.textContent = `Shared relations ${sharedCount}/${sharedEdges.length} · Issue relations ${shownIssues}/${issueEdges.length}${authoredNote}`;
       applyTree3DSelectionAppearance();
       resizeTree3D();
       fitTree3D();
@@ -4279,28 +4279,28 @@
       if (hit.kind === 'part') {
         const parentCount = tree3dDirectedEdges(hit.view).filter((edge) => edge.child === hit.node.id).length;
         const childCount = tree3dDirectedEdges(hit.view).filter((edge) => edge.parent === hit.node.id).length;
-        tree3dTooltip.textContent = `${hit.node.label || hit.node.id}\n${hit.role}\n父节点 ${parentCount} · 子节点 ${childCount}`;
-        highlightPreviewGraphNodes([hit.node], hit.view, `${hit.role}：${hit.node.label || hit.node.id}`);
+        tree3dTooltip.textContent = `${hit.node.label || hit.node.id}\n${hit.role}\nParents ${parentCount} · Children ${childCount}`;
+        highlightPreviewGraphNodes([hit.node], hit.view, `${hit.role}: ${hit.node.label || hit.node.id}`);
         return;
       }
       const endpoints = [hit.parentNode, hit.childNode].filter(Boolean);
       if (hit.kind === 'anchor') {
         const authored = authoredAnchorSummary(hit.edge, true);
-        tree3dTooltip.textContent = `共享锚点世界坐标\n${sharedAnchorCoordinate(hit.edge)}\n${hit.edge.parent} → ${hit.edge.child}${authored ? `\n${authored}` : ''}`;
+        tree3dTooltip.textContent = `Shared-anchor world coordinates\n${sharedAnchorCoordinate(hit.edge)}\n${hit.edge.parent} → ${hit.edge.child}${authored ? `\n${authored}` : ''}`;
         highlightPreviewGraphNodes(
           endpoints,
           hit.view,
-          `父节点：${hit.edge.parent} + 子节点：${hit.edge.child}`,
+          `Parent: ${hit.edge.parent} + Child: ${hit.edge.child}`,
           hit.edge
         );
         return;
       }
       const authored = authoredAnchorSummary(hit.edge, true);
-      tree3dTooltip.textContent = `问题关系\n${anchorIssueLabel(hit.edge)}\n${hit.edge.parent} — ${hit.edge.child}${authored ? `\n${authored}` : ''}\n间距 ${formatGraphNumber(hit.edge.anchor_gap)}`;
+      tree3dTooltip.textContent = `Issue Relation\n${anchorIssueLabel(hit.edge)}\n${hit.edge.parent} — ${hit.edge.child}${authored ? `\n${authored}` : ''}\nGap ${formatGraphNumber(hit.edge.anchor_gap)}`;
       highlightPreviewGraphNodes(
         endpoints,
         hit.view,
-        `问题对象：${hit.edge.parent} + ${hit.edge.child}`,
+        `Issue objects: ${hit.edge.parent} + ${hit.edge.child}`,
         hit.edge
       );
     }
@@ -4341,9 +4341,9 @@
       const children = edges.filter((edge) => edge.parent === hit.node.id).map((edge) => edge.child);
       graphDetail.textContent = [
         `${hit.node.label || hit.node.id} · ${hit.role}`,
-        `父节点：${parents.length ? parents.join('、') : '无（根节点）'}`,
-        `直接子节点（${children.length}）：${children.length ? children.join('、') : '无（纯子节点）'}`,
-        '悬停该节点时，右侧三维模型只高亮对应零件。',
+        `Parents: ${parents.length ? parents.join(', ') : 'None (root node)'}`,
+        `Direct children (${children.length}): ${children.length ? children.join(', ') : 'None (leaf child)'}`,
+        'Hover this node to highlight only the corresponding part in the 3D model on the right.',
       ].join('\n');
     }
 
@@ -4375,12 +4375,12 @@
       if (!view || !view.nodes.length) {
         const message = makeSvg('text', { class: 'graph-empty', x: 210, y: 120 });
         message.textContent = graphState.view === 'anchors' && rawView?.nodes?.length
-          ? `“${anchorModeLabel(graphState.anchorMode)}”模式没有关系，请切换上方筛选`
-          : '当前代码没有识别到该类节点关系';
+          ? `No relations in “${anchorModeLabel(graphState.anchorMode)}” mode. Choose another filter above`
+          : 'The current code contains no recognized node relations of this type';
         graphNodes.append(message);
         graphStatus.textContent = graphState.view === 'anchors' && rawView
-          ? `${anchorModeLabel(graphState.anchorMode)} · 0/${rawView.nodes.length} 个节点 · 0/${rawView.edges.length} 条关系`
-          : '0 个节点 · 0 条父子关系';
+          ? `${anchorModeLabel(graphState.anchorMode)} · 0/${rawView.nodes.length} nodes · 0/${rawView.edges.length} relations`
+          : '0 nodes · 0 parent-child relations';
         graphState.content = { minX: 0, minY: 0, width: 420, height: 240 };
         updateGraphTransform();
         return;
@@ -4461,7 +4461,7 @@
         if (visual.markerEnd) edgePath.setAttribute('marker-end', visual.markerEnd);
         const edgeTitle = makeSvg('title');
         const anchorDetail = graphState.view === 'anchors'
-          ? `\n锚点间距：${formatGraphNumber(edge.anchor_gap)}\n容差：${formatGraphNumber(edge.anchor_tolerance)}`
+          ? `\nAnchor gap: ${formatGraphNumber(edge.anchor_gap)}\nTolerance: ${formatGraphNumber(edge.anchor_tolerance)}`
           : '';
         const titleConnector = graphState.view === 'anchors' && !isStrictAnchorEdge(edge)
           ? ' — '
@@ -4538,8 +4538,8 @@
           ? view.edges.filter((edge) => edge.parent === node.id || edge.child === node.id).length
           : outgoing.length;
         meta.textContent = graphState.view === 'anchors'
-          ? `${relationCount} 条可见关系`
-          : `${instance}${category}${outgoing.length} 子节点${line}`;
+          ? `${relationCount} visible relations`
+          : `${instance}${category}${outgoing.length} children${line}`;
         group.append(meta);
         const title = makeSvg('title');
         title.textContent = node.label;
@@ -4564,18 +4564,18 @@
       }
 
       const navigationHint = graphState.view === 'parts' || graphState.view === 'anchors'
-        ? '滚轮缩放'
-        : '滚轮上下浏览 · Ctrl/⌘+滚轮缩放';
+        ? 'Scroll to zoom'
+        : 'Scroll vertically · Ctrl/⌘ + scroll to zoom';
       if (graphState.view === 'anchors') {
-        const focus = graphState.anchorFocusNode ? ` · 聚焦 ${graphState.anchorFocusNode}` : '';
+        const focus = graphState.anchorFocusNode ? ` · Focused on ${graphState.anchorFocusNode}` : '';
         const runtimeNote = rawView.runtime_pending
-          ? ' · 当前先显示源码父子关系，Blender 5.0 正在补算接触与 A/B 坐标'
-          : (rawView.runtime_error ? ` · Blender 验证失败：${rawView.runtime_error}` : '');
+          ? ' · Showing source parent-child relations while Blender 5.0 computes contact and A/B coordinates'
+          : (rawView.runtime_error ? ` · Blender validation failed: ${rawView.runtime_error}` : '');
         graphStatus.textContent = rawView.edges.length
-          ? `${anchorModeLabel(graphState.anchorMode)} · 显示 ${layout.positions.size}/${rawView.nodes.length} 个节点 · ${layout.visibleEdges.length}/${relationView.edges.length} 条关系${focus}${runtimeNote} · 点击节点只看一跳关系，点击下方关系卡看端点与坐标`
-          : `锚点分析完成 · ${rawView.nodes.length} 个运行时 Mesh · 0 条物理父子关系 · 0 个共享锚点 · 点击节点可在右侧高亮整个 Mesh`;
+          ? `${anchorModeLabel(graphState.anchorMode)} · Showing ${layout.positions.size}/${rawView.nodes.length} nodes · ${layout.visibleEdges.length}/${relationView.edges.length} relations${focus}${runtimeNote} · Click a node to show one-hop relations; click a relation card below to inspect endpoints and coordinates`
+          : `Anchor analysis complete · ${rawView.nodes.length} runtime meshes · 0 physical parent-child relations · 0 shared anchors · Click a node to highlight its entire mesh on the right`;
       } else {
-        graphStatus.textContent = `${view.label} · ${layout.positions.size}/${view.nodes.length} 个节点 · ${layout.visibleEdges.length} 条关系 · ${navigationHint}`;
+        graphStatus.textContent = `${view.label} · ${layout.positions.size}/${view.nodes.length} nodes · ${layout.visibleEdges.length} relations · ${navigationHint}`;
       }
       updateGraphTransform();
     }
@@ -4647,11 +4647,11 @@
       const parents = view.edges.filter((edge) => edge.child === id);
       const children = view.edges.filter((edge) => edge.parent === id);
       const lines = [
-        `${node.label}${node.line ? ` · 源码 L${node.line}-${node.end_line || node.line}` : ''}`,
-        ...(node.part_name ? [`零件实例：${node.part_name}`] : []),
-        ...(node.group ? [`类别：${node.group}`] : []),
+        `${node.label}${node.line ? ` · Source L${node.line}-${node.end_line || node.line}` : ''}`,
+        ...(node.part_name ? [`Part instance: ${node.part_name}`] : []),
+        ...(node.group ? [`Category: ${node.group}`] : []),
         ...(graphState.view === 'parts'
-          ? [`渲染状态：${partNodeIsVisible(node) ? '显示' : '已隐藏'}（在左侧参数中切换）`]
+          ? [`Render state: ${partNodeIsVisible(node) ? 'Visible' : 'Hidden'} (toggle in the left parameter panel)`]
           : []),
       ];
       const relationLaneView = graphState.view === 'anchors'
@@ -4663,29 +4663,29 @@
         const partners = relatedEdges.map((edge) => relationLabel(
           edge.parent === id ? edge.child : edge.parent
         ));
-        const partnerTitle = graphState.anchorMode === 'issues' ? '问题关系对象' : '共享锚点对象';
-        lines.push(`${partnerTitle}（${partners.length}）：${partners.length ? partners.join('、') : '无'}`);
+        const partnerTitle = graphState.anchorMode === 'issues' ? 'Issue-relation objects' : 'Shared-anchor objects';
+        lines.push(`${partnerTitle} (${partners.length}): ${partners.length ? partners.join(', ') : 'None'}`);
       } else {
         lines.push(
-          `父节点：${parents.length ? parents.map((edge) => relationLabel(edge.parent)).join('、') : '无（根节点）'}`,
-          `直接子节点（${children.length}）：${children.length ? children.map((edge) => relationLabel(edge.child)).join('、') : '无'}`
+          `Parents: ${parents.length ? parents.map((edge) => relationLabel(edge.parent)).join(', ') : 'None (root node)'}`,
+          `Direct children (${children.length}): ${children.length ? children.map((edge) => relationLabel(edge.child)).join(', ') : 'None'}`
         );
       }
       if (graphState.view === 'anchors') {
         if (node.origin?.length === 3) {
-          lines.push(`世界原点：(${node.origin.map((value) => formatGraphNumber(value)).join(', ')})`);
+          lines.push(`World origin: (${node.origin.map((value) => formatGraphNumber(value)).join(', ')})`);
         }
         const relatedEdges = view.edges.filter(
           (edge) => (edge.parent === id || edge.child === id) && anchorEdgeMatches(edge)
         );
         lines.push(
-          `${anchorModeLabel(graphState.anchorMode)}：${relatedEdges.length} 条一跳关系`,
+          `${anchorModeLabel(graphState.anchorMode)}: ${relatedEdges.length} one-hop relations`,
           relationLaneView
-            ? `当前只显示涉及该对象的关系行；点击“返回总览”恢复全部${graphState.anchorMode === 'issues' ? '问题关系' : '共享锚点'}。`
-            : '图中已隐藏无关节点；点击下方任一关系卡查看两个端点和精确世界坐标。'
+            ? `Only relation rows involving this object are shown; click “Back to Overview” to restore all ${graphState.anchorMode === 'issues' ? 'issue relations' : 'shared anchors'}.`
+            : 'Unrelated nodes are hidden; click any relation card below to inspect both endpoints and exact world coordinates.'
         );
       }
-      if (node.parameters?.length) lines.push(`参数：${node.parameters.join(', ')}`);
+      if (node.parameters?.length) lines.push(`Parameters: ${node.parameters.join(', ')}`);
       if (node.evidence?.length) lines.push(...node.evidence);
       graphDetail.textContent = lines.join('\n');
       if (graphState.view === 'parts' || graphState.view === 'anchors') {
@@ -4707,14 +4707,14 @@
         button.disabled = !available;
         button.title = viewName === 'tree3d'
           ? (available
-            ? '打开可旋转的三维父子层级金字塔'
-            : '等待零件父子关系数据')
+            ? 'Open the rotatable 3D parent-child hierarchy pyramid'
+            : 'Waiting for part parent-child relation data')
           : (viewName === 'anchors'
           ? (!available
-            ? '正在等待 Blender 5.0 运行时锚点分析'
+            ? 'Waiting for Blender 5.0 runtime anchor analysis'
             : (!view.edges?.length
-              ? '打开查看：运行时对象存在，但没有物理父子/共享锚点关系'
-              : '打开锚点关系图'))
+              ? 'Open to inspect: runtime objects exist, but there are no physical parent-child or shared-anchor relations'
+              : 'Open the anchor-relation graph'))
           : '');
         button.classList.toggle('active', viewName === graphState.view);
         button.setAttribute('aria-pressed', String(viewName === graphState.view));
@@ -4735,22 +4735,22 @@
       graphState.anchorFocusNode = null;
       if (viewName !== 'anchors' && viewName !== 'tree3d' && graphPanel.classList.contains('graph-expanded')) {
         graphPanel.classList.remove('graph-expanded');
-        graphFullscreenButton.textContent = '放大图';
+        graphFullscreenButton.textContent = 'Enlarge Graph';
         graphFullscreenButton.setAttribute('aria-pressed', 'false');
-        tree3dFullscreenButton.textContent = '放大图';
+        tree3dFullscreenButton.textContent = 'Enlarge Graph';
         tree3dFullscreenButton.setAttribute('aria-pressed', 'false');
       }
       graphDetail.textContent = viewName === 'tree3d'
-        ? '3D 层级树：根父节点位于顶层；同时作为子节点和父节点的部件位于中间层；没有子节点的纯叶子统一位于底层。可独立显示共享锚点世界坐标节点和问题关系。'
+        ? '3D Hierarchy: root parents are at the top; parts that are both children and parents are in the middle; leaf-only children are at the bottom. Shared-anchor world-space nodes and issue relations can be displayed independently.'
         : (viewName === 'anchors'
         ? (!view.edges?.length
-          ? `Blender 5.0 运行时分析完成：${view.nodes.length} 个 Mesh，0 条物理父子关系，0 个共享锚点。点击唯一节点可在右侧高亮整个 Mesh。`
+          ? `Blender 5.0 runtime analysis complete: ${view.nodes.length} meshes, 0 physical parent-child relations, and 0 shared anchors. Click the only node to highlight its entire mesh on the right.`
           : (graphState.anchorMode === 'shared'
-          ? '每一行都是一组共享锚点关系。鼠标悬停父/子框只高亮对应对象；悬停中间共享锚点框会高亮双方并显示绿色锚点球；移开后清除全部高亮。'
+          ? 'Each row represents one shared-anchor relation. Hover a parent/child box to highlight that object; hover the center shared-anchor box to highlight both and show the green anchor sphere; move away to clear all highlights.'
           : (graphState.anchorMode === 'issues'
-            ? '每一行对照一组问题关系的 A/B 估算锚点坐标、间距与容差；点击中间的问题卡片会在右侧同时高亮对象 A 和 B。红色表示断裂或错位，橙色表示接触但锚点不共享。'
-            : '默认只显示父子方向。蓝色表示父→子已知但 A/B 只是估算锚点；只有绿色才是共享锚点。点击关系卡可查看估算方法和坐标。')))
-        : '点击节点可查看父节点、全部直接子节点和源码行号。');
+            ? 'Each row compares the estimated A/B anchor coordinates, gap, and tolerance for one issue relation. Click the center issue card to highlight objects A and B together on the right. Red indicates a broken or misaligned attachment; orange indicates contact without a shared anchor.'
+            : 'By default, only parent-child directions are shown. Blue means the parent → child direction is known but A/B are only estimated anchors; only green denotes a shared anchor. Click a relation card to inspect its estimation method and coordinates.')))
+        : 'Click a node to view its parents, all direct children, and source line numbers.');
       updateGraphTabs();
       renderGraph();
       requestAnimationFrame(resetGraphPosition);
@@ -4827,12 +4827,12 @@
       elements.field.classList.toggle('part-hidden', !isVisible);
       elements.button.classList.toggle('is-hidden', !isVisible);
       elements.button.textContent = isVisible
-        ? (control.is_leaf ? '隐藏叶子' : '隐藏节点')
-        : '恢复显示';
+        ? (control.is_leaf ? 'Hide Leaf' : 'Hide Node')
+        : 'Show Again';
       elements.button.setAttribute('aria-pressed', String(!isVisible));
       elements.button.setAttribute(
         'aria-label',
-        `${isVisible ? '隐藏' : '恢复显示'} ${control.label}`
+        `${isVisible ? 'Hide' : 'Show again'} ${control.label}`
       );
       elements.range.disabled = !isVisible;
       elements.number.disabled = !isVisible;
@@ -4989,8 +4989,8 @@
         controlsHost.append(section);
       }
       const parameterMode = schema.parameter_mode === 'native_rebuild'
-        ? '原生参数重建'
-        : (schema.parameter_mode === 'legacy_approx' ? '旧代码近似缩放' : '参数');
+        ? 'Native Parameter Rebuild'
+        : (schema.parameter_mode === 'legacy_approx' ? 'Legacy Approximate Scaling' : 'Parameters');
       panelTitle.textContent = `${schema.label} · ${parameterMode}`;
     }
 
@@ -5280,9 +5280,9 @@
         previewSelection.classList.toggle('missing', !anchorVisible);
         previewSelectionLabel.textContent = anchorVisible
           ? (edge.shared_anchor
-            ? `共享锚点：${label} · 黄色=父子零件；绿色球=双方共享的世界坐标`
-            : `锚点对：${label} · 青色球=A，紫色球=B，红色球=两点中间`)
-          : `未找到“${label}”对应的独立 Mesh`;
+            ? `Shared anchor: ${label} · Yellow = parent/child parts; green sphere = shared world coordinate`
+            : `Anchor pair: ${label} · Cyan sphere = A, purple sphere = B, red sphere = midpoint`)
+          : `No separate mesh found for “${label}”`;
         return;
       }
       let meshCount = 0;
@@ -5307,9 +5307,9 @@
       previewSelection.classList.remove('missing');
       previewSelectionLabel.textContent = anchorVisible
         ? (edge.shared_anchor
-          ? `高亮：${label} · ${meshCount} 个 Mesh · 黄色=父子零件；绿色球=共享锚点世界坐标`
-          : `高亮：${label} · ${meshCount} 个 Mesh · 青色球=A，紫色球=B`)
-        : `高亮：${label} · ${meshCount} 个 Mesh`;
+          ? `Highlighted: ${label} · ${meshCount} meshes · Yellow = parent/child parts; green sphere = shared-anchor world coordinate`
+          : `Highlighted: ${label} · ${meshCount} meshes · Cyan sphere = A, purple sphere = B`)
+        : `Highlighted: ${label} · ${meshCount} meshes`;
     }
 
     function highlightPreviewGraphNode(node, view) {
@@ -5401,14 +5401,14 @@
       if (!schema) return;
       if (generationRunning) {
         generationQueued = true;
-        setStatus('参数已更新；当前生成结束后会立即生成最新版本。');
+        setStatus('Parameters updated; the latest version will generate as soon as the current run finishes.');
         return;
       }
       generationRunning = true;
       generationQueued = false;
       const version = ++generationVersion;
       setLoading(true);
-      setStatus('Blender 正在重新生成模型…第一次通常需要几秒到几十秒。');
+      setStatus('Blender is regenerating the model… The first run usually takes several seconds.');
       renderButton.disabled = true;
       try {
         const response = await fetch('/api/render', {
@@ -5421,11 +5421,11 @@
         await loadGLB(result.url, version);
         const size = (result.bytes / 1024 / 1024).toFixed(2);
         const modeLabel = schema.parameter_mode === 'native_rebuild'
-          ? '原生参数 → 重建几何 → 重算锚点'
+          ? 'Native parameters → rebuild geometry → recompute anchors'
           : (schema.parameter_mode === 'legacy_approx'
-            ? '旧代码近似缩放（不保证锚点随尺寸更新）'
-            : '完整重建');
-        setStatus(`预览已更新 · ${modeLabel} · Blender ${result.seconds} 秒 · ${size} MB`, 'success');
+            ? 'Legacy approximate scaling (anchors may not update with size)'
+            : 'Full rebuild');
+        setStatus(`Preview updated · ${modeLabel} · Blender ${result.seconds} s · ${size} MB`, 'success');
       } catch (error) {
         setStatus(String(error.message || error), 'error');
       } finally {
@@ -5442,7 +5442,7 @@
       const encodedSource = encodeURIComponent(sourceId);
       const autoOpen = graphState.view === 'parts';
       if (autoOpen) {
-        graphStatus.textContent = '模型已显示；Blender 5.0 正在计算父子方向、接触和最近表面锚点候选…';
+        graphStatus.textContent = 'Model displayed; Blender 5.0 is computing parent-child directions, contact, and nearest-surface anchor candidates…';
       }
       try {
         const response = await fetch(`/api/runtime-graph?source=${encodedSource}&model=${encoded}`);
@@ -5478,9 +5478,9 @@
           for (const edge of fallback.edges || []) edge.runtime_pending = false;
           updateGraphTabs();
           renderGraph();
-          graphStatus.textContent = `已显示源码父子锚点图；Blender 运行验证失败：${fallback.runtime_error}`;
+          graphStatus.textContent = `Source parent-child anchor graph displayed; Blender runtime validation failed: ${fallback.runtime_error}`;
         } else if (graphState.view === 'parts') {
-          graphStatus.textContent = `静态父子树可用；运行时锚点分析失败：${String(error.message || error)}`;
+          graphStatus.textContent = `Static parent-child tree available; runtime anchor analysis failed: ${String(error.message || error)}`;
         }
       }
     }
@@ -5489,8 +5489,8 @@
       const raw = modelSelect.selectedOptions[0]?.dataset.validationTurn || '';
       validationTurnValue.textContent = raw || '—';
       validationTurnDisplay.title = raw
-        ? `该案例在第 ${raw} 次 structural validation 时首次通过`
-        : '当前代码源没有 Figure 3 的逐案例 validation turn 数据';
+        ? `This case first passed on structural-validation turn ${raw}`
+        : 'The current code source has no per-case validation-turn data for Figure 3';
     }
 
     async function selectModel(modelId, sourceId = sourceSelect.value) {
@@ -5500,8 +5500,8 @@
       rememberSelection(sourceId, modelId);
       updateValidationTurn();
       clearTimeout(renderTimer);
-      setStatus('正在读取参数和节点关系…');
-      graphStatus.textContent = '正在分析完整父子树…';
+      setStatus('Loading parameters and node relations…');
+      graphStatus.textContent = 'Analyzing the complete parent-child tree…';
       const encoded = encodeURIComponent(modelId);
       const encodedSource = encodeURIComponent(sourceId);
       const [schemaResponse, structureResponse] = await Promise.all([
@@ -5512,8 +5512,8 @@
         schemaResponse.json(),
         structureResponse.json(),
       ]);
-      if (!schemaResponse.ok) throw new Error(schemaResult.error || '读取参数失败');
-      if (!structureResponse.ok) throw new Error(structureResult.error || '读取节点关系失败');
+      if (!schemaResponse.ok) throw new Error(schemaResult.error || 'Failed to load parameters');
+      if (!structureResponse.ok) throw new Error(structureResult.error || 'Failed to load node relations');
       if (version !== selectionVersion || sourceSelect.value !== sourceId) return;
       schema = schemaResult;
       buildControls();
@@ -5527,7 +5527,7 @@
       modelSelect.classList.toggle('must-watch-selected', isMustWatch);
       modelSelect.setAttribute(
         'aria-label',
-        isMustWatch ? '选择模型，当前为必看模型' : '选择模型',
+        isMustWatch ? 'Select model; current model is marked Must Watch' : 'Select model',
       );
     }
 
@@ -5543,11 +5543,11 @@
       previousModelButton.disabled = modelSelect.disabled || !previousOption;
       nextModelButton.disabled = modelSelect.disabled || !nextOption;
       previousModelButton.title = previousOption
-        ? `打开当前数据集的上一个 seed：${previousOption.dataset.modelLabel || previousOption.textContent}（快捷键：←）`
-        : '已到当前数据集的第一个 seed';
+        ? `Open the previous seed in this dataset: ${previousOption.dataset.modelLabel || previousOption.textContent} (shortcut: ←)`
+        : 'Already at the first seed in this dataset';
       nextModelButton.title = nextOption
-        ? `打开当前数据集的下一个 seed：${nextOption.dataset.modelLabel || nextOption.textContent}（快捷键：→）`
-        : '已到当前数据集的最后一个 seed';
+        ? `Open the next seed in this dataset: ${nextOption.dataset.modelLabel || nextOption.textContent} (shortcut: →)`
+        : 'Already at the last seed in this dataset';
     }
 
     function selectAdjacentModel(offset) {
@@ -5588,8 +5588,8 @@
       modelSelect.classList.toggle('failed-selected', isFailed);
       failureCount.textContent = `(${currentFailedCount})`;
       failureToggleLabel.title = currentFailedCasesFile
-        ? `勾选状态保存到 ${currentFailedCasesFile}`
-        : '将当前案例标记为失败';
+        ? `Selection state saved to ${currentFailedCasesFile}`
+        : 'Mark the current case as failed';
       updateProblemClassifyButton();
     }
 
@@ -5613,7 +5613,7 @@
           }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || '保存失败案例标记失败');
+        if (!response.ok) throw new Error(result.error || 'Failed to save the failed-case mark');
         if (sourceSelect.value === sourceId && modelSelect.value === modelId) {
           option.dataset.failed = String(nextFailed);
           currentFailedCount = Number(result.failed_count) || 0;
@@ -5623,8 +5623,8 @@
           updateFailureControl();
           setStatus(
             nextFailed
-              ? `已标记失败：${option.dataset.modelLabel}`
-              : `已取消失败标记：${option.dataset.modelLabel}`,
+              ? `Marked as failed: ${option.dataset.modelLabel}`
+              : `Removed failed mark: ${option.dataset.modelLabel}`,
             'success',
           );
         }
@@ -5633,7 +5633,7 @@
           failureToggle.checked = previousFailed;
           updateFailureControl();
         }
-        setStatus(`失败标记保存失败：${String(error.message || error)}`, 'error');
+        setStatus(`Failed to save failed-case mark: ${String(error.message || error)}`, 'error');
       } finally {
         failureToggleLabel.classList.remove('saving');
         updateFailureControl();
@@ -5641,7 +5641,7 @@
     }
 
     function updateProblemClassifyButton() {
-      problemClassifyButton.textContent = `问题分类（${currentFailedCount}）`;
+      problemClassifyButton.textContent = `Classify Issues (${currentFailedCount})`;
       problemClassifyButton.disabled = currentFailedCount === 0;
       problemClassifyButton.classList.toggle('has-problems', currentFailedCount > 0);
     }
@@ -5669,10 +5669,10 @@
 
     function updateProblemProgress() {
       const classifiedCount = problemCases.filter(problemCaseIsClassified).length;
-      problemProgress.textContent = `已分类 ${classifiedCount} / ${problemCases.length}`;
+      problemProgress.textContent = `Classified ${classifiedCount} / ${problemCases.length}`;
       problemClassifyButton.title = problemCases.length
-        ? `打开问题分类；已分类 ${classifiedCount} / ${problemCases.length}`
-        : '当前数据集没有已标记的问题案例';
+        ? `Open issue classification; classified ${classifiedCount} / ${problemCases.length}`
+        : 'The current dataset has no marked issue cases';
     }
 
     function renderProblemCaseList() {
@@ -5682,7 +5682,7 @@
         const empty = document.createElement('div');
         empty.className = 'problem-empty-renders';
         empty.style.minHeight = '160px';
-        empty.textContent = '当前筛选下没有案例';
+        empty.textContent = 'No cases match the current filter';
         problemCaseList.append(empty);
         return;
       }
@@ -5732,18 +5732,18 @@
         for (const [index, url] of problemCase.renders.entries()) {
           const image = document.createElement('img');
           image.src = url;
-          image.alt = `${problemCase.label} 渲染视角 ${index + 1}`;
+          image.alt = `${problemCase.label} render view ${index + 1}`;
           image.loading = 'lazy';
           problemRenderGrid.append(image);
         }
       } else {
         const empty = document.createElement('div');
         empty.className = 'problem-empty-renders';
-        empty.textContent = '这个案例没有可用的 renders/Image_*.png\n可以点击“在主界面打开”查看实时模型。';
+        empty.textContent = 'This case has no available renders/Image_*.png files.\nClick “Open in Main View” to inspect the live model.';
         problemRenderGrid.append(empty);
       }
       problemFormDirty = false;
-      setProblemSaveStatus(record.updated_at ? `上次保存：${record.updated_at}` : '尚未分类');
+      setProblemSaveStatus(record.updated_at ? `Last saved: ${record.updated_at}` : 'Not yet classified');
       renderProblemCaseList();
       updateProblemNavigation();
     }
@@ -5757,7 +5757,7 @@
     }
 
     function allowDiscardProblemChanges() {
-      return !problemFormDirty || window.confirm('当前问题分类尚未保存，确定放弃这些修改吗？');
+      return !problemFormDirty || window.confirm('The current issue classification has not been saved. Discard these changes?');
     }
 
     function moveProblemCase(offset) {
@@ -5776,14 +5776,14 @@
         .map((input) => input.value);
       const notes = problemNotes.value.trim();
       if (!resolution && !issues.length && !notes) {
-        setProblemSaveStatus('请至少填写处理结论、问题类型或具体说明。', 'error');
+        setProblemSaveStatus('Provide at least a resolution, issue type, or detailed note.', 'error');
         return false;
       }
       problemSaveRunning = true;
       problemForm.querySelectorAll('input, textarea, button').forEach((element) => {
         element.disabled = true;
       });
-      setProblemSaveStatus('正在保存…');
+      setProblemSaveStatus('Saving…');
       try {
         const response = await fetch('/api/problem-classifications', {
           method: 'POST',
@@ -5797,7 +5797,7 @@
           }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || '保存问题分类失败');
+        if (!response.ok) throw new Error(result.error || 'Failed to save issue classification');
         const previousVisible = visibleProblemCases();
         const previousIndex = previousVisible.findIndex((item) => item.id === problemCase.id);
         problemCases = result.cases || problemCases;
@@ -5806,14 +5806,14 @@
         problemFormDirty = false;
         updateProblemProgress();
         renderProblemCaseList();
-        setProblemSaveStatus('已保存。', 'success');
+        setProblemSaveStatus('Saved.', 'success');
         if (moveNext) {
           const next = previousVisible[previousIndex + 1]
             || problemCases.find((item) => !problemCaseIsClassified(item));
           if (next) displayProblemCase(next.id);
         } else {
           displayProblemCase(problemCase.id);
-          setProblemSaveStatus('已保存。', 'success');
+          setProblemSaveStatus('Saved.', 'success');
         }
         return true;
       } catch (error) {
@@ -5831,7 +5831,7 @@
     async function openProblemClassifier() {
       if (!currentFailedCount) return;
       problemModalBackdrop.hidden = false;
-      problemCaseList.textContent = '正在读取问题案例…';
+      problemCaseList.textContent = 'Loading issue cases…';
       problemRenderGrid.replaceChildren();
       setProblemSaveStatus('');
       try {
@@ -5839,11 +5839,11 @@
           `/api/problem-classifications?source=${encodeURIComponent(sourceSelect.value)}`,
         );
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || '读取问题分类失败');
+        if (!response.ok) throw new Error(result.error || 'Failed to load issue classifications');
         problemCases = result.cases || [];
         problemClassificationsFile = result.file || '';
         problemClassificationFile.textContent = problemClassificationsFile
-          || '分类结果保存在当前数据集目录';
+          || 'Classifications are saved in the current dataset directory';
         updateProblemProgress();
         const preferred = problemCases.find((problemCase) => problemCase.id === modelSelect.value)
           || problemCases.find((problemCase) => !problemCaseIsClassified(problemCase))
@@ -5884,11 +5884,11 @@
       previousModelButton.disabled = true;
       nextModelButton.disabled = true;
       failureToggle.disabled = true;
-      setStatus('正在切换代码源…');
+      setStatus('Switching code source…');
       try {
         const response = await fetch(`/api/models?source=${encodeURIComponent(sourceId)}`);
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || '读取模型列表失败');
+        if (!response.ok) throw new Error(result.error || 'Failed to load model list');
         if (version !== selectionVersion || sourceSelect.value !== sourceId) return;
         currentFailedCount = Number(result.failed_count) || 0;
         currentFailedCasesFile = result.failed_cases_file || '';
@@ -5909,7 +5909,7 @@
         const preferred = result.models.find((model) => model.label === preferredLabel);
         const bird = result.models.find((model) => model.label === 'Bird_seed0');
         modelSelect.value = preferredModel?.id || preferred?.id || bird?.id || result.models[0]?.id || '';
-        if (!modelSelect.value) throw new Error('当前代码源没有可用模型');
+        if (!modelSelect.value) throw new Error('The current code source has no available models');
         updateModelWatchHighlight();
         updateValidationTurn();
         updateFailureControl();
@@ -5927,20 +5927,20 @@
       try {
         const response = await fetch('/api/sources');
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || '读取代码源失败');
+        if (!response.ok) throw new Error(result.error || 'Failed to load code sources');
         const remembered = readRememberedSelection();
-        mustWatchLegend.textContent = `★ 必看 ${result.must_watch_count || 0}`;
+        mustWatchLegend.textContent = `★ Must Watch ${result.must_watch_count || 0}`;
         for (const source of result.sources) {
           const option = document.createElement('option');
           option.value = source.id;
-          option.textContent = `${source.label}（${source.count}）`;
+          option.textContent = `${source.label} (${source.count})`;
           sourceSelect.append(option);
         }
         const rememberedSource = result.sources.find(
           (source) => source.id === remembered?.source,
         );
         sourceSelect.value = rememberedSource?.id || result.default || result.sources[0]?.id || '';
-        if (!sourceSelect.value) throw new Error('没有可用代码源');
+        if (!sourceSelect.value) throw new Error('No code sources are available');
         await loadModelsForSource(
           sourceSelect.value,
           '',
@@ -6005,13 +6005,13 @@
       }
 
       if (!selectedRemainsVisible && selectedEdge && nextMode === 'shared') {
-        graphDetail.textContent = `${selectedEdge.parent} → ${selectedEdge.child}\n这条父子方向没有通过共享锚点验证，因此不会出现在“共享锚点”。请到“问题关系”查看接触、间距和容差。`;
+        graphDetail.textContent = `${selectedEdge.parent} → ${selectedEdge.child}\nThis parent-child direction did not pass shared-anchor validation, so it does not appear under “Shared Anchors.” Open “Issue Relations” to inspect contact, gap, and tolerance.`;
       } else if (!selectedRemainsVisible && !focusRemainsVisible) {
         graphDetail.textContent = graphState.anchorMode === 'shared'
-          ? '共享锚点是父子方向的严格子集：还必须同时满足显式共享证据、几何接触和 A/B 锚点对齐。'
+          ? 'Shared anchors are a strict subset of parent-child directions: explicit shared evidence, geometric contact, and A/B anchor alignment must all pass.'
           : (graphState.anchorMode === 'issues'
-            ? '这里保留没有通过共享锚点验证的关系。点中间问题卡同时高亮 A/B。'
-            : `${anchorModeLabel(graphState.anchorMode)}模式：点击节点聚焦一跳关系，或点击关系卡查看端点和锚点坐标。`);
+            ? 'Relations that did not pass shared-anchor validation appear here. Click the center issue card to highlight A/B together.'
+            : `${anchorModeLabel(graphState.anchorMode)} mode: click a node to focus its one-hop relations, or click a relation card to inspect endpoints and anchor coordinates.`);
       }
       renderGraph();
       requestAnimationFrame(resetGraphPosition);
@@ -6022,18 +6022,18 @@
       graphState.selected = null;
       graphState.selectedEdge = null;
       graphDetail.textContent = graphState.anchorMode === 'shared'
-        ? '共享锚点总览：全部共享关系按独立横行排列，连线不会交叉。'
+        ? 'Shared-anchor overview: every shared relation is displayed in a separate row, so lines do not cross.'
         : (graphState.anchorMode === 'issues'
-          ? '问题关系总览：全部错误按独立横行排列，直接对照 A/B 估算锚点坐标。'
-          : `${anchorModeLabel(graphState.anchorMode)}总览：点击任一节点只看与它直接相连的关系。`);
+          ? 'Issue-relation overview: every issue is displayed in a separate row for direct comparison of estimated A/B anchor coordinates.'
+          : `${anchorModeLabel(graphState.anchorMode)} overview: click any node to show only its directly connected relations.`);
       renderGraph();
       requestAnimationFrame(resetGraphPosition);
     });
     function setGraphFullscreen(expanded) {
       graphPanel.classList.toggle('graph-expanded', expanded);
-      graphFullscreenButton.textContent = expanded ? '退出大图' : '放大图';
+      graphFullscreenButton.textContent = expanded ? 'Exit Expanded View' : 'Enlarge Graph';
       graphFullscreenButton.setAttribute('aria-pressed', String(expanded));
-      tree3dFullscreenButton.textContent = expanded ? '退出全屏' : '全屏';
+      tree3dFullscreenButton.textContent = expanded ? 'Exit Fullscreen' : 'Fullscreen';
       tree3dFullscreenButton.setAttribute('aria-pressed', String(expanded));
       requestAnimationFrame(resetGraphPosition);
     }
@@ -6283,7 +6283,7 @@
     });
     problemForm.addEventListener('input', () => {
       problemFormDirty = true;
-      setProblemSaveStatus('有尚未保存的修改。');
+      setProblemSaveStatus('There are unsaved changes.');
     });
     problemForm.addEventListener('submit', (event) => {
       event.preventDefault();

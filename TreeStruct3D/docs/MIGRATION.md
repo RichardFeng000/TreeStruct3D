@@ -3,9 +3,10 @@
 TreeStruct3D replaces the internal “Stage 7” experiment label with stable,
 responsibility-based names. The generation and validation sequence is unchanged.
 
-The former `StructGen3D3.0` and `validation_test` repositories are now two
-components of one TreeStruct3D monorepo. Their committed histories remain
-reachable from the unified `main` branch.
+The former `StructGen3D3.0` and `validation_test` repositories are now the
+`TreeStruct3D/` and `visual_validation/` components of one TreeStruct3D
+monorepo. Their committed histories remain reachable from the unified `main`
+branch.
 
 ## Renamed paths
 
@@ -16,6 +17,7 @@ reachable from the unified `main` branch.
 | `core/` | `treestruct3d/` |
 | `tests/test_stage7_isolation.py` | `tests/test_pipeline_contract.py` |
 | `achieve/` | `archive/` |
+| `validation_test/` | `visual_validation/` |
 | `prompts/text_to_3d_system_prompt.txt` | `prompts/blender_generation_system_prompt.txt` |
 | `prompts/structure_extraction_surface_attachment_system_prompt.txt` | `prompts/structure_blueprint_system_prompt.txt` |
 | `prompts/structure_extraction_system_prompt.txt` | `prompts/structure_blueprint_baseline_system_prompt.txt` |

@@ -30,7 +30,7 @@ reads benchmark reference Python files.
 - Python 3.9 or newer
 - Blender 5.0
 - An API endpoint supported by one of the configuration formats below
-- The sibling structural validation toolkit when structural checks are enabled
+- The sibling visual validation toolkit when structural checks are enabled
 
 Install the Python dependency in a virtual environment:
 
@@ -48,11 +48,11 @@ needed:
 export TREESTRUCT3D_BLENDER=/absolute/path/to/blender
 ```
 
-The monorepo's sibling `../validation_test` directory is selected by default.
-An external validator checkout can be selected explicitly:
+The monorepo's sibling `../visual_validation` directory is selected by default.
+An external visual-validation checkout can be selected explicitly:
 
 ```bash
-export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/validation_test
+export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/visual_validation
 ```
 
 ## Configuration
@@ -152,8 +152,8 @@ archive/                 inactive pre-release material
 ```
 
 This directory is the generation component of the TreeStruct3D monorepo. See
-[the repository-level overview](../README.md) for the integrated generator and
-structural validation layout.
+[the repository-level overview](../README.md) for the integrated generation and
+visual-validation layout.
 
 Names used by the public interface and saved artifacts are defined in
 [docs/NAMING.md](docs/NAMING.md). Benchmark instance IDs are intentionally not

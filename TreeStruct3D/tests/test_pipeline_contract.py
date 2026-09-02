@@ -205,10 +205,10 @@ class PipelineContractTest(unittest.TestCase):
         self.assertEqual(generate_3d.DEFAULT_STRUCTURE_CONTEXT_DIR, expected)
         self.assertEqual(extract_structure.DEFAULT_EXTRACTION_OUTPUT, expected)
 
-    def test_structural_validator_uses_the_existing_sibling_checkout_by_default(self):
+    def test_visual_validation_component_is_selected_by_default(self):
         self.assertEqual(
             generate_3d.DEFAULT_VALIDATOR_ROOT,
-            ROOT.parent / "validation_test",
+            ROOT.parent / "visual_validation",
         )
         source = (ROOT / "generate_3d.py").read_text(encoding="utf-8")
         self.assertIn("validate_with_structure_repair", source)

@@ -15,6 +15,12 @@ class MultipleDatasetsTest(unittest.TestCase):
         seed.mkdir(parents=True)
         (seed / f"{name}.py").write_text("value = 1\n", encoding="utf-8")
 
+    def test_validation_turn_metadata_default_is_component_local(self):
+        self.assertEqual(
+            model_playground.DEFAULT_VALIDATION_TURNS_CSV,
+            model_playground.DATASETS_DIR / "validation_turns.csv",
+        )
+
     def test_multiple_datasets_are_separate_frontend_sources(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

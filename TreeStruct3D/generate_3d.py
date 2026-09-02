@@ -89,7 +89,7 @@ DEFAULT_SYSTEM_PROMPT = REPO_ROOT / "prompts" / "blender_generation_system_promp
 DEFAULT_VALIDATOR_ROOT = Path(
     os.environ.get(
         "TREESTRUCT3D_VALIDATOR_ROOT",
-        str(REPO_ROOT.parent / "validation_test"),
+        str(REPO_ROOT.parent / "visual_validation"),
     )
 )
 RENDER_SCRIPT = REPO_ROOT / "treestruct3d" / "render.py"

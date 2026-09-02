@@ -11,5 +11,5 @@ Describe the change and the problem it addresses.
 ## Verification
 
 - [ ] `(cd TreeStruct3D && python -m unittest discover -s tests -v)`
-- [ ] `(cd validation_test && python -m unittest discover -s tests -v)`
+- [ ] `(cd visual_validation && python -m unittest discover -s tests -v)`
 - [ ] No credentials, local absolute paths, caches, or generated outputs are included.

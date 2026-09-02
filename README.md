@@ -31,18 +31,18 @@ TreeStruct3D is maintained as one monorepo with two top-level components:
 
 ```text
 TreeStruct3D/          generation, rendering, repair, and evaluation pipeline
-validation_test/      structural validation and interactive inspection toolkit
+visual_validation/    visual validation and interactive inspection toolkit
 ```
 
 The repository and its primary pipeline share the name `TreeStruct3D`. The
 inner `TreeStruct3D/` directory denotes the generation component, while the
-repository root integrates generation and validation. The path
-`validation_test/` is retained for compatibility; its public component name is
-the **TreeStruct3D Structural Validation Toolkit**.
+repository root integrates generation and validation. The
+`visual_validation/` component provides interactive inspection together with
+the automated structural checks used by the pipeline.
 
 Detailed component documentation is available in
 [TreeStruct3D/README.md](TreeStruct3D/README.md) and
-[validation_test/README.md](validation_test/README.md).
+[visual_validation/README.md](visual_validation/README.md).
 
 ## Requirements
 
@@ -67,7 +67,7 @@ Unit tests do not call model APIs or launch Blender:
 
 ```bash
 (cd TreeStruct3D && python -m unittest discover -s tests -v)
-(cd validation_test && python -m unittest discover -s tests -v)
+(cd visual_validation && python -m unittest discover -s tests -v)
 ```
 
 ## Quick start
@@ -92,18 +92,18 @@ cd TreeStruct3D
   --render-resolution 256
 ```
 
-TreeStruct3D resolves the validator from the sibling `validation_test/`
+TreeStruct3D resolves the validator from the sibling `visual_validation/`
 directory by default. The paths can also be selected explicitly:
 
 ```bash
 export TREESTRUCT3D_BLENDER=/absolute/path/to/blender
-export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/validation_test
+export TREESTRUCT3D_VALIDATOR_ROOT=/absolute/path/to/visual_validation
 ```
 
-Launch the local structural inspection interface from the repository root:
+Launch the local visual-validation interface from the repository root:
 
 ```bash
-./validation_test/start_model_playground.sh
+./visual_validation/start_model_playground.sh
 ```
 
 End-to-end generation can use paid APIs and Blender. Review the component
@@ -116,7 +116,7 @@ documentation and configuration before starting a full run.
 - Structure artifact: **structure blueprint**
 - Directed relation: **attachment**
 - Geometry-derived dependency: **shared anchor**
-- Validation component: **TreeStruct3D Structural Validation Toolkit**
+- Validation component: **TreeStruct3D Visual Validation Toolkit**
 
 Historical names such as `StructGen3D3.0` and `Stage 7` are retained only in
 migration documentation and compatibility readers. New code, artifacts, and

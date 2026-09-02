@@ -11,7 +11,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r TreeStruct3D/requirements.txt
 (cd TreeStruct3D && python -m unittest discover -s tests -v)
-(cd validation_test && python -m unittest discover -s tests -v)
+(cd visual_validation && python -m unittest discover -s tests -v)
 ```
 
 The unit suites must remain offline: they may not call model APIs or launch
@@ -37,9 +37,9 @@ Follow [TreeStruct3D/docs/NAMING.md](TreeStruct3D/docs/NAMING.md). Active code
 uses responsibility-based names rather than internal stage numbers or temporary
 labels such as `new`, `latest`, or `final`.
 
-The directory `validation_test/` is a compatibility path. In prose, refer to
-that component as the **TreeStruct3D Structural Validation Toolkit** or the
-**structural validator**.
+Refer to `visual_validation/` as the **TreeStruct3D Visual Validation Toolkit**.
+Use **structural validator** only for the automated hierarchy, contact, anchor,
+and parameter-perturbation checks inside that component.
 
 ## Credentials, data, and generated files
 

@@ -85,13 +85,13 @@ PROBLEM_ISSUES = {
     "runtime_error",
     "other",
 }
-STRUCTURAL_CHECK_PER_SEED = (
-    APP_DIR.parent
-    / "Experiments"
-    / "section5_5"
-    / "structural_check_curve"
-    / "per_seed.csv"
-)
+DEFAULT_VALIDATION_TURNS_CSV = DATASETS_DIR / "validation_turns.csv"
+VALIDATION_TURNS_CSV = Path(
+    os.environ.get(
+        "TREESTRUCT3D_VALIDATION_TURNS_CSV",
+        str(DEFAULT_VALIDATION_TURNS_CSV),
+    )
+).expanduser()
 VALIDATION_MODEL_BY_DATASET = {
     "gpt5.5": "GPT-5.5",
     "gpt5.6_sol": "GPT-5.6 Sol",
@@ -120,7 +120,7 @@ class ModelEntry:
 
 
 def _load_validation_turns(
-    path: Path = STRUCTURAL_CHECK_PER_SEED,
+    path: Path = VALIDATION_TURNS_CSV,
 ) -> dict[tuple[str, str], int]:
     """Load the per-case first structural-validation pass used by Figure 3."""
     turns: dict[tuple[str, str], int] = {}
@@ -283,7 +283,7 @@ def _source_controls(source: Path) -> list[dict[str, Any]]:
         control: dict[str, Any] = {
             "id": f"source_override:{key}",
             "label": label,
-            "group": "代码参数",
+            "group": "Code Parameters",
             "value": value,
         }
         if isinstance(value, bool):
@@ -348,7 +348,7 @@ def _native_part_controls(source: Path) -> list[dict[str, Any]]:
             control: dict[str, Any] = {
                 "id": f"part_param|{part_id}|{parameter}",
                 "label": f"{part_id} · {parameter}",
-                "group": f"原生部件参数 · {part_id}",
+                "group": f"Native Part Parameters · {part_id}",
                 "value": value,
                 "node_id": part_id,
                 "parameter_mode": "native_rebuild",
@@ -380,8 +380,8 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
     controls: list[dict[str, Any]] = [
         {
             "id": "scale_x",
-            "label": "整体长度 X",
-            "group": "整体模型",
+            "label": "Overall Length X",
+            "group": "Overall Model",
             "type": "range",
             "min": 0.25,
             "max": 3.0,
@@ -390,8 +390,8 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
         },
         {
             "id": "scale_y",
-            "label": "整体宽度 Y",
-            "group": "整体模型",
+            "label": "Overall Width Y",
+            "group": "Overall Model",
             "type": "range",
             "min": 0.25,
             "max": 3.0,
@@ -400,8 +400,8 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
         },
         {
             "id": "scale_z",
-            "label": "整体高度 Z",
-            "group": "整体模型",
+            "label": "Overall Height Z",
+            "group": "Overall Model",
             "type": "range",
             "min": 0.25,
             "max": 3.0,
@@ -415,21 +415,21 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
     controls.append(
         {
             "id": "beak_select",
-            "label": "喙类型",
-            "group": "Bird 参数",
+            "label": "Beak Type",
+            "group": "Bird Parameters",
             "type": "select",
             "value": "",
             "options": [
-                {"value": "", "label": "原始混合"},
-                {"value": "normal", "label": "普通"},
-                {"value": "duck", "label": "鸭嘴"},
-                {"value": "eagle", "label": "鹰嘴"},
-                {"value": "short", "label": "短喙"},
+                {"value": "", "label": "Original Blend"},
+                {"value": "normal", "label": "Standard"},
+                {"value": "duck", "label": "Duck Bill"},
+                {"value": "eagle", "label": "Eagle Beak"},
+                {"value": "short", "label": "Short Beak"},
             ],
         }
     )
     role_labels = [
-        ("body", "create_nurbs_body() · body（最大父节点 Mesh）"),
+        ("body", "create_nurbs_body() · body (largest parent mesh)"),
         ("head", "create_head() · head"),
         ("beak", "create_beak_part() · beak"),
         ("eye", "create_eye() · eye"),
@@ -442,7 +442,7 @@ def _runtime_controls(is_bird: bool) -> list[dict[str, Any]]:
         {
             "id": f"part_scale_{role}",
             "label": label,
-            "group": "Bird 零件尺寸",
+            "group": "Bird Part Sizes",
             "type": "range",
             "min": 0.25,
             "max": 3.0,
@@ -486,16 +486,16 @@ def _part_node_controls(structure_data: dict[str, Any]) -> list[dict[str, Any]]:
         is_parent = node_id in parents or node_id in roots
         is_child = node_id in children
         if is_parent and is_child:
-            relation_label = "父/子节点"
+            relation_label = "Parent/Child Node"
         elif is_parent:
-            relation_label = "父节点"
+            relation_label = "Parent Node"
         else:
-            relation_label = "子节点"
+            relation_label = "Child Node"
         controls.append(
             {
                 "id": control_id,
                 "label": f"{relation_label} · {label}",
-                "group": "代码参数 · 父子节点（旧代码近似缩放）",
+                "group": "Code Parameters · Parent-Child Nodes (Legacy Approximate Scaling)",
                 "type": "range",
                 "min": 0.25,
                 "max": 3.0,
@@ -552,13 +552,13 @@ class PlaygroundState:
             custom_models = _model_catalog(dataset_root, source_id)
             if not custom_models:
                 raise SystemExit(
-                    "指定的数据集没有可运行模型。目录需要包含 "
-                    f"<seed>/<seed>.py，或本身是带同名 Python 的 seed 目录：{dataset_root}"
+                    "The specified dataset has no runnable models. The directory must contain "
+                    f"<seed>/<seed>.py or itself be a seed directory with a same-named Python file: {dataset_root}"
                 )
             custom_catalogs[source_id] = custom_models
             source_specs.append((source_id, dataset_label, dataset_root))
         source_specs.extend((
-            ("benchmark", "Benchmark 验证集", args.benchmark),
+            ("benchmark", "Benchmark Validation Set", args.benchmark),
             ("stage1", "Stage 1 Output", DEFAULT_STAGE1_OUTPUT),
             ("gpt5_6_sol", "Stage 1 · GPT-5.6-sol", DEFAULT_STAGE1_GPT56_SOL),
         ))
@@ -625,7 +625,7 @@ class PlaygroundState:
     def failed_cases_path(self, source_id: str) -> Path:
         root = self.source_roots.get(source_id)
         if root is None:
-            raise ValueError("未知代码源")
+            raise ValueError("Unknown code source")
         directory = root if root.is_dir() else root.parent
         return directory / FAILED_CASES_FILENAME
 
@@ -638,18 +638,18 @@ class PlaygroundState:
             except FileNotFoundError:
                 return set()
             except json.JSONDecodeError as exc:
-                raise ValueError(f"失败案例文件不是有效 JSON：{path}: {exc}") from exc
+                raise ValueError(f"Failed-case file is not valid JSON: {path}: {exc}") from exc
 
         if isinstance(payload, list):
             values = payload
         elif isinstance(payload, dict):
             values = payload.get("failed_cases", payload.get("failed_models", []))
         else:
-            raise ValueError(f"失败案例文件格式无效：{path}")
+            raise ValueError(f"Invalid failed-case file format: {path}")
         if not isinstance(values, list) or not all(
             isinstance(value, str) for value in values
         ):
-            raise ValueError(f"失败案例文件中的 failed_cases 必须是字符串列表：{path}")
+            raise ValueError(f"failed_cases in the failed-case file must be a list of strings: {path}")
         return set(values)
 
     def set_model_failed(
@@ -660,9 +660,9 @@ class PlaygroundState:
     ) -> dict[str, Any]:
         models = self.source_models(source_id)
         if models is None:
-            raise ValueError("未知代码源")
+            raise ValueError("Unknown code source")
         if model_id not in models:
-            raise ValueError("未知模型")
+            raise ValueError("Unknown model")
 
         path = self.failed_cases_path(source_id)
         with self.failed_cases_lock:
@@ -700,7 +700,7 @@ class PlaygroundState:
     def problem_classifications_path(self, source_id: str) -> Path:
         root = self.source_roots.get(source_id)
         if root is None:
-            raise ValueError("未知代码源")
+            raise ValueError("Unknown code source")
         directory = root if root.is_dir() else root.parent
         return directory / PROBLEM_CLASSIFICATIONS_FILENAME
 
@@ -712,12 +712,12 @@ class PlaygroundState:
             except FileNotFoundError:
                 return {}
             except json.JSONDecodeError as exc:
-                raise ValueError(f"问题分类文件不是有效 JSON：{path}: {exc}") from exc
+                raise ValueError(f"Issue-classification file is not valid JSON: {path}: {exc}") from exc
         if not isinstance(payload, dict):
-            raise ValueError(f"问题分类文件格式无效：{path}")
+            raise ValueError(f"Invalid issue-classification file format: {path}")
         cases = payload.get("cases", {})
         if not isinstance(cases, dict):
-            raise ValueError(f"问题分类文件中的 cases 必须是对象：{path}")
+            raise ValueError(f"cases in the issue-classification file must be an object: {path}")
         return {
             model_id: record
             for model_id, record in cases.items()
@@ -731,7 +731,7 @@ class PlaygroundState:
     def problem_cases_payload(self, source_id: str) -> dict[str, Any]:
         models = self.source_models(source_id)
         if models is None:
-            raise ValueError("未知代码源")
+            raise ValueError("Unknown code source")
         failed_models = self.failed_models(source_id)
         classifications = self.problem_classifications(source_id)
         cases = []
@@ -775,17 +775,17 @@ class PlaygroundState:
     ) -> dict[str, Any]:
         models = self.source_models(source_id)
         if models is None:
-            raise ValueError("未知代码源")
+            raise ValueError("Unknown code source")
         if model_id not in models:
-            raise ValueError("未知模型")
+            raise ValueError("Unknown model")
         if model_id not in self.failed_models(source_id):
-            raise ValueError("只能分类已标记为失败的案例")
+            raise ValueError("Only cases marked as failed can be classified")
         if resolution and resolution not in PROBLEM_RESOLUTIONS:
-            raise ValueError("处理结论无效")
+            raise ValueError("Invalid resolution")
         if any(issue not in PROBLEM_ISSUES for issue in issues):
-            raise ValueError("问题类型无效")
+            raise ValueError("Invalid issue type")
         if len(notes) > 8000:
-            raise ValueError("备注不能超过 8000 个字符")
+            raise ValueError("Notes cannot exceed 8,000 characters")
 
         path = self.problem_classifications_path(source_id)
         with self.problem_classifications_lock:
@@ -957,7 +957,7 @@ class PlaygroundState:
                 "parameters": [],
                 "docstring": None,
                 "evidence": [],
-                "group": "Blender 运行时零件",
+                "group": "Blender Runtime Parts",
                 "origin": node.get("origin"),
                 "center": node.get("center"),
                 "dimensions": node.get("dimensions"),
@@ -1042,12 +1042,12 @@ class PlaygroundState:
                 "relation": relation,
                 "line": line,
                 "evidence": (
-                    "共享锚点：父子方向、几何接触和显式共享锚点证据均通过"
+                    "Shared anchor: parent-child direction, geometric contact, and explicit shared-anchor evidence all passed"
                     if strict_shared_direction
                     else (
-                        "父子方向已知；A/B 坐标来自最近 Mesh 顶点采样，属于非共享锚点候选"
+                        "Parent-child direction known; A/B coordinates come from nearest-mesh-vertex samples and are non-shared anchor candidates"
                         if parent_child_known
-                        else "运行时几何关系；A/B 坐标来自最近 Mesh 顶点采样"
+                        else "Runtime geometric relation; A/B coordinates come from nearest-mesh-vertex samples"
                     )
                 ),
                 "directed_verified": runtime_direction,
@@ -1135,7 +1135,7 @@ class PlaygroundState:
                 ],
             }
         return {
-            "label": "运行时锚点关系图",
+            "label": "Runtime Anchor Relation Graph",
             "roots": roots,
             "nodes": nodes,
             "edges": edges,
@@ -1264,7 +1264,7 @@ class PlaygroundState:
                 edge["parameter_invariance_failed"] = True
                 edge["shared_anchor_evidence"] = None
                 edge["evidence"] = (
-                    "默认锚点成立，但父节点或子节点单独改变尺寸后失效"
+                    "The default anchor passes, but fails after independently changing the parent or child size"
                 )
 
         summary = view.setdefault("summary", {})
@@ -1285,7 +1285,7 @@ class PlaygroundState:
     def runtime_graph(self, entry: ModelEntry) -> dict[str, Any]:
         """Run the strict Blender-5 anchor/direction probe and cache its view."""
         if not RUNTIME_GRAPH_PROBE.is_file():
-            raise RuntimeError(f"找不到运行时锚点探针：{RUNTIME_GRAPH_PROBE}")
+            raise RuntimeError(f"Runtime anchor probe not found: {RUNTIME_GRAPH_PROBE}")
         source_stat = entry.source.stat()
         probe_stat = RUNTIME_GRAPH_PROBE.stat()
         payload = {
@@ -1354,13 +1354,13 @@ class PlaygroundState:
                     (completed.stdout + "\n" + completed.stderr).splitlines()[-24:]
                 )
                 raise RuntimeError(
-                    f"Blender 运行时锚点分析失败（退出码 {completed.returncode}）\n"
+                    f"Blender runtime anchor analysis failed (exit code {completed.returncode})\n"
                     f"{details}"
                 )
             report = json.loads(raw_output.read_text(encoding="utf-8"))
             raw_output.unlink(missing_ok=True)
             if report.get("status") != "ok":
-                raise RuntimeError(str(report.get("error") or "运行时锚点分析失败"))
+                raise RuntimeError(str(report.get("error") or "Runtime anchor analysis failed"))
             view = self._runtime_graph_view(report)
             if native_parts:
                 variants: dict[str, dict[str, Any]] = {}
@@ -1417,7 +1417,7 @@ class PlaygroundState:
 
     def render(self, entry: ModelEntry, params: dict[str, Any]) -> dict[str, Any]:
         if not self.blender.is_file() or not os.access(self.blender, os.X_OK):
-            raise RuntimeError(f"找不到 Blender：{self.blender}")
+            raise RuntimeError(f"Blender not found: {self.blender}")
 
         source_stat = entry.source.stat()
         worker = ALGORITHM_DIR / "blender_live_export.py"
@@ -1481,7 +1481,7 @@ class PlaygroundState:
                     if line.strip()
                 )
                 raise RuntimeError(
-                    f"Blender 生成失败（退出码 {completed.returncode}）\n"
+                    f"Blender generation failed (exit code {completed.returncode})\n"
                     + "\n".join(details.splitlines()[-24:])
                 )
             worker_report: dict[str, Any] = {}
@@ -1572,7 +1572,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             source_id = (query.get("source") or [self.state.default_source])[0]
             source_models = self.state.source_models(source_id)
             if source_models is None:
-                self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
+                self._json({"error": "Unknown code source"}, HTTPStatus.NOT_FOUND)
                 return
             try:
                 failed_models = self.state.failed_models(source_id)
@@ -1614,7 +1614,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             query = urllib.parse.parse_qs(parsed.query)
             source_id = (query.get("source") or [self.state.default_source])[0]
             if self.state.source_models(source_id) is None:
-                self._json({"error": "未知代码源"}, HTTPStatus.NOT_FOUND)
+                self._json({"error": "Unknown code source"}, HTTPStatus.NOT_FOUND)
                 return
             try:
                 failed_models = self.state.failed_models(source_id)
@@ -1671,7 +1671,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                 (query.get("model") or [None])[0],
             )
             if entry is None:
-                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                self._json({"error": "Unknown model"}, HTTPStatus.NOT_FOUND)
                 return
             self._json(self.state.schema(entry))
             return
@@ -1682,13 +1682,13 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                 (query.get("model") or [None])[0],
             )
             if entry is None:
-                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                self._json({"error": "Unknown model"}, HTTPStatus.NOT_FOUND)
                 return
             try:
                 self._json(self.state.structure(entry))
             except (OSError, UnicodeDecodeError, SyntaxError) as exc:
                 self._json(
-                    {"error": f"结构解析失败：{exc}"},
+                    {"error": f"Structure parsing failed: {exc}"},
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
             return
@@ -1699,18 +1699,18 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                 (query.get("model") or [None])[0],
             )
             if entry is None:
-                self._json({"error": "未知模型"}, HTTPStatus.NOT_FOUND)
+                self._json({"error": "Unknown model"}, HTTPStatus.NOT_FOUND)
                 return
             try:
                 self._json(self.state.runtime_graph(entry))
             except subprocess.TimeoutExpired:
                 self._json(
-                    {"error": f"Blender 锚点分析超过 {self.state.timeout} 秒"},
+                    {"error": f"Blender anchor analysis exceeded {self.state.timeout} seconds"},
                     HTTPStatus.GATEWAY_TIMEOUT,
                 )
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 self._json(
-                    {"error": f"运行时锚点分析失败：{exc}"},
+                    {"error": f"Runtime anchor analysis failed: {exc}"},
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
             return
@@ -1752,12 +1752,12 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
         except ValueError:
             length = 0
         if length <= 0 or length > MAX_REQUEST_BYTES:
-            self._json({"error": "请求大小无效"}, HTTPStatus.BAD_REQUEST)
+            self._json({"error": "Invalid request size"}, HTTPStatus.BAD_REQUEST)
             return
         try:
             request = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(request, dict):
-                raise ValueError("请求必须是 JSON 对象")
+                raise ValueError("Request must be a JSON object")
             if request_path == "/api/failures":
                 source_id = request.get("source")
                 model_id = request.get("model")
@@ -1767,7 +1767,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                     or not isinstance(model_id, str)
                     or not isinstance(failed, bool)
                 ):
-                    raise ValueError("代码源、模型或失败状态无效")
+                    raise ValueError("Invalid code source, model, or failure state")
                 result = self.state.set_model_failed(source_id, model_id, failed)
                 self._json(result)
                 return
@@ -1785,7 +1785,7 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
                     or not all(isinstance(issue, str) for issue in issues)
                     or not isinstance(notes, str)
                 ):
-                    raise ValueError("问题分类请求无效")
+                    raise ValueError("Invalid issue-classification request")
                 result = self.state.set_problem_classification(
                     source_id,
                     model_id,
@@ -1798,14 +1798,14 @@ class PlaygroundHandler(BaseHTTPRequestHandler):
             entry = self._entry(request.get("source"), request.get("model"))
             params = request.get("params", {})
             if entry is None or not isinstance(params, dict):
-                raise ValueError("模型或参数无效")
+                raise ValueError("Invalid model or parameters")
             params, adjusted = self.state.sanitize_params(entry, params)
             result = self.state.render(entry, params)
             if adjusted:
                 result["adjusted_params"] = adjusted
         except subprocess.TimeoutExpired:
             self._json(
-                {"error": f"Blender 生成超过 {self.state.timeout} 秒"},
+                {"error": f"Blender generation exceeded {self.state.timeout} seconds"},
                 HTTPStatus.GATEWAY_TIMEOUT,
             )
             return
@@ -1822,13 +1822,13 @@ def main() -> None:
     args = _arguments()
     state = PlaygroundState(args)
     if not state.models_by_source:
-        raise SystemExit("没有找到任何可用的模型代码源")
+        raise SystemExit("No available model code sources were found")
 
     server = ThreadingHTTPServer((args.host, args.port), PlaygroundHandler)
     server.state = state  # type: ignore[attr-defined]
     url = f"http://{args.host}:{args.port}/"
     print(
-        "代码源: "
+        "Code sources: "
         + ", ".join(
             f"{state.source_labels[source_id]}={len(models)}"
             for source_id, models in state.models_by_source.items()
@@ -1836,13 +1836,13 @@ def main() -> None:
     )
     print(f"Blender: {state.blender}")
     print(f"Blender version pin: {PINNED_BLENDER_VERSION}")
-    print(f"打开: {url}")
+    print(f"Open: {url}")
     if args.open:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n已停止。")
+        print("\nStopped.")
     finally:
         server.server_close()
 

@@ -1,13 +1,12 @@
-# TreeStruct3D Structural Validation Toolkit
+# TreeStruct3D Visual Validation Toolkit
 
-This directory contains TreeStruct3D's structural validation and interactive
+This directory contains TreeStruct3D's visual validation and interactive
 inspection component. It analyzes generated Blender Python programs, executes
-runtime probes, exports GLB previews, and visualizes part hierarchies and shared
-anchors in a local browser interface.
+automated structural probes, exports GLB previews, and visualizes part
+hierarchies and shared anchors in a local browser interface.
 
-`validation_test/` is retained as a compatibility path. It is not a separate
-product or Git repository; in documentation, its public name is the
-**TreeStruct3D Structural Validation Toolkit**. See the
+`visual_validation/` is not a separate product or Git repository. Its public
+name is the **TreeStruct3D Visual Validation Toolkit**. See the
 [repository overview](../README.md) for the complete generation-and-validation
 workflow.
 
@@ -23,7 +22,7 @@ workflow.
 ## Layout
 
 ```text
-validation_test/
+visual_validation/
 ├── frontend/                 browser interface and vendored Three.js modules
 ├── algorithm/                analysis, local service, and Blender export code
 │   ├── runtime/              self-contained Blender structural probe
@@ -55,27 +54,27 @@ Blender is resolved in this order:
 From the repository root:
 
 ```bash
-./validation_test/start_model_playground.sh
+./visual_validation/start_model_playground.sh
 ```
 
 Or launch the component directly:
 
 ```bash
-cd validation_test
+cd visual_validation
 ./run_model_playground.sh
 ```
 
 To inspect one or more explicit datasets or TreeStruct3D output directories:
 
 ```bash
-./validation_test/run_dataset.sh TreeStruct3D/outputs
-./validation_test/run_dataset.sh \
+./visual_validation/run_dataset.sh TreeStruct3D/outputs
+./visual_validation/run_dataset.sh \
   TreeStruct3D/outputs/first_run \
   TreeStruct3D/outputs/second_run
 ```
 
 Arguments may be dataset directories, individual seed directories, canonical
-Python files, or names found under `validation_test/datasets/` and
+Python files, or names found under `visual_validation/datasets/` and
 `TreeStruct3D/outputs/`. The first selected dataset becomes the initial browser
 source.
 
@@ -112,7 +111,7 @@ they are intended release annotations.
 From the repository root:
 
 ```bash
-(cd validation_test && python -m unittest discover -s tests -v)
+(cd visual_validation && python -m unittest discover -s tests -v)
 ```
 
 The unit suite does not start Blender. Runtime checks are separate and require

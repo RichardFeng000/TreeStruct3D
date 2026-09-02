@@ -1299,7 +1299,7 @@ def main() -> None:
     semantic_overlays = _finalize_semantic_snapshots()
     objects = _normalize_scene(params)
     if not objects:
-        raise RuntimeError("脚本执行完成，但场景中没有可导出的 Mesh")
+        raise RuntimeError("The script completed, but the scene contains no exportable mesh")
     _ensure_materials(objects)
     _export_glb(args.output.resolve(), objects)
     report = {

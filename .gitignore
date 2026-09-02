@@ -13,7 +13,7 @@
 !/.github/
 !/.github/**
 !/TreeStruct3D/
-!/validation_test/
+!/visual_validation/
 
 # Local migration recovery data must never be committed.
 /.monorepo-backup/

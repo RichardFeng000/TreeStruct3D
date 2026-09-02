@@ -1,6 +1,6 @@
 # Bird_seed0.py — Code Structure Tree
 
-Source: `/Users/fengruiding/Downloads/3d_code/validation_test/benchmark/categories/Bird_seed0/Bird_seed0.py`
+Source: `visual_validation/datasets/benchmark/categories/Bird_seed0/Bird_seed0.py`
 
 ## Text tree
 

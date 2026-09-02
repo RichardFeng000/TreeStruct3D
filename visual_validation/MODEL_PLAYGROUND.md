@@ -1,4 +1,4 @@
-# TreeStruct3D model inspector
+# TreeStruct3D visual validation interface
 
 The model inspector keeps the browser presentation layer separate from Blender
 execution and source analysis:
@@ -17,20 +17,20 @@ Blender, exports a fresh GLB, and returns it to the preview.
 From the monorepo root:
 
 ```bash
-./validation_test/start_model_playground.sh
+./visual_validation/start_model_playground.sh
 ```
 
 To load a specific dataset or seed as the initial source:
 
 ```bash
-./validation_test/run_dataset.sh validation_test/datasets/stage1_output
-./validation_test/run_dataset.sh TreeStruct3D/outputs/Chameleon_seed0
+./visual_validation/run_dataset.sh visual_validation/datasets/stage1_output
+./visual_validation/run_dataset.sh TreeStruct3D/outputs/Chameleon_seed0
 ```
 
 Multiple directories can be exposed as independent sources:
 
 ```bash
-./validation_test/run_dataset.sh first_output second_output
+./visual_validation/run_dataset.sh first_output second_output
 ```
 
 Use `MODEL_PLAYGROUND_PORT` to choose a port and
@@ -50,6 +50,11 @@ adjusting the target and distance to fit the current model.
 
 Source changes are isolated by dataset in the model catalog and cache key, so
 models with the same seed name cannot overwrite one another's previews.
+
+Optional first-passing-turn annotations are read from
+`datasets/validation_turns.csv`. Set `TREESTRUCT3D_VALIDATION_TURNS_CSV` to use
+another file. The CSV columns are `model`, `seed`, and `first_pass_check`; when
+the file is absent, the interface simply omits those annotations.
 
 ## Native parameter editing
 

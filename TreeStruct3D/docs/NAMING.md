@@ -12,9 +12,9 @@ not by the experiment stage in which it was introduced.
 - JSON schema namespace: `treestruct3d.`
 
 The repository contains two top-level components. `TreeStruct3D/` is the
-generation pipeline; `validation_test/` is the compatibility path for the
-**TreeStruct3D Structural Validation Toolkit**. Use the public component name
-in prose even when referring to that filesystem path.
+generation pipeline; `visual_validation/` is the **TreeStruct3D Visual
+Validation Toolkit**. Its automated structural validator is one capability of
+the component, not the name of the whole component.
 
 Do not introduce numbered names such as `stage7`, `v2_pipeline`, or `final` for
 active components. Use semantic names and reserve version numbers for explicit
@@ -33,6 +33,7 @@ file formats or releases.
 | 3D generation | Blueprint-guided Blender Python generation phase |
 | render validation | Syntax, Blender execution, and four-view rendering checks |
 | structural validation | Runtime hierarchy, contact, anchor, and parameter-perturbation checks |
+| visual validation | Interactive inspection of renders, part hierarchy, shared anchors, and review annotations |
 | visual refinement | Render critique performed only after deterministic validation passes |
 | run ID | Output directory and canonical generated-program stem for one model/instance run |
 | tree-only mechanism | Ablation that keeps the extracted hierarchy and `PART_PARAMS` but uses fixed-coordinate placement instead of shared anchors |

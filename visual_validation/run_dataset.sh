@@ -55,7 +55,7 @@ for selector in "${selectors[@]}"; do
     dataset_path="$legacy_pipeline_output_dir/$selector"
   else
     printf '错误：找不到数据集或 seed：%s\n' "$selector" >&2
-    printf '已检查 validation_test/datasets、TreeStruct3D/outputs 和旧版输出目录。\n' >&2
+    printf '已检查 visual_validation/datasets、TreeStruct3D/outputs 和旧版输出目录。\n' >&2
     exit 2
   fi
 

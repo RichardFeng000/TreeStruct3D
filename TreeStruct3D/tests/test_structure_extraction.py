@@ -226,7 +226,7 @@ class StructureExtractionTest(unittest.TestCase):
         tree = ast.parse(code)
         probe_path = (
             Path(__file__).resolve().parents[2]
-            / "validation_test"
+            / "visual_validation"
             / "algorithm"
             / "runtime"
             / "blender_probe.py"

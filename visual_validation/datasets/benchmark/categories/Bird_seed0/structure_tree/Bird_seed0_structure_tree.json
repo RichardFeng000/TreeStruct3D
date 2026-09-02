@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "source": "/Users/fengruiding/Downloads/3d_code/validation_test/benchmark/categories/Bird_seed0/Bird_seed0.py",
+  "source": "visual_validation/datasets/benchmark/categories/Bird_seed0/Bird_seed0.py",
   "summary": {
     "imports": 14,
     "constants": 17,

@@ -18,7 +18,7 @@ TreeStruct3D documents its modifications and attribution in the repository
 - Project: [Three.js](https://github.com/mrdoob/three.js)
 - Revision represented by the vendored core build: r166
 - License: MIT
-- Files: `validation_test/frontend/vendor/three.module.min.js`,
+- Files: `visual_validation/frontend/vendor/three.module.min.js`,
   `GLTFLoader.js`, `BufferGeometryUtils.js`, and `OrbitControls.js`
 
 The vendored core build retains its upstream SPDX license header. The Three.js
