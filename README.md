@@ -10,6 +10,8 @@ This repository is the official implementation of the research project
 **TreeStruct3D: Enabling Structural Editability in Agentic Procedural 3D
 Modeling**.
 
+Project website: <https://www.ruiding-feng.com/treeStruct3D/>
+
 ## Controlled editing at a glance
 
 ![Controlled editing comparisons between 3DCodeBench and TreeStruct3D across four vision-language models](figures/figure-1-controlled-editing.png)
