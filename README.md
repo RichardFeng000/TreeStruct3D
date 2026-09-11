@@ -12,6 +12,10 @@ Modeling**.
 
 Project website: <https://www.ruiding-feng.com/treeStruct3D/>
 
+## Method overview
+
+![TreeStruct3D workflow: predict a part tree, generate Blender code with geometry-derived anchors, test part edits, and repair broken attachments](figures/method-overview.png)
+
 ## Controlled editing at a glance
 
 ![Controlled editing comparisons between 3DCodeBench and TreeStruct3D across four vision-language models](figures/figure-1-controlled-editing.png)
