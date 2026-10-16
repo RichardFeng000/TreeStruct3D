@@ -24,3 +24,6 @@
 
 # Local migration recovery data must never be committed.
 /.monorepo-backup/
+
+# CS 549 deterministic course implementation.
+!/course_mvp/
