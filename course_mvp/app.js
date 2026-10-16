@@ -41,3 +41,5 @@ $('record').onclick=async()=>{
  later(130,()=>{caption='Return to one chair. Final roadmap: arbitrary meshes, child edits, and broader validation.';$('copies').value='1';stress();$('measure').click()});
  later(150,()=>{ended=true;recorder.stop();stream.getTracks().forEach(t=>t.stop());controls.autoRotate=false});
 };
+
+$('frame').onclick=()=>{camera.position.set(2.7,2.1,3);controls.target.set(0,.7,0);controls.update()};
