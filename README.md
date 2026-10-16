@@ -215,3 +215,7 @@ child-side edits; row labels inside the panels identify the edited attachment.
 *Figure 6. Selected TreeStruct3D examples. The four panels are qualitative
 stress tests; every depicted attachment passes the post-hoc contact checks at
 0.8× and 1.2×.*
+
+## CS 549 interactive MVP
+
+See [course_mvp/README.md](course_mvp/README.md) for strict local build/run instructions, seat-width edits, attachment failure controls, stress testing and the real-time demo recorder.
